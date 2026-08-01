@@ -4,18 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
-  <meta name="theme-color" content="#07110f">
-  <meta name="description" content="open-free-router 一键安装、Codex CLI、ChatGPT Codex 客户端、第三方模型配置和完整 API 使用指南。">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港完整安装指南：一键安装、Codex CLI、Codex 客户端、免费大模型配置与完整 API。">
+  <meta property="og:title" content="安装与使用指南 · 模力自由港">
+  <meta property="og:description" content="一键安装并把已验证免费大模型接入 Codex CLI 与客户端。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
-  <title>安装与使用指南 · open-free-router</title>
+  <title>安装与使用指南 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/guide/guide.css">
   <script src="/guide/guide.js" defer></script>
 </head>
 <body>
+  <div class="site-grid" aria-hidden="true"></div>
   <a class="skip-link" href="#install">跳到安装步骤</a>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="open-free-router 首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>OPEN FREE ROUTER</span></a>
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
     <nav aria-label="指南导航"><a href="#install">安装</a><a href="#codex-cli">Codex CLI</a><a href="#codex-app">Codex 客户端</a><a href="#commands">命令</a><a href="#api">API</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
@@ -23,8 +28,8 @@
   <main>
     <section class="guide-hero">
       <p class="eyebrow"><span></span> INSTALL & USE</p>
-      <h1>从零安装，<br><em>接入 Codex。</em></h1>
-      <p>面向 macOS、Linux、Codex CLI 和 ChatGPT 桌面客户端的完整说明。先启动本地安全代理，再用独立 profile 接入第三方免费模型，不覆盖你的正常 OpenAI 配置。</p>
+      <h1>把免费大模型，<br><em>接入 Codex。</em></h1>
+      <p>面向 macOS、Linux、Codex CLI 和桌面客户端的完整航海手册。先启动本地安全代理，再用独立 profile 接入已验证免费模型，不覆盖正常 OpenAI 配置。</p>
       <div class="path-cards"><article><b>01</b><span>安装路由</span><small>Python 3.11+ · 本地端口</small></article><article><b>02</b><span>配置提供商</span><small>密钥只保存在本机</small></article><article><b>03</b><span>连接 Codex</span><small>Responses API profile</small></article></div>
     </section>
 
@@ -33,8 +38,8 @@
       <div class="callout warning"><b>建议先检查脚本</b><p>最稳妥的做法是先下载、阅读，再执行。脚本不会收集或上传 API Key。</p></div>
       <div class="code-card"><div><span>推荐：下载、检查、安装</span><button data-copy="install-safe">复制</button></div><pre id="install-safe"><code>curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
 less /tmp/open-free-router-install.sh
-bash /tmp/open-free-router-install.sh --codex</code></pre></div>
-      <div class="code-card"><div><span>快捷：一条命令安装并配置 Codex</span><button data-copy="install-one">复制</button></div><pre id="install-one"><code>curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex</code></pre></div>
+bash /tmp/open-free-router-install.sh --codex --auto-discovery</code></pre></div>
+      <div class="code-card"><div><span>快捷：安装、配置 Codex 并启用模型雷达</span><button data-copy="install-one">复制</button></div><pre id="install-one"><code>curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex --auto-discovery</code></pre></div>
       <div class="steps"><article><b>1</b><h3>配置密钥</h3><pre><code>open-free-router setup</code></pre><p>逐个填写已有供应商的 Key；可跳过暂时不用的供应商。</p></article><article><b>2</b><h3>启动全部服务</h3><pre><code>open-free-router serve</code></pre><p>同时启动代理 8337、管理页 9057 和定时发现任务。</p></article><article><b>3</b><h3>检查健康状态</h3><pre><code>curl http://127.0.0.1:8337/health</code></pre><p>端口已占用通常表示服务已经启动，不要重复运行。</p></article></div>
     </section>
 
@@ -85,6 +90,6 @@ open-free-router sync --agent codex</code></pre></div>
     <section class="guide-section troubleshooting"><header><p class="eyebrow"><span></span> TROUBLESHOOTING</p><h2>常见问题</h2></header><details><summary>Address already in use</summary><p>8337 已被占用通常表示 open-free-router 已经运行。先执行 <code>lsof -nP -iTCP:8337 -sTCP:LISTEN</code>，不要启动第二个实例。</p></details><details><summary>模型出现在列表里，但工具调用失败</summary><p>“可见”不等于“工具已验证”。模型雷达会分别显示推理和工具能力；自动发现接入默认不会宣称工具调用已验证。</p></details><details><summary>Codex 看不到第三方 provider</summary><p>provider 必须放在用户级 profile，不能放项目级 .codex/config.toml。重新执行 <code>open-free-router sync --agent codex</code>，并用 <code>codex --profile open-free-router</code> 启动。</p></details></section>
   </main>
 
-  <footer><div><b>OPEN FREE ROUTER</b><span>Install once. Route locally.</span></div><p>第三方服务条款、免费额度和账户权限可能变化；生产使用前请核对提供商规则。</p><a href="/models/">查看模型雷达 →</a></footer>
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Powered by Open Free Router</small></span></div><p>第三方服务条款、免费额度和账户权限可能变化；生产使用前请核对提供商规则。</p><div class="footer-links"><a href="/models/">模型雷达</a><a href="/brand/">品牌页面</a><a href="/">返回首页</a></div></footer>
 </body>
 </html>

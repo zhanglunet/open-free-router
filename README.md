@@ -1,6 +1,8 @@
-# open-free-router
+# 模力自由港 · FreeModel Port
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装使用指南](https://oaf.asia/guide/) · [免费模型雷达](https://oaf.asia/models/)
+> **全球免费大模型，一站发现、实测、接入。** 由 Open Free Router 提供技术引擎。
+
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装使用指南](https://oaf.asia/guide/) · [免费模型雷达](https://oaf.asia/models/) · [品牌页面](https://oaf.asia/brand/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -13,7 +15,7 @@
 ```bash
 curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
 less /tmp/open-free-router-install.sh
-bash /tmp/open-free-router-install.sh --codex
+bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
 追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，Codex、Hermes、OpenCode、PI、OMP 共享模型。

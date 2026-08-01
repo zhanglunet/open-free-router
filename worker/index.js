@@ -37,13 +37,15 @@ function json(data, status = 200) {
 export function installManifest() {
   return {
     name: "open-free-router",
+    brand: "模力自由港",
+    brand_en: "FreeModel Port",
     repository: "https://github.com/zhanglunet/open-free-router",
     installer: "https://oaf.asia/install.sh",
-    one_liner: "curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex",
+    one_liner: "curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex --auto-discovery",
     safe_steps: [
       "curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh",
       "less /tmp/open-free-router-install.sh",
-      "bash /tmp/open-free-router-install.sh --codex",
+      "bash /tmp/open-free-router-install.sh --codex --auto-discovery",
     ],
     next: ["open-free-router setup", "open-free-router serve", "codex --profile open-free-router"],
   };

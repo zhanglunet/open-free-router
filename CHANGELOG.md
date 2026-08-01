@@ -4,6 +4,10 @@
 
 ### Added
 
+- “模力自由港 / FreeModel Port” brand identity, generated primary mark,
+  favicon, social card, dedicated `/brand/` page, and a complete deep-harbor
+  visual redesign across the homepage, free-model radar, guide, and 404 page.
+
 - Detailed `/guide/` for one-click installation, Codex CLI, the ChatGPT Codex
   desktop client, isolated profiles, troubleshooting, CLI commands, and APIs.
 - Public `/install.sh` plus machine-readable `/api/install` manifest.

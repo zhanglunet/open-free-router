@@ -14,6 +14,7 @@ const html = await readFile(resolve(output, "index.html"), "utf8");
 const modelsHtml = await readFile(resolve(output, "models", "index.html"), "utf8");
 const modelsJs = await readFile(resolve(output, "models", "models.js"), "utf8");
 const guideHtml = await readFile(resolve(output, "guide", "index.html"), "utf8");
+const brandHtml = await readFile(resolve(output, "brand", "index.html"), "utf8");
 const required = [
   "NoelJudeNoel/open-free-router",
   "系统架构",
@@ -38,6 +39,14 @@ for (const marker of ["Codex CLI", "Codex 客户端", "一键安装", "/v1/respo
   if (!guideHtml.includes(marker)) {
     throw new Error(`Generated guide is missing required content: ${marker}`);
   }
+}
+for (const marker of ["模力自由港", "FreeModel Port", "品牌宣言", "下载主 Logo PNG"]) {
+  if (!brandHtml.includes(marker)) {
+    throw new Error(`Generated brand page is missing required content: ${marker}`);
+  }
+}
+for (const asset of ["modelport-mark.png", "favicon.png", "og-modelport.jpg"]) {
+  await readFile(resolve(output, "assets", "brand", asset));
 }
 if (/AIza[0-9A-Za-z_-]{30,}|sk-[0-9A-Za-z]{20,}/.test(html)) {
   throw new Error("Generated site contains a credential-like value");
