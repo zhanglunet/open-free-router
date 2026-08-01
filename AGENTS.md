@@ -15,7 +15,8 @@
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Poll provider APIs for free model changes |
 | `open-free-router add NAME --base-url URL [--upstream-url URL] [--model ID] [--auto-refresh]` | Add a provider to registry |
-| `open-free-router sync [--agent omp,opencode] [--diff]` | Sync registry to OMP/OpenCode configs |
+| `open-free-router sync [--agent omp,opencode,codex] [--diff]` | Sync registry to agent configs; Codex uses an isolated profile |
+| `open-free-router token` | Print the local inference proxy bearer token |
 
 ## Config
 
@@ -42,7 +43,8 @@ src/open_free_router/
 ├── config.py           # Config class: loads config.yaml, resolves paths
 ├── registry.py         # Registry CRUD: ProviderConfig + ModelInfo dataclasses
 ├── registry.default.yaml  # Template with 10 upstream sources, no API keys
-├── proxy.py            # Single-port proxy (8337), routes by model ID to upstream
+├── proxy.py            # Single-port proxy (8337), auth + model-ID routing
+├── responses.py        # Codex Responses API compatibility over Chat Completions
 ├── refresh.py          # Dispatches per-provider refresh from refresh_sources/
 ├── refresh_sources/    # Pluggable: openrouter.py, nvidia_nim.py, groq.py, etc.
 ├── serve.py            # Daemon: proxy + UI + scheduler + Pi models.json writer
@@ -65,6 +67,7 @@ src/open_free_router/
 - **ModelInfo** fields: `id` (short display name, e.g. `glm-5.2`), `upstream_id` (optional, e.g. `z-ai/glm-5.2`, falls back to `id`)
 - **ProviderConfig** field: `prefix` (short channel prefix for model IDs, e.g. `nv`, `or`. Falls back to provider name)
 - **config.yaml `registry:` path** resolved relative to config's parent directory, not CWD
+- **Protocol surface** — health/models plus Chat Completions, Completions, Embeddings, and Responses.
 - **4 model ID formats** — proxy resolves all of them:
   1. bare id       `glm-5.2`
   2. prefix/id     `nv/glm-5.2`
@@ -80,15 +83,16 @@ src/open_free_router/
 
 ## Testing
 
-- `tests/test_registry.py` — 16 tests: ModelInfo, ProviderConfig, Registry CRUD, proxy index
+- `tests/test_responses.py` — auth, Responses conversion, SSE text/function calls, live index rebuild
+- `tests/test_sync_codex.py` — Codex profile and upstream-key isolation
 - `tests/test_config.py` — 4 tests: defaults, custom values, registry path resolution
 - `tests/test_serve.py` — 2 tests: Pi models.json format, skip when no Pi dir
 - Run: `pip install -e ".[dev]" && python3 -m pytest tests/ -v`
 - No CI/CD configured yet
 
-## Supported providers (10)
+## Supported providers (11)
 
-openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside
+openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside, gitee-ai
 
 ## Related
 

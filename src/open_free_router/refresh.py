@@ -17,6 +17,7 @@ from open_free_router.refresh_sources import (
     sensenova,
     stepfun,
     opencode_zen,
+    gitee_ai,
 )
 
 # Map registry provider name -> refresh source module
@@ -31,6 +32,7 @@ SOURCE_MAP = {
     "sensenova": sensenova,
     "stepfun": stepfun,
     "opencode-zen-free": opencode_zen,
+    "gitee-ai": gitee_ai,
 }
 
 
@@ -73,9 +75,20 @@ def refresh(reg: Registry, provider_name: str | None = None) -> Dict[str, bool]:
             results[name] = False
             continue
 
-        current_ids = [m.id for m in p.models]
-        new_ids = [m.id for m in new_models]
-        changed = current_ids != new_ids
+        def fingerprint(model):
+            return (
+                model.id,
+                model.effective_upstream_id,
+                model.name or model.id,
+                model.context_window,
+                model.max_tokens,
+                model.reasoning,
+                model.tool_calling,
+            )
+
+        current_models = [fingerprint(m) for m in p.models]
+        new_model_data = [fingerprint(m) for m in new_models]
+        changed = current_models != new_model_data
         if changed:
             reg.update_models(name, new_models)
             print(f"  ✓ {name} updated: {len(new_models)} models")

@@ -12,10 +12,11 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import sys
 from datetime import date
 from pathlib import Path
 
-from open_free_router.registry import Registry
+from open_free_router.registry import Registry, codex_model_alias
 
 # ── Paths ──
 OMP_MODELS = Path.home() / ".omp" / "agent" / "models.yml"
@@ -23,10 +24,23 @@ OMP_CONFIG = Path.home() / ".omp" / "agent" / "config.yml"
 OPENCODE_CONFIG = Path.home() / ".config" / "opencode" / "opencode.jsonc"
 HERMES_CONFIG = Path.home() / ".hermes" / "config.yaml"
 PI_MODELS_PATH = Path.home() / ".pi" / "agent" / "models.json"
+CODEX_PROFILE = Path.home() / ".codex" / "open-free-router.config.toml"
+CODEX_MODEL_CATALOG = Path.home() / ".codex" / "open-free-router.models.json"
 BACKUP_DIR = Path.home() / ".openclaw" / "agent-backup" / date.today().isoformat()
 
+CODEX_BASE_INSTRUCTIONS = (
+    "You are Codex, a coding agent working in the user's current workspace. "
+    "Follow the user's instructions and repository guidance, use the available "
+    "tools when useful, preserve unrelated changes, and verify completed work."
+)
 
-def write_pi_models(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.0.0.1:8337/v1") -> list[str]:
+
+def write_pi_models(
+    reg: Registry,
+    do_write: bool = True,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+) -> list[str]:
     """Write registry models to Pi's models.json if Pi config dir exists.
 
     Pi expects {providers: {name: {baseUrl, models: [...]}}}
@@ -72,24 +86,32 @@ def write_pi_models(reg: Registry, do_write: bool = True, proxy_url: str = "http
 def _backup():
     """Backup agent config files before overwriting."""
     BACKUP_DIR.mkdir(parents=True, exist_ok=True)
-    for f in [OMP_MODELS, OMP_CONFIG, OPENCODE_CONFIG, HERMES_CONFIG]:
+    for f in [
+        OMP_MODELS,
+        OMP_CONFIG,
+        OPENCODE_CONFIG,
+        HERMES_CONFIG,
+        CODEX_PROFILE,
+        CODEX_MODEL_CATALOG,
+    ]:
         if f.exists():
             shutil.copy2(str(f), str(BACKUP_DIR / f.name))
 
 
-def _mask_key(key: str) -> str:
-    """Return the real API key, or a placeholder if none is configured.
-
-    The proxy needs real upstream keys to authenticate with provider APIs.
-    Using masked/fake keys would cause all requests to fail with auth errors.
-    """
-    return key or "sk-no-key"
+def _local_proxy_key(proxy_token: str) -> str:
+    """Credential downstream agents send to the local proxy."""
+    return proxy_token or "sk-no-key"
 
 
 # ══════════════════════════════════════
 # OMP sync
 # ══════════════════════════════════════
-def sync_omp(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.0.0.1:8337/v1") -> list[str]:
+def sync_omp(
+    reg: Registry,
+    do_write: bool = True,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+) -> list[str]:
     """Sync registry → OMP models.yml.
 
     First removes ALL providers that point to the local proxy, then writes
@@ -150,7 +172,7 @@ def sync_omp(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.
 
     changes = []
     for name, p in reg.providers.items():
-        key = _mask_key(p.effective_key)
+        key = _local_proxy_key(proxy_token)
         block = CommentedMap()
         block["baseUrl"] = proxy_url
         block["apiKey"] = key
@@ -185,7 +207,12 @@ def sync_omp(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.
 # ══════════════════════════════════════
 # OpenCode sync
 # ══════════════════════════════════════
-def sync_opencode(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.0.0.1:8337/v1") -> list[str]:
+def sync_opencode(
+    reg: Registry,
+    do_write: bool = True,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+) -> list[str]:
     """Sync registry → OpenCode opencode.json.
 
     First removes ALL providers that point to the local proxy (baseURL
@@ -228,7 +255,7 @@ def sync_opencode(reg: Registry, do_write: bool = True, proxy_url: str = "http:/
     # Write fresh entries from registry
     changes = []
     for name, p in reg.providers.items():
-        key = _mask_key(p.effective_key)
+        key = _local_proxy_key(proxy_token)
         models_map = {}
         for m in p.models:
             mkey = m.id.split("/")[-1].replace(":free", "")
@@ -260,7 +287,12 @@ def sync_opencode(reg: Registry, do_write: bool = True, proxy_url: str = "http:/
 # ══════════════════════════════════════
 # Hermes sync
 # ══════════════════════════════════════
-def sync_hermes(reg: Registry, do_write: bool = True, proxy_url: str = "http://127.0.0.1:8337/v1") -> list[str]:
+def sync_hermes(
+    reg: Registry,
+    do_write: bool = True,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+) -> list[str]:
     """Ensure Hermes has a custom_providers entry pointing to the proxy.
 
     Hermes auto-discovers models from the /v1/models endpoint at runtime,
@@ -286,8 +318,6 @@ def sync_hermes(reg: Registry, do_write: bool = True, proxy_url: str = "http://1
         custom_providers = []
 
     changes = []
-    existing_names = {cp.get("name") for cp in custom_providers if isinstance(cp, dict)}
-
     # Check if we already have an entry pointing to our proxy
     has_entry = any(
         cp.get("base_url", "").rstrip("/") == proxy_url.rstrip("/")
@@ -295,20 +325,22 @@ def sync_hermes(reg: Registry, do_write: bool = True, proxy_url: str = "http://1
         if isinstance(cp, dict)
     )
 
-    if not has_entry:
-        # Add a custom_providers entry for the proxy
-        # Use the first provider's key as the API key
-        key = ""
-        for name, p in reg.providers.items():
-            if p.effective_key:
-                key = p.effective_key
-                break
+    for cp in custom_providers:
+        if not isinstance(cp, dict):
+            continue
+        if cp.get("base_url", "").rstrip("/") != proxy_url.rstrip("/"):
+            continue
+        local_key = _local_proxy_key(proxy_token)
+        if cp.get("api_key") != local_key:
+            cp["api_key"] = local_key
+            changes.append(cp.get("name", "open-free-router"))
 
+    if not has_entry:
         new_entry = {
             "name": "open-free-router",
             "api_mode": "chat_completions",
             "base_url": proxy_url,
-            "api_key": key or "sk-no-key",
+            "api_key": _local_proxy_key(proxy_token),
             "model": "glm-5.2",  # default model
             "context_length": 262144,
             "max_tokens": 16384,
@@ -330,9 +362,164 @@ def sync_hermes(reg: Registry, do_write: bool = True, proxy_url: str = "http://1
 
 
 # ══════════════════════════════════════
+# Codex profile sync
+# ══════════════════════════════════════
+def _codex_model_id(reg: Registry, requested: str = "") -> str:
+    for p in reg.providers.values():
+        for m in p.models:
+            forms = {
+                m.id,
+                f"{p.model_prefix}/{m.id}",
+                m.effective_upstream_id,
+                f"{p.name}/{m.effective_upstream_id}",
+                codex_model_alias(p.model_prefix, m.id),
+            }
+            if requested and requested in forms:
+                return codex_model_alias(p.model_prefix, m.id)
+    if requested:
+        raise ValueError(f"Codex model '{requested}' is not present in the registry")
+    for p in reg.providers.values():
+        for m in p.models:
+            if m.tool_calling:
+                return codex_model_alias(p.model_prefix, m.id)
+    raise ValueError(
+        "No Codex-compatible model found. Mark a registry model with "
+        "tool_calling: true or pass --codex-model."
+    )
+
+
+def sync_codex(
+    reg: Registry,
+    do_write: bool = True,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+    codex_model: str = "",
+) -> list[str]:
+    """Write an isolated Codex profile and model catalog for the proxy.
+
+    Codex does not discover custom-provider models from ``/v1/models``. It
+    needs ``model_catalog_json`` both to show them in ``/model`` and to avoid
+    falling back to guessed capability metadata.
+    """
+    model = _codex_model_id(reg, codex_model)
+    catalog_models = []
+    priority = 0
+    for provider in reg.providers.values():
+        for registry_model in provider.models:
+            slug = codex_model_alias(provider.model_prefix, registry_model.id)
+            tools_verified = registry_model.tool_calling or slug == model
+            catalog_models.append({
+                "slug": slug,
+                "display_name": registry_model.name or registry_model.id,
+                "description": (
+                    f"open-free-router via {provider.name}; "
+                    + ("tool calling enabled" if tools_verified else "tool calling not verified")
+                ),
+                "default_reasoning_level": None,
+                "supported_reasoning_levels": [],
+                "shell_type": "shell_command" if tools_verified else "disabled",
+                "visibility": "list",
+                "supported_in_api": True,
+                "priority": priority,
+                "additional_speed_tiers": [],
+                "service_tiers": [],
+                "availability_nux": None,
+                "upgrade": None,
+                "base_instructions": CODEX_BASE_INSTRUCTIONS,
+                "model_messages": None,
+                "include_skills_usage_instructions": False,
+                "default_reasoning_summary": "none",
+                "support_verbosity": False,
+                "default_verbosity": None,
+                "apply_patch_tool_type": "freeform" if tools_verified else None,
+                "web_search_tool_type": "text",
+                "truncation_policy": {
+                    "mode": "tokens",
+                    "limit": min(10_000, registry_model.max_tokens),
+                },
+                "supports_parallel_tool_calls": tools_verified,
+                "supports_image_detail_original": False,
+                "context_window": registry_model.context_window,
+                "max_context_window": registry_model.context_window,
+                "effective_context_window_percent": 95,
+                "experimental_supported_tools": [],
+                "input_modalities": ["text"],
+                "supports_search_tool": False,
+                "use_responses_lite": False,
+                "tool_mode": "direct" if tools_verified else None,
+            })
+            priority += 1
+
+    slugs = [item["slug"] for item in catalog_models]
+    if len(slugs) != len(set(slugs)):
+        raise ValueError("Codex model aliases collide; use distinct provider prefixes/model IDs")
+    catalog = {"models": catalog_models}
+    profile = f'''# Managed by open-free-router. Run with: codex --profile open-free-router
+model = {json.dumps(model)}
+model_provider = "open_free_router"
+model_catalog_json = {json.dumps(str(CODEX_MODEL_CATALOG))}
+include_apps_instructions = false
+
+# This isolated third-party profile does not depend on ChatGPT Apps or the
+# OpenAI Docs MCP. Disable them here so a connector handshake failure cannot
+# interrupt local-provider startup; the user's normal Codex profile is intact.
+[features]
+apps = false
+plugins = false
+memories = false
+
+[mcp_servers.openaiDeveloperDocs]
+url = "https://developers.openai.com/mcp"
+enabled = false
+
+# The user's global skill/plugin inventory is large enough to exceed Codex's
+# fixed 2% skill-description budget. Keep this router-specific profile lean;
+# the normal Codex profile still exposes every installed skill.
+[skills]
+include_instructions = false
+
+[model_providers.open_free_router]
+name = "open-free-router"
+base_url = {json.dumps(proxy_url)}
+wire_api = "responses"
+request_max_retries = 2
+stream_max_retries = 1
+
+[model_providers.open_free_router.auth]
+command = {json.dumps(sys.executable)}
+args = ["-m", "open_free_router.cli", "token"]
+timeout_ms = 5000
+refresh_interval_ms = 300000
+'''
+    if do_write:
+        CODEX_PROFILE.parent.mkdir(parents=True, exist_ok=True)
+        CODEX_MODEL_CATALOG.write_text(
+            json.dumps(catalog, indent=2, ensure_ascii=False) + "\n"
+        )
+        CODEX_PROFILE.write_text(profile)
+        try:
+            CODEX_PROFILE.chmod(0o600)
+            CODEX_MODEL_CATALOG.chmod(0o600)
+        except OSError:
+            pass
+        print(
+            f"  ✓ wrote Codex profile and {len(catalog_models)} model metadata entries "
+            f"({CODEX_PROFILE})"
+        )
+    return [model]
+
+
+# ══════════════════════════════════════
 # Main
 # ══════════════════════════════════════
-def sync_all(reg: Registry, do_write: bool = True, agents: list[str] | None = None, proxy_url: str = "http://127.0.0.1:8337/v1") -> dict[str, list[str]]:
+def sync_all(
+    reg: Registry,
+    do_write: bool = True,
+    agents: list[str] | None = None,
+    proxy_url: str = "http://127.0.0.1:8337/v1",
+    proxy_token: str = "",
+    codex_model: str = "",
+) -> dict[str, list[str]]:
     """Sync registry to all agents. Returns {agent: [changed_providers]}."""
     if agents is None:
         agents = ["pi", "omp", "opencode", "hermes"]
@@ -346,13 +533,21 @@ def sync_all(reg: Registry, do_write: bool = True, agents: list[str] | None = No
         "omp": sync_omp,
         "opencode": sync_opencode,
         "hermes": sync_hermes,
+        "codex": sync_codex,
     }
 
     for agent in agents:
         fn = sync_map.get(agent)
         if fn:
             try:
-                changes = fn(reg, do_write=do_write, proxy_url=proxy_url)
+                kwargs = {
+                    "do_write": do_write,
+                    "proxy_url": proxy_url,
+                    "proxy_token": proxy_token,
+                }
+                if agent == "codex":
+                    kwargs["codex_model"] = codex_model
+                changes = fn(reg, **kwargs)
                 results[agent] = changes
             except Exception as e:
                 results[agent] = [f"ERROR: {e}"]

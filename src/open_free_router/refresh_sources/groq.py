@@ -15,9 +15,10 @@ SOURCE_NAME = "groq"
 KNOWN_FREE = [
     "llama-3.3-70b-versatile",
     "llama-3.1-8b-instant",
-    "gemma2-9b-it",
-    "mixtral-8x7b-32768",
-    "llama-guard-3-8b",
+    "groq/compound",
+    "groq/compound-mini",
+    "openai/gpt-oss-20b",
+    "openai/gpt-oss-120b",
 ]
 
 
@@ -49,6 +50,7 @@ def fetch(provider_base_url: str, api_key: str | None = None) -> List[ModelInfo]
             context_window=int(ctx),
             max_tokens=min(int(ctx), 16384),
             reasoning="guard" not in mid.lower(),
+            tool_calling=mid.startswith("openai/gpt-oss-"),
         ))
 
     print(f"  Found {len(models)} free {SOURCE_NAME} models")

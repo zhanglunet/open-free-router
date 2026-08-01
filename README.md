@@ -7,7 +7,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-route
 open-free-router serve
 ```
 
-追踪 10 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，所有 Agent（Hermes、OpenCode、PI、OMP）共享模型。
+追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，Codex、Hermes、OpenCode、PI、OMP 共享模型。
 
 ## 安装
 
@@ -38,6 +38,8 @@ pip install -e .
 | `open-free-router setup` | 交互式向导：填写各上游源 API key |
 | `open-free-router refresh [--source NAME] [--dry-run]` | 拉取免费模型列表 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
+| `open-free-router sync --agent codex [--codex-model ID]` | 生成独立的 Codex Responses API profile |
+| `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
 
 ## 快速开始
@@ -52,6 +54,10 @@ open-free-router setup
 # 3. 把 Agent 的 base_url 指向 http://127.0.0.1:8337/v1
 
 # 4. 打开仪表盘：http://127.0.0.1:9057
+
+# 5. 可选：接入 Codex（默认选择首个 tool_calling 模型）
+open-free-router sync --agent codex --codex-model gq/gpt-oss-120b
+codex --profile open-free-router
 ```
 
 ## 配置文件
@@ -78,13 +84,15 @@ refresh_interval_hours: 12
 
 - `ui.host`、`proxy.host` 默认均为 `127.0.0.1`（仅本机可访问）。**不建议**改成 `0.0.0.0` 或暴露到公网/不受信任的局域网：仪表盘的写操作接口（保存配置、增改 Provider、触发刷新）虽然需要本地 token 鉴权，但仪表盘本身并未做传输加密（无 HTTPS）和更细粒度的权限控制，不是为公网访问设计的。
 - 仪表盘首次启动会在 `<config目录>/ui.token` 生成一个随机 token（权限 0600），浏览器打开仪表盘执行"保存配置 / 添加 Provider / 刷新"等操作时会提示输入一次该 token（本次会话内记住）。没有 token 的请求会被拒绝（401）。
-- `registry.yaml` 中保存的是各 Provider 的**明文** API key（本地文件，权限跟随系统 umask），该文件以及同步到各 Agent 配置目录（`~/.hermes`、`~/.pi` 等）下的文件都应视为敏感文件，不要提交到版本库或分享给他人。
+- 推理代理首次启动会生成独立的 `<config目录>/proxy.token`（权限 0600）；所有 POST 推理请求必须携带该 bearer token。下游 Agent 配置只写入本地 proxy token，不再复制上游 Provider API key。
+- `registry.yaml` 中保存的是各 Provider 的**明文** API key，并强制使用 0600 权限；该文件和备份仍应视为敏感文件，不要提交到版本库或分享给他人。
 
 ## 架构
 
 | 模块 | 职责 |
 |---|---|
-| `proxy.py` | 单端口代理(8337)，按模型 ID 路由到对应 upstream。白名单过滤，不在列表的模型返回 403 |
+| `proxy.py` | 单端口代理(8337)，按模型 ID 路由到对应 upstream；支持 Chat Completions 与 Codex Responses API |
+| `responses.py` | Responses ↔ Chat Completions 消息、function tool 与 SSE 事件转换 |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑 |
 | `refresh.py` | 轮询提供商 API 获取免费模型变化，支持 pluggable sources |
@@ -109,6 +117,7 @@ refresh_interval_hours: 12
 |---|---|---|
 | `/v1/models` | GET | 获取所有免费模型列表（OpenAI 兼容格式） |
 | `/v1/chat/completions` | POST | 按模型 ID 路由到上游（OpenAI 兼容格式） |
+| `/v1/responses` | POST | Codex 使用的 Responses API 兼容端点，支持 SSE 与 function tools |
 | `/api/status` | GET | 仪表盘状态 |
 | `/api/providers` | GET / POST | Provider 列表 / 增删改 |
 | `/api/models` | GET | 按 provider 分组的模型详情 |
@@ -122,7 +131,11 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前 22 个测试覆盖：registry CRUD、config 加载、server Pi models 写入、proxy index 重建。
+当前测试覆盖：registry/config、刷新源、同步、代理鉴权、Responses 文本和工具流、真实流式转发及 Codex profile。
+
+## Codex 集成
+
+Codex 配置写入独立 profile `~/.codex/open-free-router.config.toml`，并生成 `~/.codex/open-free-router.models.json` 供 `/model` 选择器读取第三方模型与能力元数据；不会覆盖现有 `~/.codex/config.toml`。为避免第三方模型会话被 ChatGPT Apps、OpenAI Docs MCP、插件或记忆加载影响，该独立 profile 默认关闭这些非必要功能；同时关闭全量 Skill 描述注入。全局 Codex 配置与正常 profile 不受影响。Codex 目录使用仅含安全字符的 `ofr-...` 本地别名（例如 `ofr-or-gpt-oss-20b-free`），代理仍接受 `or/gpt-oss-20b:free` 等原始模型 ID。只有标记了 `tool_calling: true` 的模型会被自动选为 Codex 默认模型；也可以通过 `--codex-model` 显式指定注册表模型。目录在 Codex 启动时加载，同步后需重新进入 profile。详细需求与边界见 [`docs/PRD-codex-integration.md`](docs/PRD-codex-integration.md)。
 
 ## License
 

@@ -27,10 +27,18 @@ groq:
     upstream_id: llama-3.3-70b-versatile
   - id: llama-3.1-8b
     upstream_id: llama-3.1-8b-instant
-  - id: gemma2-9b
-    upstream_id: gemma2-9b-it
-  - id: mixtral-8x7b
-    upstream_id: mixtral-8x7b-32768
+  - id: compound
+    upstream_id: groq/compound
+  - id: compound-mini
+    upstream_id: groq/compound-mini
+  - id: gpt-oss-20b
+    upstream_id: openai/gpt-oss-20b
+    reasoning: true
+    tool_calling: true
+  - id: gpt-oss-120b
+    upstream_id: openai/gpt-oss-120b
+    reasoning: true
+    tool_calling: true
   prefix: gq
 nvidia-nim:
   upstream_url: https://integrate.api.nvidia.com/v1
@@ -112,6 +120,7 @@ openrouter:
     upstream_id: nvidia/nemotron-3-nano-30b-a3b:free
   - id: gpt-oss-20b:free
     upstream_id: openai/gpt-oss-20b:free
+    tool_calling: true
   prefix: or
 sensenova:
   upstream_url: https://token.sensenova.cn/v1
@@ -131,3 +140,30 @@ stepfun:
   models:
   - id: step-3.5-flash
   prefix: sf
+gitee-ai:
+  upstream_url: https://ai.gitee.com/v1
+  auto_refresh: true
+  refresh_method: gitee_ai_api
+  api_key: ''
+  models:
+  - id: DeepSeek-V3
+  - id: DeepSeek-R1
+    reasoning: true
+  - id: DeepSeek-V3.2
+  - id: DeepSeek-V4-Flash
+  - id: Qwen3-32B
+  - id: Qwen3-Coder-Flash
+  - id: Qwen3.5-Flash
+  - id: Qwen3.7-Max
+  - id: GLM-4.6
+  - id: GLM-5.2
+  - id: kimi-k2-instruct
+  - id: MiniMax-M3
+  - id: ERNIE-4.5-Turbo
+  - id: ERNIE-X1-Turbo
+    reasoning: true
+  - id: gpt-oss-120b
+    tool_calling: true
+  - id: QwQ-32B
+    reasoning: true
+  prefix: gitee

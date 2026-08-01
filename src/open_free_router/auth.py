@@ -17,15 +17,15 @@ import secrets
 from pathlib import Path
 
 TOKEN_FILENAME = "ui.token"
+PROXY_TOKEN_FILENAME = "proxy.token"
 
 
 def token_path_for(config_dir: Path) -> Path:
     return config_dir / TOKEN_FILENAME
 
 
-def get_or_create_token(config_dir: Path) -> str:
-    """Return the local UI auth token, generating one on first run."""
-    path = token_path_for(config_dir)
+def _get_or_create_named_token(config_dir: Path, filename: str) -> str:
+    path = config_dir / filename
     if path.exists():
         existing = path.read_text().strip()
         if existing:
@@ -38,6 +38,16 @@ def get_or_create_token(config_dir: Path) -> str:
     except OSError:
         pass  # best-effort; not all platforms support POSIX perms
     return token
+
+
+def get_or_create_token(config_dir: Path) -> str:
+    """Return the local UI auth token, generating one on first run."""
+    return _get_or_create_named_token(config_dir, TOKEN_FILENAME)
+
+
+def get_or_create_proxy_token(config_dir: Path) -> str:
+    """Return the bearer token required by the inference proxy."""
+    return _get_or_create_named_token(config_dir, PROXY_TOKEN_FILENAME)
 
 
 def check_auth(headers, token: str) -> bool:

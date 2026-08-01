@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,14 @@ from typing import Optional
 # Without this, a long-running `serve` process doing a save on every
 # refresh cycle accumulates one backup per cycle forever.
 BACKUP_RETENTION = 10
+
+
+def codex_model_alias(prefix: str, model_id: str) -> str:
+    """Return a stable model alias accepted by Codex telemetry tags."""
+    safe = re.sub(r"[^a-zA-Z0-9]+", "-", f"{prefix}-{model_id}").strip("-").lower()
+    if not safe:
+        raise ValueError("Cannot create a Codex alias from an empty model ID")
+    return f"ofr-{safe}"
 
 
 def prune_backups(path: Path, keep: int = BACKUP_RETENTION) -> None:
@@ -36,6 +45,7 @@ class ModelInfo:
     context_window: int = 131072
     max_tokens: int = 8192
     reasoning: bool = False
+    tool_calling: bool = False
 
     @property
     def effective_upstream_id(self) -> str:
@@ -51,6 +61,7 @@ class ModelInfo:
             context_window=d.get("context_window", 131072),
             max_tokens=d.get("max_tokens", 8192),
             reasoning=d.get("reasoning", False),
+            tool_calling=d.get("tool_calling", False),
         )
 
     def to_dict(self) -> dict:
@@ -65,6 +76,8 @@ class ModelInfo:
             d["max_tokens"] = self.max_tokens
         if self.reasoning:
             d["reasoning"] = True
+        if self.tool_calling:
+            d["tool_calling"] = True
         return d
 
 
@@ -169,6 +182,14 @@ class Registry:
         if path.exists():
             backup = path.with_suffix(f".yaml.bak-{datetime.datetime.now():%Y%m%d-%H%M%S}")
             shutil.copy2(path, backup)
+            try:
+                backup.chmod(0o600)
+            except OSError:
+                pass
             prune_backups(path)
         with open(path, "w") as f:
             yaml.dump(self.to_dict(), f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+        try:
+            path.chmod(0o600)
+        except OSError:
+            pass

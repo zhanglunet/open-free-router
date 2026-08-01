@@ -25,7 +25,7 @@ open-free-router = "open_free_router.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-open_free_router = ["templates/*", "web_static/static/**/*"]
+open_free_router = ["registry.default.yaml", "templates/*", "web_static/static/**/*"]
 
 [tool.pytest.ini_options]
 # e2e_test.py is a manual operational smoke-test script, not an

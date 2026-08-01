@@ -52,6 +52,13 @@ class Config:
         self.ui_host = self._raw.get("ui", {}).get("host", "127.0.0.1")
         self.ui_port = int(self._raw.get("ui", {}).get("port", 9057))
 
+        # Codex profile defaults. An explicit CLI --codex-model overrides this.
+        self.codex_model = self._raw.get("codex", {}).get("model", "")
+
+    @property
+    def config_dir(self) -> Path:
+        return self.path.parent if self.path else Path.home() / ".config" / "open-free-router"
+
     @staticmethod
     def _find_config() -> Optional[Path]:
         for p in DEFAULT_CONFIG_PATHS:
@@ -90,6 +97,14 @@ def save_registry(registry_path: Path, data: dict):
             f".yaml.bak-{datetime.datetime.now():%Y%m%d-%H%M%S}"
         )
         shutil.copy2(registry_path, backup)
+        try:
+            backup.chmod(0o600)
+        except OSError:
+            pass
         prune_backups(registry_path)
     with open(registry_path, "w") as f:
         yaml.dump(data, f, default_flow_style=False, allow_unicode=True, sort_keys=False)
+    try:
+        registry_path.chmod(0o600)
+    except OSError:
+        pass

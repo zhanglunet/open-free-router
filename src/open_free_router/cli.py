@@ -10,6 +10,7 @@ from open_free_router.registry import Registry, ModelInfo, ProviderConfig
 from open_free_router.refresh import refresh
 from open_free_router.ui import run_ui
 from open_free_router.serve import Daemon
+from open_free_router.auth import get_or_create_proxy_token
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -154,13 +155,20 @@ def cmd_sync(args):
     cfg = Config()
     _bootstrap_registry(cfg)
     reg = Registry.load(cfg.registry_path)
+    proxy_token = get_or_create_proxy_token(cfg.config_dir)
 
     agents = None
     if args.agent:
         agents = [a.strip() for a in args.agent.split(",")]
 
     do_write = not args.diff
-    results = sync_all(reg, do_write=do_write, agents=agents)
+    results = sync_all(
+        reg,
+        do_write=do_write,
+        agents=agents,
+        proxy_token=proxy_token,
+        codex_model=args.codex_model or cfg.codex_model,
+    )
 
     label = "DIFF" if args.diff else "SYNC"
     print(f"\n=== {label} ===")
@@ -169,8 +177,18 @@ def cmd_sync(args):
         print(f"  {status} {agent}: {changes}")
 
     if do_write:
-        print(f"\n✔ Backups at {sync_all.__module__}")
-        print("  Restart agents to apply: omp-telegram, opencode, hermes")
+        print("\n✔ Agent configurations synchronized")
+        if agents and "codex" in agents:
+            print("  Start Codex with: codex --profile open-free-router")
+        else:
+            print("  Restart agents to apply: omp-telegram, opencode, hermes")
+
+
+def cmd_token(args):
+    """Print only the local proxy token for command-backed clients."""
+    cfg = Config()
+    _ensure_config(cfg)
+    print(get_or_create_proxy_token(cfg.config_dir))
 
 
 def main():
@@ -204,9 +222,13 @@ def main():
     p_setup.set_defaults(func=cmd_setup)
 
     p_sync = sub.add_parser("sync", help="sync registry to agent configs (Pi, OMP, OpenCode, Hermes)")
-    p_sync.add_argument("--agent", help="comma-separated agent names: omp,opencode,hermes")
+    p_sync.add_argument("--agent", help="comma-separated agent names: pi,omp,opencode,hermes,codex")
     p_sync.add_argument("--diff", action="store_true", help="show diff only, don't write")
+    p_sync.add_argument("--codex-model", help="registry model ID for the Codex profile")
     p_sync.set_defaults(func=cmd_sync)
+
+    p_token = sub.add_parser("token", help="print the local inference proxy token")
+    p_token.set_defaults(func=cmd_token)
 
     args = parser.parse_args()
     if not args.command:

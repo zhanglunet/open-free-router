@@ -174,6 +174,17 @@ class TestPruneBackups:
 
 
 class TestProxyHandler:
+    def test_client_disconnect_does_not_print_server_traceback(self):
+        from http.server import BaseHTTPRequestHandler
+        from unittest.mock import patch
+        from open_free_router.proxy import _ProxyHandler
+
+        handler = object.__new__(_ProxyHandler)
+        with patch.object(
+            BaseHTTPRequestHandler, "handle", side_effect=ConnectionResetError
+        ):
+            handler.handle()  # must not raise
+
     def test_rebuild_index(self):
         from open_free_router.proxy import _ProxyHandler
         reg = Registry({
@@ -216,3 +227,9 @@ class TestProxyHandler:
         assert index["nv/glm-5.2"] == "nvidia-nim"
         assert index["glm-5.2"] == "nvidia-nim"
         assert index["z-ai/glm-5.2"] == "nvidia-nim"
+        assert index["ofr-nv-glm-5-2"] == "nvidia-nim"
+
+        handler = object.__new__(_ProxyHandler)
+        provider, upstream = handler._resolve_model("ofr-nv-glm-5-2")
+        assert provider.name == "nvidia-nim"
+        assert upstream == "z-ai/glm-5.2"

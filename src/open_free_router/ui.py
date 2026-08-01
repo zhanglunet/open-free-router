@@ -200,10 +200,12 @@ class _UIHandler(BaseHTTPRequestHandler):
             elif isinstance(m, dict):
                 models.append(ModelInfo(
                     id=m.get("id", ""),
+                    upstream_id=m.get("upstream_id", ""),
                     name=m.get("name", m.get("id", "")),
                     context_window=int(m.get("context_window", 131072) or 131072),
                     max_tokens=int(m.get("max_tokens", 8192) or 8192),
                     reasoning=bool(m.get("reasoning", False)),
+                    tool_calling=bool(m.get("tool_calling", False)),
                 ))
         p = ProviderConfig(
             name=name,
@@ -213,6 +215,7 @@ class _UIHandler(BaseHTTPRequestHandler):
             models=models,
             auto_refresh=bool(data.get("auto_refresh", False)),
             refresh_method=data.get("refresh_method", "api" if data.get("auto_refresh") else "manual"),
+            prefix=data.get("prefix", existing.prefix if existing else ""),
         )
         self.reg.add_provider(p)
         self.reg.save(self.cfg.registry_path)

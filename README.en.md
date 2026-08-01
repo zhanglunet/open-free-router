@@ -7,7 +7,7 @@ bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-route
 open-free-router serve
 ```
 
-Tracks free models across 10 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI), runs a local proxy routing by model ID to the correct upstream, and auto-refreshes the model list. Configure once, share across all agents (Hermes, OpenCode, PI, OMP).
+Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy routing by model ID to the correct upstream, and auto-refreshes the model list. Configure once, share across Codex, Hermes, OpenCode, PI, and OMP.
 
 ## Install
 
@@ -38,6 +38,8 @@ pip install -e .
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Refresh free models from APIs |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | Add a provider |
+| `open-free-router sync --agent codex [--codex-model ID]` | Generate an isolated Codex Responses API profile |
+| `open-free-router token` | Print the local inference proxy token for command auth |
 | `open-free-router ui` | Web dashboard standalone (debug) |
 
 ## Quick Start
@@ -52,6 +54,10 @@ open-free-router setup
 # 3. Point all your agents to http://127.0.0.1:8337/v1
 
 # 4. Open dashboard: http://127.0.0.1:9057
+
+# 5. Optional: connect Codex
+open-free-router sync --agent codex --codex-model gq/gpt-oss-120b
+codex --profile open-free-router
 ```
 
 ## Config
@@ -78,13 +84,15 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 
 - `ui.host` and `proxy.host` default to `127.0.0.1` (local only). We do **not** recommend setting either to `0.0.0.0` or exposing them on an untrusted LAN/public network: the dashboard's write endpoints (save config, add/edit providers, trigger refresh) require a local auth token, but the dashboard itself has no HTTPS or fine-grained permissions — it isn't designed for public exposure.
 - On first start, the dashboard generates a random token at `<config dir>/ui.token` (mode 0600). The browser will prompt for it once per session when you save config, add a provider, or trigger a refresh. Requests without a valid token get a 401.
-- `registry.yaml` stores each provider's API key **in plaintext**. That file, and the per-agent config files it syncs into (`~/.hermes`, `~/.pi`, etc.), should be treated as sensitive — don't commit them or share them.
+- The inference proxy generates a separate `<config dir>/proxy.token` (mode 0600). Every inference POST requires that bearer token. Synced agent configs receive only this local token, never an upstream provider key.
+- `registry.yaml` stores provider API keys **in plaintext** with mode 0600. Treat it and its backups as sensitive; never commit or share them.
 
 ## Architecture
 
 | Module | Purpose |
 |---|---|
-| `proxy.py` | Single-port proxy(8337), model-ID routing to upstream. Whitelist-only; unknown models return 403 |
+| `proxy.py` | Single-port proxy(8337), model-ID routing, Chat Completions and Codex Responses API |
+| `responses.py` | Responses ↔ Chat messages, function tools, and SSE event conversion |
 | `serve.py` | Daemon: proxy + UI + scheduler + auto-write Pi models.json |
 | `ui.py` | Web dashboard(9057): status, provider CRUD, model refresh, live config editor |
 | `refresh.py` | Poll provider APIs for free model changes. Pluggable sources |
@@ -109,6 +117,7 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 |---|---|---|
 | `/v1/models` | GET | List all free models (OpenAI-compatible) |
 | `/v1/chat/completions` | POST | Route by model ID to upstream (OpenAI-compatible) |
+| `/v1/responses` | POST | Codex Responses-compatible endpoint with SSE and function tools |
 | `/api/status` | GET | Dashboard status |
 | `/api/providers` | GET / POST | Provider list / CRUD |
 | `/api/models` | GET | Model details grouped by provider |
@@ -122,7 +131,11 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-22 tests covering: registry CRUD, config loading, Pi models.json writing, proxy index rebuild.
+86 tests covering registry/config, refresh sources, sync, proxy authentication, Responses text/tool streams, streaming, and Codex profiles.
+
+## Codex integration
+
+The generated profile lives at `~/.codex/open-free-router.config.toml` and does not overwrite `~/.codex/config.toml`. Automatic selection uses a model marked `tool_calling: true`; `--codex-model` can select an explicit registry model. See [`docs/PRD-codex-integration.md`](docs/PRD-codex-integration.md) for requirements and boundaries.
 
 ## License
 

@@ -15,6 +15,7 @@ from open_free_router.proxy import run_proxy, rebuild_proxy_index
 from open_free_router.ui import run_ui
 from open_free_router.refresh import refresh
 from open_free_router.sync import write_pi_models, sync_all
+from open_free_router.auth import get_or_create_proxy_token
 
 
 class Daemon:
@@ -23,6 +24,7 @@ class Daemon:
     def __init__(self, cfg: Config):
         self.cfg = cfg
         self.reg = Registry.load(cfg.registry_path)
+        self.proxy_token = get_or_create_proxy_token(cfg.config_dir)
         self._proxy_server = None
         self._stop = threading.Event()
 
@@ -37,24 +39,26 @@ class Daemon:
                 print("[scheduler] registry updated")
             proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
             write_pi_models(self.reg, proxy_url=proxy_url)
-            sync_all(self.reg, proxy_url=proxy_url)
+            sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
 
     def serve(self):
         print(f"  Proxy  : {self.cfg.proxy_host}:{self.cfg.proxy_port}")
         print(f"  UI     : http://{self.cfg.ui_host}:{self.cfg.ui_port}")
         print(f"  Refresh: every {self.cfg.refresh_interval_hours}h")
         print(f"  Timeout: {self.cfg.upstream_timeout}s")
+        print(f"  Auth   : {self.cfg.config_dir / 'proxy.token'}")
         print()
 
         # Start proxy
         srv, _ = run_proxy(self.reg, host=self.cfg.proxy_host, port=self.cfg.proxy_port,
-                           upstream_timeout=self.cfg.upstream_timeout)
+                           upstream_timeout=self.cfg.upstream_timeout,
+                           auth_token=self.proxy_token)
         self._proxy_server = srv
 
         # Write Pi models on startup
         proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
         write_pi_models(self.reg, proxy_url=proxy_url)
-        sync_all(self.reg, proxy_url=proxy_url)
+        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
 
         threads = [
             threading.Thread(target=run_ui, args=(self.cfg, self.cfg.ui_port, self.reg), daemon=True),

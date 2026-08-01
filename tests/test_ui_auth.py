@@ -7,7 +7,7 @@ import threading
 import time
 
 from open_free_router import ui
-from open_free_router.auth import check_auth, get_or_create_token
+from open_free_router.auth import check_auth, get_or_create_proxy_token, get_or_create_token
 from open_free_router.config import Config
 from open_free_router.registry import Registry
 
@@ -28,6 +28,13 @@ def test_get_or_create_token_creates_file_once(tmp_path):
     # Second call must return the same token, not regenerate it.
     tok2 = get_or_create_token(tmp_path)
     assert tok1 == tok2
+
+
+def test_proxy_token_is_distinct_and_owner_only(tmp_path):
+    ui_token = get_or_create_token(tmp_path)
+    proxy_token = get_or_create_proxy_token(tmp_path)
+    assert proxy_token != ui_token
+    assert stat.S_IMODE((tmp_path / "proxy.token").stat().st_mode) == 0o600
 
 
 def test_check_auth_accepts_valid_bearer_token():

@@ -48,6 +48,7 @@ def fetch(provider_base_url: str, api_key: str | None = None) -> List[ModelInfo]
             context_window=m.get("context_length", 131072) or 131072,
             max_tokens=min(m.get("context_length", 131072) or 131072, 16384),
             reasoning="nemotron-3-ultra" in mid or "nemotron-3-super" in mid,
+            tool_calling=mid.startswith("openai/gpt-oss-"),
         ))
 
     models.sort(key=lambda x: x.context_window, reverse=True)

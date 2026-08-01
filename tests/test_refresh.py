@@ -81,5 +81,23 @@ def test_any_results_values_reflects_real_change_not_fetch_success():
     succeeded but nothing actually changed."""
     results = {"a": False, "b": False, "c": False}
     assert any(results.values()) is False
+
+
+def test_metadata_change_updates_registry(monkeypatch):
+    reg = Registry({
+        "fake": {
+            "upstream_url": "https://example.com/v1",
+            "models": [{"id": "m1", "context_window": 4096}],
+        },
+    })
+    changed_models = [ModelInfo(id="m1", context_window=8192, tool_calling=True)]
+    monkeypatch.setitem(
+        __import__("open_free_router.refresh", fromlist=["SOURCE_MAP"]).SOURCE_MAP,
+        "fake", _fake_source(changed_models),
+    )
+    results = refresh(reg, provider_name="fake")
+    assert results["fake"] is True
+    assert reg.get("fake").models[0].context_window == 8192
+    assert reg.get("fake").models[0].tool_calling is True
     results["b"] = True
     assert any(results.values()) is True

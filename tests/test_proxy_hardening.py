@@ -38,6 +38,25 @@ class _EchoUpstreamHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
 
+class _BodyEchoUpstreamHandler(BaseHTTPRequestHandler):
+    """Echoes back the JSON body it received, so tests can verify
+    field-stripping and renaming done by the proxy before forwarding."""
+
+    disable_nagle_algorithm = True
+
+    def log_message(self, format, *args):
+        pass
+
+    def do_POST(self):
+        length = int(self.headers.get("Content-Length", 0))
+        raw = self.rfile.read(length)
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(raw)))
+        self.end_headers()
+        self.wfile.write(raw)
+
+
 class _RateLimitedUpstreamHandler(BaseHTTPRequestHandler):
     disable_nagle_algorithm = True
 
@@ -216,6 +235,47 @@ class TestBodySizeLimit:
             resp = sock_conn.getresponse()
             assert resp.status == 411
             resp.read()
+        finally:
+            proxy_srv.shutdown()
+            upstream.shutdown()
+
+
+class TestMaxCompletionTokensConversion:
+    """max_completion_tokens must be converted to max_tokens so upstreams
+    like OpenRouter (gpt-oss-20b:free) don't return 422."""
+
+    def test_converted_when_only_max_completion_tokens_present(self):
+        upstream = _start(_BodyEchoUpstreamHandler)
+        proxy_srv, _ = _proxy_for(upstream.server_address[1])
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
+            conn.request("POST", "/v1/chat/completions",
+                         body=json.dumps({"model": "m1", "messages": [],
+                                          "max_completion_tokens": 4096}),
+                         headers={"Content-Type": "application/json"})
+            resp = conn.getresponse()
+            data = json.loads(resp.read())
+            assert "max_tokens" in data
+            assert data["max_tokens"] == 4096
+            assert "max_completion_tokens" not in data
+        finally:
+            proxy_srv.shutdown()
+            upstream.shutdown()
+
+    def test_dropped_when_max_tokens_also_present(self):
+        upstream = _start(_BodyEchoUpstreamHandler)
+        proxy_srv, _ = _proxy_for(upstream.server_address[1])
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
+            conn.request("POST", "/v1/chat/completions",
+                         body=json.dumps({"model": "m1", "messages": [],
+                                          "max_tokens": 2048,
+                                          "max_completion_tokens": 4096}),
+                         headers={"Content-Type": "application/json"})
+            resp = conn.getresponse()
+            data = json.loads(resp.read())
+            assert data["max_tokens"] == 2048  # original wins
+            assert "max_completion_tokens" not in data
         finally:
             proxy_srv.shutdown()
             upstream.shutdown()
