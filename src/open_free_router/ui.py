@@ -12,6 +12,7 @@ from open_free_router.config import Config
 from open_free_router.probe import (
     ProbeRunner,
     load_probe_snapshot,
+    load_status_as_probe_snapshot,
     write_probe_snapshot,
     write_probe_status,
 )
@@ -285,7 +286,13 @@ class _UIHandler(BaseHTTPRequestHandler):
         snapshot = _PROBE_RUNNER.snapshot()
         if not snapshot["running"] and not snapshot["results"] and self.cfg:
             persisted = load_probe_snapshot(self.cfg.data_dir / "probe-results.json")
+            if not persisted:
+                persisted = load_status_as_probe_snapshot(self.cfg.data_dir / "probe-status.json")
             if persisted:
+                for result in persisted["results"].values():
+                    provider = self.reg.get(result["provider"]) if self.reg else None
+                    if provider:
+                        result["display_id"] = f"{provider.model_prefix}/{result['model']}"
                 snapshot = persisted
         self._send_json(200, snapshot)
 

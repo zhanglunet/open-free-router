@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from open_free_router.probe import (
     ProbeRunner,
     load_probe_snapshot,
+    load_status_as_probe_snapshot,
     probe_model,
     snapshot_to_status,
     write_probe_snapshot,
@@ -165,6 +166,21 @@ def test_probe_snapshot_round_trip_is_private_and_scrubbed(tmp_path):
     assert "private-secret" not in path.read_text()
     assert "unexpected" not in path.read_text()
     assert path.stat().st_mode & 0o077 == 0
+
+
+def test_aggregated_status_can_restore_dashboard_history(tmp_path):
+    path = tmp_path / "probe-status.json"
+    path.write_text(json.dumps({
+        "as_of": "2026-08-01T00:00:01+00:00",
+        "providers": {"fake": {"models": {"m1": {
+            "available": True, "status": "http_200", "latency_ms": 42,
+            "reason": "", "checked_at": "2026-08-01T00:00:00+00:00",
+        }}}},
+    }))
+    snapshot = load_status_as_probe_snapshot(path)
+    assert snapshot["done"] == snapshot["total"] == 1
+    assert snapshot["finished_at"] == "2026-08-01T00:00:01+00:00"
+    assert snapshot["results"]["fake/m1"]["ok"] is True
 
 
 def test_ui_probe_endpoints_require_auth_for_post(tmp_path):

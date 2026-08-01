@@ -286,3 +286,40 @@ def load_probe_snapshot(path: Path) -> dict | None:
     if not isinstance(raw, dict) or not isinstance(raw.get("results"), dict):
         return None
     return _safe_probe_snapshot(raw)
+
+
+def load_status_as_probe_snapshot(path: Path) -> dict | None:
+    """Convert the older aggregated status file into dashboard model rows."""
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError, TypeError):
+        return None
+    providers = raw.get("providers") if isinstance(raw, dict) else None
+    if not isinstance(providers, dict):
+        return None
+    results = {}
+    for provider_name, provider in providers.items():
+        models = provider.get("models") if isinstance(provider, dict) else None
+        if not isinstance(models, dict):
+            continue
+        for model_id, model in models.items():
+            if not isinstance(model, dict):
+                continue
+            results[f"{provider_name}/{model_id}"] = {
+                "provider": str(provider_name),
+                "model": str(model_id),
+                "display_id": f"{provider_name}/{model_id}",
+                "ok": bool(model.get("available")),
+                "status": str(model.get("status") or ""),
+                "latency_ms": model.get("latency_ms"),
+                "error": str(model.get("reason") or ""),
+                "checked_at": str(model.get("checked_at") or ""),
+            }
+    return _safe_probe_snapshot({
+        "running": False,
+        "started_at": None,
+        "finished_at": raw.get("as_of"),
+        "total": len(results),
+        "done": len(results),
+        "results": results,
+    })
