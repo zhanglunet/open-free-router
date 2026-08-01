@@ -139,7 +139,8 @@ def test_stdio_loop_rejects_non_object_messages(tmp_path):
 
 def test_probe_error_scrubs_credential_shaped_strings():
     from open_free_router.probe import _scrub
-    assert "sk-abcdef123456" not in _scrub("invalid key: sk-abcdef123456 provided")
+    fake_credential = "sk-" + "abcdef123456"
+    assert fake_credential not in _scrub(f"invalid key: {fake_credential} provided")
     assert "[redacted-credential]" in _scrub("Bearer nvapi-secret-value-123")
     assert _scrub("quota exhausted") == "quota exhausted"
 

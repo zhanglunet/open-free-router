@@ -1,0 +1,4 @@
+# Historical false positive: deliberately fake credential-shaped input used to
+# verify that probe errors redact secrets. The current test constructs it at
+# runtime so new scans do not need a broad path or rule allowlist.
+53c448615952a4509f4833067dcdb142822a8857:tests/test_mcp.py:generic-api-key:142
