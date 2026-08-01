@@ -1,5 +1,9 @@
 /* ---- 实时可用状态页 /status/ · 前缀 st- 避免与全站样式冲突 ---- */
 
+/* 顶栏 GitHub 链接（全站 styles.css 未定义，此页自带） */
+.repo-link{justify-self:end;color:#a9bfd1;font:700 .68rem var(--mono);letter-spacing:.06em}
+.repo-link:hover{color:var(--cyan)}
+
 .st-eyebrow{margin:0 0 .4rem;color:#86a0b7;font:700 .64rem var(--mono);letter-spacing:.16em;text-transform:uppercase}
 .st-eyebrow span{display:inline-block;width:28px;height:1px;margin-right:.65rem;vertical-align:middle;background:var(--cyan);box-shadow:0 0 14px var(--cyan)}
 

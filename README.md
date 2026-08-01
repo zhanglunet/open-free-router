@@ -31,6 +31,10 @@ bash /tmp/open-free-router-install.sh --codex --auto-discovery
 |---|---|
 | ![实时可用状态页](docs/screenshots/status.png) | ![全球分布地图页](docs/screenshots/map.png) |
 
+| 本地仪表盘 · Live Status 实测 | 模型雷达 · API Key 指引 |
+|---|---|
+| ![本地仪表盘实时探测](docs/screenshots/dashboard-live.png) | ![模型雷达](docs/screenshots/models.png) |
+
 ## 客户端支持矩阵
 
 | 客户端 | 协议 | 一条命令 | 写入位置 |

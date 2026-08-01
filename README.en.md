@@ -30,6 +30,10 @@ Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen
 |---|---|
 | ![Live status page](docs/screenshots/status.png) | ![World map page](docs/screenshots/map.png) |
 
+| Local dashboard · live probing | Model radar · API-key guides |
+|---|---|
+| ![Dashboard live probing](docs/screenshots/dashboard-live.png) | ![Model radar](docs/screenshots/models.png) |
+
 ## Client support matrix
 
 | Client | Protocol | One command | Written to |

@@ -157,6 +157,7 @@
   .arch-stats article{min-height:96px}
   .arch-stats article:nth-child(4){border-right:0}
   .arch-stats article:nth-child(2n){border-right:1px solid var(--line)}
+  .arch-stats article:last-of-type{grid-column:1/-1}
   .arch-steps{grid-template-columns:1fr}
   .arch-fan{grid-template-columns:1fr}
   .arch-fan::before,.arch-fan article:nth-child(-n+3)::before{display:none}

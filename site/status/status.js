@@ -134,8 +134,15 @@
     document.body.classList.add("st-loading");
     $("#st-refresh").disabled = true;
     try {
-      const response = await fetch("/api/catalog", { cache: "no-store" });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      /* 本地仪表盘提供 /api/catalog；公开静态站回退到 /data/catalog.json */
+      let response;
+      try {
+        response = await fetch("/api/catalog", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      } catch {
+        response = await fetch("/data/catalog.json", { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      }
       const catalog = await response.json();
       if (!Array.isArray(catalog.providers)) throw new Error("目录数据格式异常");
       state.catalog = catalog;
