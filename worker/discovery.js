@@ -14,6 +14,15 @@ function zeroCost(model) {
   return model?.cost?.input === 0 && model?.cost?.output === 0;
 }
 
+function protocol(provider) {
+  return provider?.npm === "@ai-sdk/openai-compatible" ? "openai-compatible" : "unsupported";
+}
+
+function dedicatedCredentialEnv(providerId) {
+  const safe = String(providerId).toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  return `OFR_${safe}_API_KEY`;
+}
+
 export function normalizeModelsDev(data, registeredProviders = []) {
   const names = new Set(registeredProviders.map((item) => item.id?.toLowerCase()).filter(Boolean));
   const hosts = new Set(registeredProviders.map((item) => {
@@ -43,6 +52,9 @@ export function normalizeModelsDev(data, registeredProviders = []) {
       name: provider.name ?? id,
       api,
       documentation: safeHttpsUrl(provider.doc ?? ""),
+      auth_env: Array.isArray(provider.env) ? provider.env.map(String).filter(Boolean) : [],
+      credential_env: dedicatedCredentialEnv(id),
+      protocol: protocol(provider),
       status: "candidate",
       evidence: "models.dev lists zero unit price; free eligibility still requires verification",
       model_count: models.length,

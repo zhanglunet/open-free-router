@@ -30,4 +30,7 @@ def test_public_catalog_redacts_keys_and_scores_features(tmp_path):
     model = data["providers"][0]["models"][0]
     assert model["codex_alias"] == "ofr-p-model-free"
     assert model["capability_score"] > 50
+    assert model["description_zh"]
+    assert model["recommended_for_zh"] == "复杂编码、Agent 工具链和多步分析"
+    assert model["speed_tier_zh"] == "快"
     assert data["providers"][0]["availability"] == "available"

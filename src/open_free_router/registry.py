@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import copy
+import os
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -87,6 +88,7 @@ class ProviderConfig:
     base_url: str = ""
     upstream_url: str = ""
     api_key: str = ""
+    api_key_env: str = ""  # Prefer an environment reference for auto-discovered providers.
     api_keys: list[str] = field(default_factory=list)
     models: list[ModelInfo] = field(default_factory=list)
     auto_refresh: bool = False
@@ -95,7 +97,11 @@ class ProviderConfig:
 
     @property
     def effective_key(self) -> str:
-        return self.api_keys[0] if self.api_keys else self.api_key
+        if self.api_keys:
+            return self.api_keys[0]
+        if self.api_key:
+            return self.api_key
+        return os.environ.get(self.api_key_env, "") if self.api_key_env else ""
 
     @property
     def model_prefix(self) -> str:
@@ -124,6 +130,7 @@ class Registry:
                 base_url=cfg.get("base_url", ""),
                 upstream_url=cfg.get("upstream_url", cfg.get("base_url", "")),
                 api_key=cfg.get("api_key", ""),
+                api_key_env=cfg.get("api_key_env", ""),
                 api_keys=cfg.get("api_keys", []),
                 models=models,
                 auto_refresh=cfg.get("auto_refresh", False),
@@ -143,6 +150,8 @@ class Registry:
                 d["upstream_url"] = p.upstream_url
             if p.api_key:
                 d["api_key"] = p.api_key
+            if p.api_key_env:
+                d["api_key_env"] = p.api_key_env
             if p.api_keys:
                 d["api_keys"] = p.api_keys
             if p.prefix:

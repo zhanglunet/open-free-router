@@ -4,6 +4,14 @@
 
 ### Added
 
+- Detailed `/guide/` for one-click installation, Codex CLI, the ChatGPT Codex
+  desktop client, isolated profiles, troubleshooting, CLI commands, and APIs.
+- Public `/install.sh` plus machine-readable `/api/install` manifest.
+- Credential-aware candidate validation and opt-in auto-adoption through
+  `open-free-router discover --test --adopt`; secrets remain environment-only.
+- Chinese provider backgrounds and per-model Chinese family descriptions,
+  use-case guidance, speed tiers, and transparent benchmark caveats.
+
 - Public `/models/` radar with provider availability, model limits, declared
   capabilities, feature-density comparison, filtering, and Codex aliases.
 - Review-only continuous provider discovery from models.dev in both the local

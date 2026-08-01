@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-01T15:01:31.389820+00:00",
+  "generated_at": "2026-08-01T15:35:22.936537+00:00",
   "status_as_of": "2026-08-01T15:00:52Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence.",
   "provider_count": 11,
@@ -30,7 +30,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gemini-3.5-flash",
@@ -45,7 +50,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gemini-3.6-flash",
@@ -60,7 +70,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gemini-3.1-flash-lite",
@@ -75,9 +90,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "Google AI Studio",
+        "organization": "Google",
+        "region": "美国",
+        "background_zh": "Google 面向开发者提供 Gemini 模型实验和 API 接入的产品入口，覆盖长上下文、多模态与推理工作负载。",
+        "strengths_zh": [
+          "长上下文",
+          "Gemini 生态",
+          "多模态能力"
+        ],
+        "cautions_zh": "免费额度、地区开放范围和模型配额由 Google 账户策略决定。",
+        "official_url": "https://ai.google.dev/gemini-api/docs/models"
+      }
     },
     {
       "id": "groq",
@@ -103,7 +136,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Meta Llama",
+          "description_zh": "Meta Llama 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "llama-3.1-8b",
@@ -118,9 +156,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Meta Llama",
+          "description_zh": "Meta Llama 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "GroqCloud",
+        "organization": "Groq",
+        "region": "美国",
+        "background_zh": "基于 Groq LPU 推理基础设施的云端模型服务，重点突出低延迟与高吞吐的开放模型推理。",
+        "strengths_zh": [
+          "高吞吐",
+          "低延迟",
+          "OpenAI 兼容接口"
+        ],
+        "cautions_zh": "开发者免费层存在速率限制，预览模型和模型目录可能较快调整。",
+        "official_url": "https://console.groq.com/docs/models"
+      }
     },
     {
       "id": "nous",
@@ -146,7 +202,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Ling",
+          "description_zh": "Ling 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "step-3.7-flash:free",
@@ -161,9 +222,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阶跃 Step",
+          "description_zh": "阶跃 Step 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "Nous Research Inference",
+        "organization": "Nous Research",
+        "region": "美国",
+        "background_zh": "Nous Research 的模型与推理服务入口，本项目当前使用其免费后缀模型进行文本推理。",
+        "strengths_zh": [
+          "开放模型社区",
+          "免费模型入口",
+          "OpenAI 兼容调用"
+        ],
+        "cautions_zh": "免费模型容量和服务稳定性需以实时验证为准。",
+        "official_url": "https://nousresearch.com/"
+      }
     },
     {
       "id": "nvidia-nim",
@@ -189,7 +268,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "MiniMax",
+          "description_zh": "MiniMax 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "nemotron-3-ultra",
@@ -204,7 +288,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "step-3.7-flash",
@@ -219,7 +308,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "阶跃 Step",
+          "description_zh": "阶跃 Step 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "glm-5.2",
@@ -234,7 +328,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "deepseek-v4-flash",
@@ -249,9 +348,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "NVIDIA NIM",
+        "organization": "NVIDIA",
+        "region": "美国",
+        "background_zh": "NVIDIA 提供的模型推理微服务与托管 API 体系，覆盖多家模型厂商并针对 NVIDIA 加速栈优化。",
+        "strengths_zh": [
+          "模型覆盖广",
+          "GPU 优化推理",
+          "企业部署生态"
+        ],
+        "cautions_zh": "开发者试用额度和模型访问权限可能随账户、地区及许可变化。",
+        "official_url": "https://docs.nvidia.com/nim/"
+      }
     },
     {
       "id": "opencode-zen-free",
@@ -277,7 +394,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "mimo-v2.5-free",
@@ -292,7 +414,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "north-mini-code-free",
@@ -307,7 +434,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "nemotron-3-ultra-free",
@@ -322,7 +454,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "deepseek-v4-flash-free",
@@ -337,7 +474,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "ling-3.0-flash-free",
@@ -352,7 +494,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Ling",
+          "description_zh": "Ling 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "laguna-s-2.1-free",
@@ -367,9 +514,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Poolside Laguna",
+          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "OpenCode Zen 免费路由",
+        "organization": "OpenCode",
+        "region": "全球",
+        "background_zh": "OpenCode 生态提供的模型路由入口，聚合多个带 free 标识的模型，适合代码代理和终端工作流。",
+        "strengths_zh": [
+          "代码代理适配",
+          "无需单独切换多个端点",
+          "免费模型集合"
+        ],
+        "cautions_zh": "模型别名与上游映射可能变化，工具调用能力必须逐个实测。",
+        "official_url": "https://opencode.ai/docs/zen/"
+      }
     },
     {
       "id": "openrouter",
@@ -395,7 +560,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "ling-3.0-flash:free",
@@ -410,7 +580,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Ling",
+          "description_zh": "Ling 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gemma-4-26b:free",
@@ -425,7 +600,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemma",
+          "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gemma-4-31b:free",
@@ -440,7 +620,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "Google Gemma",
+          "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "nemotron-3-super:free",
@@ -455,7 +640,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "north-mini-code:free",
@@ -470,7 +660,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "nemotron-3-nano-r:free",
@@ -485,7 +680,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "nemotron-3-nano:free",
@@ -500,7 +700,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "NVIDIA Nemotron",
+          "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gpt-oss-20b:free",
@@ -515,9 +720,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "OpenAI GPT-OSS 开放权重",
+          "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "OpenRouter 聚合路由",
+        "organization": "OpenRouter",
+        "region": "美国",
+        "background_zh": "面向开发者的多模型聚合 API，通过统一的 OpenAI 兼容接口访问不同模型与推理供应商，并提供路由和回退能力。",
+        "strengths_zh": [
+          "模型覆盖面广",
+          "OpenAI 兼容接口",
+          "适合快速比较不同模型"
+        ],
+        "cautions_zh": "免费后缀模型通常有速率、容量或可用时段限制，实际可用性取决于上游。",
+        "official_url": "https://openrouter.ai/docs/guides/overview/models"
+      }
     },
     {
       "id": "poolside",
@@ -543,7 +766,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "Poolside Laguna",
+          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "laguna-xs:free",
@@ -558,9 +786,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "Poolside Laguna",
+          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "Poolside Inference",
+        "organization": "Poolside",
+        "region": "美国/法国",
+        "background_zh": "专注软件工程与代码智能的模型公司，本项目接入其 Laguna 系列免费推理入口。",
+        "strengths_zh": [
+          "代码任务导向",
+          "长上下文",
+          "推理模型"
+        ],
+        "cautions_zh": "免费 Laguna 入口的容量、条款和模型版本可能调整。",
+        "official_url": "https://poolside.ai/"
+      }
     },
     {
       "id": "sensenova",
@@ -586,7 +832,12 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "glm-5.2",
@@ -601,9 +852,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "较慢",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "商汤日日新 SenseNova",
+        "organization": "商汤科技",
+        "region": "中国",
+        "background_zh": "商汤科技的大模型服务体系，提供模型 API 与开发平台，本项目当前接入部分免费可用模型。",
+        "strengths_zh": [
+          "中国网络环境",
+          "中文任务",
+          "国内开发者平台"
+        ],
+        "cautions_zh": "账户认证、免费额度及模型开放范围以平台实时策略为准。",
+        "official_url": "https://platform.sensenova.cn/"
+      }
     },
     {
       "id": "stepfun",
@@ -629,9 +898,27 @@
             "text"
           ],
           "availability": "available",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阶跃 Step",
+          "description_zh": "阶跃 Step 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "中等",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "阶跃星辰 StepFun",
+        "organization": "阶跃星辰",
+        "region": "中国",
+        "background_zh": "中国大模型厂商阶跃星辰提供的模型开放平台，覆盖通用、推理与多模态模型。",
+        "strengths_zh": [
+          "中文能力",
+          "国内 API",
+          "推理模型生态"
+        ],
+        "cautions_zh": "免费额度和具体模型可用性与账户活动及平台策略相关。",
+        "official_url": "https://platform.stepfun.com/"
+      }
     },
     {
       "id": "deepseek",
@@ -657,7 +944,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "deepseek-reasoner",
@@ -672,9 +964,27 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "DeepSeek 开放平台",
+        "organization": "深度求索 DeepSeek",
+        "region": "中国",
+        "background_zh": "深度求索提供的通用与推理模型 API 平台，以 DeepSeek Chat 和 Reasoner 系列为核心。",
+        "strengths_zh": [
+          "中文与代码任务",
+          "推理模型",
+          "OpenAI 兼容接口"
+        ],
+        "cautions_zh": "本项目最新状态未配置可用密钥；官方 API 并不等同于永久免费。",
+        "official_url": "https://api-docs.deepseek.com/"
+      }
     },
     {
       "id": "gitee-ai",
@@ -700,7 +1010,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "DeepSeek-R1",
@@ -715,7 +1030,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "DeepSeek-V3.2",
@@ -730,7 +1050,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "DeepSeek-V4-Flash",
@@ -745,7 +1070,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "DeepSeek",
+          "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "Qwen3-32B",
@@ -760,7 +1090,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阿里 Qwen",
+          "description_zh": "阿里 Qwen 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "Qwen3-Coder-Flash",
@@ -775,7 +1110,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阿里 Qwen",
+          "description_zh": "阿里 Qwen 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "Qwen3.5-Flash",
@@ -790,7 +1130,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阿里 Qwen",
+          "description_zh": "阿里 Qwen 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "Qwen3.7-Max",
@@ -805,7 +1150,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "阿里 Qwen",
+          "description_zh": "阿里 Qwen 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "GLM-4.6",
@@ -820,7 +1170,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "GLM-5.2",
@@ -835,7 +1190,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "MiniMax-M3",
@@ -850,7 +1210,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "MiniMax",
+          "description_zh": "MiniMax 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "ERNIE-4.5-Turbo",
@@ -865,7 +1230,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "百度 ERNIE",
+          "description_zh": "百度 ERNIE 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "ERNIE-X1-Turbo",
@@ -880,7 +1250,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "百度 ERNIE",
+          "description_zh": "百度 ERNIE 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "gpt-oss-120b",
@@ -895,7 +1270,12 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55
+          "capability_score": 55,
+          "family_zh": "OpenAI GPT-OSS 开放权重",
+          "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
           "id": "QwQ-32B",
@@ -910,9 +1290,27 @@
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 75
+          "capability_score": 75,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
-      ]
+      ],
+      "profile": {
+        "zh_name": "Gitee AI",
+        "organization": "开源中国/Gitee",
+        "region": "中国",
+        "background_zh": "Gitee 面向开发者提供的模型 API 与 AI 能力平台，聚合多种中文和开放模型。",
+        "strengths_zh": [
+          "国内开发者生态",
+          "中文模型覆盖",
+          "多厂商模型入口"
+        ],
+        "cautions_zh": "本项目最新实测账户没有可用计费资源，不能据目录状态推断当前可调用。",
+        "official_url": "https://ai.gitee.com/"
+      }
     }
   ]
 }

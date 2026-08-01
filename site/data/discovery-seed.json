@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-01T15:04:06.676Z",
+  "generated_at": "2026-08-01T15:35:25.477Z",
   "source": "https://models.dev/api.json",
   "trust": "candidate-only; manual verification required before registry import",
   "candidate_provider_count": 44,
@@ -11,6 +11,11 @@
       "name": "GitHub Models",
       "api": "https://models.github.ai/inference",
       "documentation": "https://docs.github.com/en/github-models",
+      "auth_env": [
+        "GITHUB_TOKEN"
+      ],
+      "credential_env": "OFR_GITHUB_MODELS_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 55,
@@ -643,6 +648,11 @@
       "name": "Kenari",
       "api": "https://kenari.id/v1",
       "documentation": "https://kenari.id/docs",
+      "auth_env": [
+        "KENARI_API_KEY"
+      ],
+      "credential_env": "OFR_KENARI_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 38,
@@ -1164,6 +1174,11 @@
       "name": "Alibaba Token Plan",
       "api": "https://token-plan.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1",
       "documentation": "https://www.alibabacloud.com/help/en/model-studio/token-plan-overview",
+      "auth_env": [
+        "ALIBABA_TOKEN_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_ALIBABA_TOKEN_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 22,
@@ -1455,6 +1470,11 @@
       "name": "Alibaba Token Plan (China)",
       "api": "https://token-plan.cn-beijing.maas.aliyuncs.com/compatible-mode/v1",
       "documentation": "https://www.alibabacloud.com/help/zh/model-studio/token-plan-overview",
+      "auth_env": [
+        "ALIBABA_TOKEN_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_ALIBABA_TOKEN_PLAN_CN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 22,
@@ -1746,6 +1766,11 @@
       "name": "iFlow",
       "api": "https://apis.iflow.cn/v1",
       "documentation": "https://platform.iflow.cn/en/docs",
+      "auth_env": [
+        "IFLOW_API_KEY"
+      ],
+      "credential_env": "OFR_IFLOWCN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 14,
@@ -1926,6 +1951,11 @@
       "name": "Kilo Gateway",
       "api": "https://api.kilo.ai/api/gateway",
       "documentation": "https://kilo.ai",
+      "auth_env": [
+        "KILO_API_KEY"
+      ],
+      "credential_env": "OFR_KILO_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 13,
@@ -2103,6 +2133,11 @@
       "name": "UnoRouter",
       "api": "https://api.unorouter.com/v1",
       "documentation": "https://unorouter.com/models",
+      "auth_env": [
+        "UNOROUTER_API_KEY"
+      ],
+      "credential_env": "OFR_UNOROUTER_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 11,
@@ -2256,6 +2291,11 @@
       "name": "Alibaba Coding Plan",
       "api": "https://coding-intl.dashscope.aliyuncs.com/v1",
       "documentation": "https://www.alibabacloud.com/help/en/model-studio/coding-plan",
+      "auth_env": [
+        "ALIBABA_CODING_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_ALIBABA_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 10,
@@ -2395,6 +2435,11 @@
       "name": "Alibaba Coding Plan (China)",
       "api": "https://coding.dashscope.aliyuncs.com/v1",
       "documentation": "https://help.aliyun.com/zh/model-studio/coding-plan",
+      "auth_env": [
+        "ALIBABA_CODING_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_ALIBABA_CODING_PLAN_CN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 10,
@@ -2532,6 +2577,11 @@
       "name": "Tencent Coding Plan (China)",
       "api": "https://api.lkeap.cloud.tencent.com/coding/v3",
       "documentation": "https://cloud.tencent.com/document/product/1772/128947",
+      "auth_env": [
+        "TENCENT_CODING_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_TENCENT_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 8,
@@ -2641,6 +2691,11 @@
       "name": "Llama",
       "api": "https://api.llama.com/compat/v1",
       "documentation": "https://llama.developer.meta.com/docs/models",
+      "auth_env": [
+        "LLAMA_API_KEY"
+      ],
+      "credential_env": "OFR_LLAMA_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 7,
@@ -2738,6 +2793,11 @@
       "name": "MiniMax Token Plan (minimaxi.com)",
       "api": "https://api.minimaxi.com/anthropic/v1",
       "documentation": "https://platform.minimaxi.com/docs/token-plan/intro",
+      "auth_env": [
+        "MINIMAX_API_KEY"
+      ],
+      "credential_env": "OFR_MINIMAX_CN_CODING_PLAN_API_KEY",
+      "protocol": "unsupported",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 7,
@@ -2835,6 +2895,11 @@
       "name": "MiniMax Token Plan (minimax.io)",
       "api": "https://api.minimax.io/anthropic/v1",
       "documentation": "https://platform.minimax.io/docs/token-plan/intro",
+      "auth_env": [
+        "MINIMAX_API_KEY"
+      ],
+      "credential_env": "OFR_MINIMAX_CODING_PLAN_API_KEY",
+      "protocol": "unsupported",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 7,
@@ -2932,6 +2997,11 @@
       "name": "ModelScope",
       "api": "https://api-inference.modelscope.cn/v1",
       "documentation": "https://modelscope.cn/docs/model-service/API-Inference/intro",
+      "auth_env": [
+        "MODELSCOPE_API_KEY"
+      ],
+      "credential_env": "OFR_MODELSCOPE_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 7,
@@ -3027,6 +3097,11 @@
       "name": "ZenMux",
       "api": "https://zenmux.ai/api/v1",
       "documentation": "https://docs.zenmux.ai",
+      "auth_env": [
+        "ZENMUX_API_KEY"
+      ],
+      "credential_env": "OFR_ZENMUX_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 7,
@@ -3132,6 +3207,11 @@
       "name": "InferX",
       "api": "https://model.inferx.net/endpoints/v1",
       "documentation": "https://model.inferx.net/endpoints",
+      "auth_env": [
+        "INFERX_API_KEY"
+      ],
+      "credential_env": "OFR_INFERX_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3225,6 +3305,11 @@
       "name": "Umans AI Coding Plan",
       "api": "https://api.code.umans.ai/v1",
       "documentation": "https://app.umans.ai/offers/code/docs",
+      "auth_env": [
+        "UMANS_AI_CODING_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_UMANS_AI_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3315,6 +3400,11 @@
       "name": "Xiaomi Token Plan (Europe)",
       "api": "https://token-plan-ams.xiaomimimo.com/v1",
       "documentation": "",
+      "auth_env": [
+        "XIAOMI_API_KEY"
+      ],
+      "credential_env": "OFR_XIAOMI_TOKEN_PLAN_AMS_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3401,6 +3491,11 @@
       "name": "Xiaomi Token Plan (China)",
       "api": "https://token-plan-cn.xiaomimimo.com/v1",
       "documentation": "",
+      "auth_env": [
+        "XIAOMI_API_KEY"
+      ],
+      "credential_env": "OFR_XIAOMI_TOKEN_PLAN_CN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3487,6 +3582,11 @@
       "name": "Xiaomi Token Plan (Singapore)",
       "api": "https://token-plan-sgp.xiaomimimo.com/v1",
       "documentation": "",
+      "auth_env": [
+        "XIAOMI_API_KEY"
+      ],
+      "credential_env": "OFR_XIAOMI_TOKEN_PLAN_SGP_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3573,6 +3673,11 @@
       "name": "Zhipu AI Coding Plan",
       "api": "https://open.bigmodel.cn/api/coding/paas/v4",
       "documentation": "https://docs.bigmodel.cn/cn/coding-plan/overview",
+      "auth_env": [
+        "ZHIPU_API_KEY"
+      ],
+      "credential_env": "OFR_ZHIPUAI_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 6,
@@ -3659,6 +3764,11 @@
       "name": "Kimi For Coding",
       "api": "https://api.kimi.com/coding/v1",
       "documentation": "https://www.kimi.com/code/docs/en/third-party-tools/other-coding-agents.html",
+      "auth_env": [
+        "KIMI_API_KEY"
+      ],
+      "credential_env": "OFR_KIMI_FOR_CODING_API_KEY",
+      "protocol": "unsupported",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 4,
@@ -3725,6 +3835,11 @@
       "name": "Z.AI Coding Plan",
       "api": "https://api.z.ai/api/coding/paas/v4",
       "documentation": "https://docs.z.ai/devpack/overview",
+      "auth_env": [
+        "ZHIPU_API_KEY"
+      ],
+      "credential_env": "OFR_ZAI_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 4,
@@ -3784,6 +3899,11 @@
       "name": "Cortecs",
       "api": "https://api.cortecs.ai/v1",
       "documentation": "https://api.cortecs.ai/v1/models",
+      "auth_env": [
+        "CORTECS_API_KEY"
+      ],
+      "credential_env": "OFR_CORTECS_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -3831,6 +3951,11 @@
       "name": "EmpirioLabs AI",
       "api": "https://api.empiriolabs.ai/v1",
       "documentation": "https://docs.empiriolabs.ai",
+      "auth_env": [
+        "EMPIRIOLABS_API_KEY"
+      ],
+      "credential_env": "OFR_EMPIRIOLABS_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -3879,6 +4004,11 @@
       "name": "LLM Gateway",
       "api": "https://api.llmgateway.io/v1",
       "documentation": "https://llmgateway.io/docs",
+      "auth_env": [
+        "LLMGATEWAY_API_KEY"
+      ],
+      "credential_env": "OFR_LLMGATEWAY_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -3929,6 +4059,11 @@
       "name": "LLMTR",
       "api": "https://llmtr.com/v1",
       "documentation": "https://llmtr.com/docs",
+      "auth_env": [
+        "LLMTR_API_KEY"
+      ],
+      "credential_env": "OFR_LLMTR_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -3976,6 +4111,11 @@
       "name": "NanoGPT",
       "api": "https://nano-gpt.com/api/v1",
       "documentation": "https://docs.nano-gpt.com",
+      "auth_env": [
+        "NANO_GPT_API_KEY"
+      ],
+      "credential_env": "OFR_NANO_GPT_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -4029,6 +4169,11 @@
       "name": "Poe",
       "api": "https://api.poe.com/v1",
       "documentation": "https://creator.poe.com/docs/external-applications/openai-compatible-api",
+      "auth_env": [
+        "POE_API_KEY"
+      ],
+      "credential_env": "OFR_POE_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -4078,6 +4223,11 @@
       "name": "SiliconFlow (China)",
       "api": "https://api.siliconflow.cn/v1",
       "documentation": "https://cloud.siliconflow.com/models",
+      "auth_env": [
+        "SILICONFLOW_CN_API_KEY"
+      ],
+      "credential_env": "OFR_SILICONFLOW_CN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 3,
@@ -4129,6 +4279,11 @@
       "name": "Alibaba (China)",
       "api": "https://dashscope.aliyuncs.com/compatible-mode/v1",
       "documentation": "https://www.alibabacloud.com/help/en/model-studio/models",
+      "auth_env": [
+        "DASHSCOPE_API_KEY"
+      ],
+      "credential_env": "OFR_ALIBABA_CN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 2,
@@ -4164,6 +4319,11 @@
       "name": "Nova",
       "api": "https://api.nova.amazon.com/v1",
       "documentation": "https://nova.amazon.com/dev/documentation",
+      "auth_env": [
+        "NOVA_API_KEY"
+      ],
+      "credential_env": "OFR_NOVA_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 2,
@@ -4205,6 +4365,11 @@
       "name": "Tencent TokenHub",
       "api": "https://tokenhub.tencentmaas.com/v1",
       "documentation": "https://cloud.tencent.com/document/product/1823/130050",
+      "auth_env": [
+        "TENCENT_TOKENHUB_API_KEY"
+      ],
+      "credential_env": "OFR_TENCENT_TOKENHUB_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 2,
@@ -4240,6 +4405,11 @@
       "name": "Z.AI",
       "api": "https://api.z.ai/api/paas/v4",
       "documentation": "https://docs.z.ai/guides/overview/pricing",
+      "auth_env": [
+        "ZHIPU_API_KEY"
+      ],
+      "credential_env": "OFR_ZAI_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 2,
@@ -4275,6 +4445,11 @@
       "name": "Zhipu AI",
       "api": "https://open.bigmodel.cn/api/paas/v4",
       "documentation": "https://docs.z.ai/guides/overview/pricing",
+      "auth_env": [
+        "ZHIPU_API_KEY"
+      ],
+      "credential_env": "OFR_ZHIPUAI_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 2,
@@ -4310,6 +4485,11 @@
       "name": "ai&",
       "api": "https://api.aiand.com/v1",
       "documentation": "https://docs.aiand.com",
+      "auth_env": [
+        "AIAND_API_KEY"
+      ],
+      "credential_env": "OFR_AIAND_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4333,6 +4513,11 @@
       "name": "Hetzner",
       "api": "https://inference.hetzner.com/api/v1",
       "documentation": "https://experiments.hetzner.com/docs/inference",
+      "auth_env": [
+        "HETZNER_API_KEY"
+      ],
+      "credential_env": "OFR_HETZNER_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4357,6 +4542,11 @@
       "name": "Hugging Face",
       "api": "https://router.huggingface.co/v1",
       "documentation": "https://huggingface.co/docs/inference-providers",
+      "auth_env": [
+        "HF_TOKEN"
+      ],
+      "credential_env": "OFR_HUGGINGFACE_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4380,6 +4570,11 @@
       "name": "Jiekou.AI",
       "api": "https://api.jiekou.ai/openai",
       "documentation": "",
+      "auth_env": [
+        "JIEKOU_API_KEY"
+      ],
+      "credential_env": "OFR_JIEKOU_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4403,6 +4598,11 @@
       "name": "KUAE Cloud Coding Plan",
       "api": "https://coding-plan-endpoint.kuaecloud.net/v1",
       "documentation": "https://docs.mthreads.com/kuaecloud/kuaecloud-doc-online/coding_plan",
+      "auth_env": [
+        "KUAE_API_KEY"
+      ],
+      "credential_env": "OFR_KUAE_CLOUD_CODING_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4426,6 +4626,11 @@
       "name": "Meganova",
       "api": "https://api.meganova.ai/v1",
       "documentation": "https://docs.meganova.ai",
+      "auth_env": [
+        "MEGANOVA_API_KEY"
+      ],
+      "credential_env": "OFR_MEGANOVA_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4450,6 +4655,11 @@
       "name": "OrcaRouter",
       "api": "https://api.orcarouter.ai/v1",
       "documentation": "https://docs.orcarouter.ai",
+      "auth_env": [
+        "ORCAROUTER_API_KEY"
+      ],
+      "credential_env": "OFR_ORCAROUTER_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4474,6 +4684,11 @@
       "name": "Tencent Token Plan",
       "api": "https://api.lkeap.cloud.tencent.com/plan/v3",
       "documentation": "https://cloud.tencent.com/document/product/1823/130060",
+      "auth_env": [
+        "TENCENT_TOKEN_PLAN_API_KEY"
+      ],
+      "credential_env": "OFR_TENCENT_TOKEN_PLAN_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,
@@ -4497,6 +4712,11 @@
       "name": "Zeldoc",
       "api": "https://api.zeldoc.ai/v1",
       "documentation": "https://docs.zeldoc.ai",
+      "auth_env": [
+        "ZELDOC_API_KEY"
+      ],
+      "credential_env": "OFR_ZELDOC_API_KEY",
+      "protocol": "openai-compatible",
       "status": "candidate",
       "evidence": "models.dev lists zero unit price; free eligibility still requires verification",
       "model_count": 1,

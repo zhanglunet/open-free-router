@@ -1,6 +1,6 @@
 # open-free-router
 
-🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Free Model Radar](https://oaf.asia/models/)
+🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Install guide](https://oaf.asia/guide/) · [Free Model Radar](https://oaf.asia/models/)
 
 > **Attribution:** This repository is derived from
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)

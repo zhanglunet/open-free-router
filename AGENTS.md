@@ -15,6 +15,7 @@
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Poll provider APIs for free model changes |
 | `open-free-router discover [--dry-run] [--output PATH]` | Find review-only free-provider candidates from the public directory |
+| `open-free-router discover --test --adopt` | Test candidates with declared credential env vars and adopt only successful models |
 | `open-free-router add NAME --base-url URL [--upstream-url URL] [--model ID] [--auto-refresh]` | Add a provider to registry |
 | `open-free-router sync [--agent omp,opencode,codex] [--diff]` | Sync registry to agent configs; Codex uses an isolated profile |
 | `open-free-router token` | Print the local inference proxy bearer token |
@@ -26,6 +27,7 @@
 - `registry.yaml` on first `serve` is auto-created from `registry.default.yaml`
 - Both files get `.bak-YYYYMMDD-HHMMSS` backups on write
 - API keys live in `registry.yaml` — never commit
+- Auto-discovered providers use `api_key_env`; registry stores the environment-variable name, never its value
 - `refresh_interval_hours` in config.yaml controls scheduler frequency (default 12)
 
 ## Bootstrap
@@ -68,6 +70,7 @@ src/open_free_router/
 - **Pi models.json** written by `serve.py` on startup and after each refresh. Format: `{providers: {name: {baseUrl, models: [...]}}}`. All providers point to local proxy; routing is by model ID.
 - **Scheduler interval** configurable via `config.yaml: refresh_interval_hours` (default 12)
 - **Discovery interval** configurable via `config.yaml: discovery.interval_hours` (default 24); candidates are review-only and never auto-promoted
+- **Auto-adoption** is opt-in with `discovery.auto_test` + `discovery.auto_adopt`; it requires public HTTPS, declared OpenAI compatibility, a user-provided credential env, and a valid live response
 - **ModelInfo** fields: `id` (short display name, e.g. `glm-5.2`), `upstream_id` (optional, e.g. `z-ai/glm-5.2`, falls back to `id`)
 - **ProviderConfig** field: `prefix` (short channel prefix for model IDs, e.g. `nv`, `or`. Falls back to provider name)
 - **config.yaml `registry:` path** resolved relative to config's parent directory, not CWD
@@ -85,6 +88,7 @@ src/open_free_router/
 - `scripts/install.sh` — one-liner: clone → venv → pip install → optional systemd
 - `scripts/export-public-catalog.py` — redacted registry/status export for the public model radar
 - `scripts/discover-models.mjs` — build-time public candidate snapshot for Cloudflare
+- `scripts/install.sh --codex` — one-click isolated install plus Codex profile; deployed as `https://oaf.asia/install.sh`
 - `contrib/systemd/open-free-router.service` — systemd unit file for Linux auto-start + auto-restart
 
 ## Testing

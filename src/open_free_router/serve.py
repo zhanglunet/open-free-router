@@ -16,7 +16,7 @@ from open_free_router.ui import run_ui
 from open_free_router.refresh import refresh
 from open_free_router.sync import write_pi_models, sync_all
 from open_free_router.auth import get_or_create_proxy_token
-from open_free_router.discovery import discover, save_discovery
+from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
 
 
 class Daemon:
@@ -49,6 +49,20 @@ class Daemon:
         while not self._stop.is_set():
             try:
                 snapshot = discover(self.reg)
+                if self.cfg.discovery_auto_test or self.cfg.discovery_auto_adopt:
+                    validate_candidates(
+                        snapshot,
+                        max_providers=self.cfg.discovery_max_providers,
+                        max_models=self.cfg.discovery_max_models,
+                    )
+                if self.cfg.discovery_auto_adopt:
+                    adopted = adopt_validated(snapshot, self.reg)
+                    if adopted:
+                        self.reg.save(self.cfg.registry_path)
+                        rebuild_proxy_index()
+                        proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
+                        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
+                        print(f"[discovery] auto-adopted: {', '.join(adopted)}")
                 save_discovery(snapshot, self.cfg.discovery_path)
                 print(
                     "[discovery] found "

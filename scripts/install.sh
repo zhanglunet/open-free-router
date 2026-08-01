@@ -3,9 +3,13 @@ set -euo pipefail
 
 REPO_URL="https://github.com/zhanglunet/open-free-router.git"
 INSTALL_SYSTEMD=false
+INSTALL_CODEX=false
+AUTO_DISCOVERY=false
 for arg in "$@"; do
   case "$arg" in
     --with-systemd) INSTALL_SYSTEMD=true ;;
+    --codex) INSTALL_CODEX=true ;;
+    --auto-discovery) AUTO_DISCOVERY=true ;;
     *) REPO_URL="$arg" ;;
   esac
 done
@@ -30,12 +34,14 @@ echo "⏳ Setting up Python environment..."
 cd "$INSTALL_DIR"
 "$PYTHON" -m venv .venv
 source .venv/bin/activate
-pip install -q -U pip setuptools wheel
-pip install -q -e .
+pip install --disable-pip-version-check --timeout 30 --retries 1 -q -e .
 
 # Symlink to system path if writable
 if [ -w /usr/local/bin ]; then
   ln -sf "$INSTALL_DIR/.venv/bin/open-free-router" /usr/local/bin/open-free-router
+else
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$INSTALL_DIR/.venv/bin/open-free-router" "$HOME/.local/bin/open-free-router"
 fi
 
 mkdir -p "$CONFIG_DIR"
@@ -54,7 +60,20 @@ ui:
   port: 9057
 
 refresh_interval_hours: 12
+
+discovery:
+  enabled: true
+  interval_hours: 24
+  auto_test: $AUTO_DISCOVERY
+  auto_adopt: $AUTO_DISCOVERY
+  max_providers_per_cycle: 5
+  max_models_per_provider: 3
 EOF
+fi
+
+if [ "$INSTALL_CODEX" = true ]; then
+  echo "⏳ Creating isolated Codex profile..."
+  "$INSTALL_DIR/.venv/bin/open-free-router" sync --agent codex
 fi
 
 echo ""
@@ -66,6 +85,12 @@ echo "Next steps:"
 echo "  1. Edit $CONFIG_DIR/registry.yaml and add your API keys"
 echo "  2. Or run:  open-free-router setup"
 echo "  3. Start:   open-free-router serve"
+if [ "$INSTALL_CODEX" = true ]; then
+  echo "  4. Codex:   codex --profile open-free-router"
+fi
+if [ ! -w /usr/local/bin ]; then
+  echo "  PATH: add $HOME/.local/bin to PATH if open-free-router is not found"
+fi
 echo ""
 
 # Optional: install systemd service for auto-start

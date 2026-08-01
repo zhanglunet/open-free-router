@@ -12,6 +12,15 @@ function html(value) {
   })[character]);
 }
 
+function externalUrl(value) {
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:" ? html(url.href) : "#";
+  } catch {
+    return "#";
+  }
+}
+
 function formatTokens(value) {
   if (!value) return "—";
   if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(value % 1_000_000 ? 1 : 0)}M`;
@@ -42,8 +51,12 @@ function renderProviders(catalog) {
   $("#provider-cards").innerHTML = catalog.providers.map((provider) => `
     <article class="provider-card ${provider.availability}">
       <div><span class="dot ${provider.availability}"></span><small>${statusLabel(provider.availability)}</small></div>
-      <h3>${html(provider.name)}</h3>
-      <p>${html(provider.reason)}</p>
+      <h3>${html(provider.profile?.zh_name || provider.name)}</h3>
+      <p class="provider-org">${html(provider.profile?.organization || provider.name)} · ${html(provider.profile?.region || "")}</p>
+      <p>${html(provider.profile?.background_zh || provider.reason)}</p>
+      <div class="provider-tags">${(provider.profile?.strengths_zh || []).map((item) => `<span>${html(item)}</span>`).join("")}</div>
+      <p class="provider-caution">${html(provider.profile?.cautions_zh || provider.reason)}</p>
+      ${provider.profile?.official_url ? `<a class="provider-source" href="${externalUrl(provider.profile.official_url)}" rel="noreferrer">官方资料 ↗</a>` : ""}
       <footer><b>${provider.model_count}</b><span>模型</span><b>${latencyLabel(provider.latency_ms)}</b><span>最近延迟</span></footer>
     </article>`).join("");
 }
@@ -77,6 +90,7 @@ function renderRows() {
     <tr>
       <td><span class="status-badge ${row.provider_status}">${statusLabel(row.provider_status)}</span></td>
       <td><small>${html(row.provider_name)}</small><b>${html(row.name)}</b><code>${html(row.upstream_id)}</code></td>
+      <td class="model-description"><b>${html(row.family_zh)}</b><span>${html(row.description_zh)}</span><em>适合：${html(row.recommended_for_zh)}</em><small>${html(row.speed_tier_zh)} · ${html(row.benchmark_note_zh)}</small></td>
       <td data-value="${row.context_window}">${formatTokens(row.context_window)}</td>
       <td data-value="${row.max_tokens}">${formatTokens(row.max_tokens)}</td>
       <td><span class="feature ${row.reasoning ? "yes" : "no"}">${row.reasoning ? "YES" : "—"}</span></td>
@@ -84,7 +98,7 @@ function renderRows() {
       <td><div class="score"><i style="--score:${row.capability_score}%"></i><b>${row.capability_score}</b></div></td>
       <td>${latencyLabel(row.latency_ms)}</td>
       <td><code>${html(row.codex_alias)}</code></td>
-    </tr>`).join("") : `<tr><td colspan="9" class="empty">没有符合当前筛选条件的模型。</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="10" class="empty">没有符合当前筛选条件的模型。</td></tr>`;
 }
 
 function renderDiscovery(discovery) {
@@ -95,7 +109,7 @@ function renderDiscovery(discovery) {
   const providers = discovery.providers ?? [];
   $("#candidate-list").innerHTML = providers.length ? providers.slice(0, 30).map((provider) => `
     <details>
-      <summary><div><span class="dot candidate"></span><b>${html(provider.name)}</b><small>${html(provider.api)}</small></div><em>${provider.model_count} models</em></summary>
+      <summary><div><span class="dot candidate"></span><b>${html(provider.name)}</b><small>${html(provider.api)} · ${html(provider.protocol || "协议待识别")} · 专用变量 ${html(provider.credential_env || "未生成")}</small></div><em>${provider.model_count} models</em></summary>
       <div class="candidate-models">${provider.models.slice(0, 12).map((model) => `<span><b>${html(model.name)}</b><small>${formatTokens(model.context_window)} ctx · ${model.tool_calling ? "tools" : "text"}${model.reasoning ? " · reasoning" : ""}</small></span>`).join("")}</div>
     </details>`).join("") : `<p class="empty">尚未发现满足严格零价格与 HTTPS 条件的新候选。</p>`;
 }
@@ -130,5 +144,5 @@ $("#reset").addEventListener("click", () => {
   renderRows();
 });
 load().catch((error) => {
-  $("#model-rows").innerHTML = `<tr><td colspan="9" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
+  $("#model-rows").innerHTML = `<tr><td colspan="10" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
 });

@@ -34,6 +34,21 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
+export function installManifest() {
+  return {
+    name: "open-free-router",
+    repository: "https://github.com/zhanglunet/open-free-router",
+    installer: "https://oaf.asia/install.sh",
+    one_liner: "curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex",
+    safe_steps: [
+      "curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh",
+      "less /tmp/open-free-router-install.sh",
+      "bash /tmp/open-free-router-install.sh --codex",
+    ],
+    next: ["open-free-router setup", "open-free-router serve", "codex --profile open-free-router"],
+  };
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -42,6 +57,9 @@ export default {
     }
     if (url.pathname === "/api/health") {
       return json({ ok: true, discovery_schedule: "every 6 hours", source: "models.dev" });
+    }
+    if (url.pathname === "/api/install") {
+      return json(installManifest());
     }
     if (url.pathname === "/api/discovery") {
       try { return json(await getDiscovery(env, ctx)); }

@@ -16,7 +16,7 @@
   <a class="skip-link" href="#catalog">跳到模型清单</a>
   <header class="topbar">
     <a class="brand" href="/" aria-label="open-free-router 首页"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span><span>OPEN FREE ROUTER</span></a>
-    <nav aria-label="模型页导航"><a href="/#architecture">系统架构</a><a href="#providers">提供商</a><a href="#catalog">模型清单</a><a href="#discovery">持续发现</a></nav>
+    <nav aria-label="模型页导航"><a href="/guide/">安装指南</a><a href="#providers">提供商</a><a href="#catalog">模型清单</a><a href="#discovery">持续发现</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
 
@@ -38,7 +38,7 @@
     <section class="status-note">
       <div><span class="dot available"></span><b>可用</b><small>最近一次安全 smoke test 成功</small></div>
       <div><span class="dot unavailable"></span><b>不可用</b><small>最近验证已确认外部阻断</small></div>
-      <div><span class="dot candidate"></span><b>候选</b><small>公开目录发现，尚未进入 registry</small></div>
+      <div><span class="dot candidate"></span><b>候选</b><small>公开目录发现；需凭据和真实请求验证</small></div>
       <p id="status-time">正在读取状态快照…</p>
     </section>
 
@@ -50,7 +50,7 @@
     <section class="catalog-section" id="catalog">
       <div class="catalog-head">
         <div><p class="eyebrow"><span></span> MODEL CATALOG</p><h2>模型参数与能力比较</h2></div>
-        <p>“功能指数”只根据上下文、输出、推理和工具能力计算，不代表模型智力、代码质量或基准测试排名。</p>
+        <p>中文说明、适用场景、厂商背景、上下文、输出、推理、工具与实测延迟集中比较。“功能指数”不是智力或质量排名。</p>
       </div>
       <div class="filters" role="search">
         <label class="search"><span>搜索</span><input id="search" type="search" placeholder="模型、提供商、upstream ID…" autocomplete="off"></label>
@@ -62,8 +62,8 @@
       <div class="result-meta"><b id="result-count">0</b> 个匹配模型 <button id="reset" type="button">重置筛选</button></div>
       <div class="model-table-wrap" tabindex="0" role="region" aria-label="免费模型完整比较表">
         <table class="model-table">
-          <thead><tr><th>状态</th><th>提供商 / 模型</th><th>上下文</th><th>最大输出</th><th>推理</th><th>工具</th><th>功能指数</th><th>实测延迟</th><th>Codex 别名</th></tr></thead>
-          <tbody id="model-rows"><tr><td colspan="9" class="loading">正在加载模型目录…</td></tr></tbody>
+          <thead><tr><th>状态</th><th>提供商 / 模型</th><th>中文说明 / 适用场景</th><th>上下文</th><th>最大输出</th><th>推理</th><th>工具</th><th>功能指数</th><th>实测延迟</th><th>Codex 别名</th></tr></thead>
+          <tbody id="model-rows"><tr><td colspan="10" class="loading">正在加载模型目录…</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -72,8 +72,8 @@
       <div class="discovery-copy">
         <p class="eyebrow"><span></span> CONTINUOUS DISCOVERY</p>
         <h2>每 6 小时，<br>寻找新的免费入口。</h2>
-        <p>Cloudflare Cron 从公开的 models.dev 目录筛选“输入与输出单价标记为 0、具有 HTTPS API”的提供商。零单价可能代表免费额度、试用或订阅套餐，因此候选只进入审查队列，不会自动获得信任或写入正式 registry。</p>
-        <div class="discovery-flow"><span>公开目录</span><i>→</i><span>安全过滤</span><i>→</i><span>候选队列</span><i>→</i><span>人工验证</span><i>→</i><span>正式接入</span></div>
+        <p>Cloudflare Cron 每 6 小时更新候选。用户本机可根据公开声明的环境变量执行真实最小请求；只有公网 HTTPS、OpenAI 兼容且请求成功的模型才能自动接入，Cloudflare 不持有用户凭据。</p>
+        <div class="discovery-flow"><span>公开目录</span><i>→</i><span>凭据识别</span><i>→</i><span>真实请求</span><i>→</i><span>成功模型</span><i>→</i><span>自动接入</span></div>
       </div>
       <div class="discovery-summary"><div><b id="discovered-providers">—</b><span>候选提供商</span></div><div><b id="discovered-models">—</b><span>候选免费模型</span></div><small id="discovery-time">等待首次扫描</small></div>
       <div class="candidate-list" id="candidate-list"><p class="loading">正在读取发现队列…</p></div>

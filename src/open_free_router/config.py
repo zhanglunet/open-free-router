@@ -49,6 +49,10 @@ class Config:
         discovery = self._raw.get("discovery", {})
         self.discovery_enabled = bool(discovery.get("enabled", True))
         self.discovery_interval_hours = int(discovery.get("interval_hours", 24))
+        self.discovery_auto_test = bool(discovery.get("auto_test", False))
+        self.discovery_auto_adopt = bool(discovery.get("auto_adopt", False))
+        self.discovery_max_providers = int(discovery.get("max_providers_per_cycle", 5))
+        self.discovery_max_models = int(discovery.get("max_models_per_provider", 3))
 
         # proxy upstream timeout
         self.upstream_timeout = int(self._raw.get("upstream_timeout", 120))

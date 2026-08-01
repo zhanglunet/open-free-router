@@ -3,8 +3,8 @@
 ## Goal
 
 Expose a public, credential-free comparison of the router's trusted providers
-and models, while continuously discovering potential new free endpoints without
-automatically trusting or importing them.
+and models, while continuously discovering potential new free endpoints and
+offering a strict, opt-in live-validation gate before automatic import.
 
 ## Trust states
 
@@ -25,14 +25,25 @@ automatically trusting or importing them.
    consolidated snapshot in Workers KV.
 4. The local daemon runs an independent discovery cycle every 24 hours by
    default and writes an owner-only review snapshot outside the repository.
-5. Discovery never mutates `registry.yaml`. Promotion requires manual endpoint,
-   terms, free-tier, model-ID, auth, and tool-call verification.
+5. Discovery does not mutate `registry.yaml` unless auto-adoption is explicitly
+   requested and an individual model passes the validation gate.
 6. Public export never includes API keys, bearer tokens, local paths, or
    authorization headers.
+7. Candidate metadata retains declared auth names for documentation but testing
+   reads only a dedicated `OFR_<PROVIDER>_API_KEY` opt-in variable. Generic
+   high-privilege variables such as `GITHUB_TOKEN` are never read automatically.
+8. Local validation rejects non-public or non-HTTPS endpoints, disables HTTP
+   redirects and proxy inheritance, performs a minimal authenticated Chat
+   Completions request, and records only status/latency evidence.
+9. Auto-adoption is opt-in. It adds only individually successful models,
+   references credentials by environment name, and leaves tool calling disabled
+   until separately verified.
+10. Every registered provider has a Chinese background profile, and every
+    registered model has a generated Chinese description and use-case guide.
 
 ## Data flow
 
-`models.dev → HTTPS/zero-price filter → candidate snapshot → manual review → registry`
+`models.dev → zero-price/protocol filter → credential lookup → public HTTPS policy → live smoke test → opt-in registry`
 
 Trusted data follows a separate path:
 
@@ -43,4 +54,7 @@ Trusted data follows a separate path:
 - Claiming model intelligence or code quality from declared metadata.
 - Treating a zero price field as proof of unlimited free use.
 - Uploading upstream provider credentials to Cloudflare.
-- Automatically routing traffic to newly discovered endpoints.
+- Automatically routing traffic to candidates that have not passed the live
+  validation gate.
+- Claiming an external benchmark score when no comparable independent result
+  exists.

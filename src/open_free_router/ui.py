@@ -144,7 +144,8 @@ class _UIHandler(BaseHTTPRequestHandler):
                 "name": name,
                 "base_url": p.base_url,
                 "upstream_url": p.upstream_url or "",
-                "api_key": self._mask_key(p.effective_key),
+                "api_key": "***" if p.api_key_env and p.effective_key else self._mask_key(p.effective_key),
+                "api_key_env": p.api_key_env,
                 "auto_refresh": p.auto_refresh,
                 "refresh_method": p.refresh_method,
                 "model_count": len(p.models),
@@ -190,6 +191,7 @@ class _UIHandler(BaseHTTPRequestHandler):
             return
         existing = self.reg.get(name)
         api_key = data.get("api_key", existing.api_key if existing else "")
+        api_key_env = data.get("api_key_env", existing.api_key_env if existing else "")
         base_url = data.get("base_url", existing.base_url if existing else "")
         upstream_url = data.get("upstream_url", existing.upstream_url if existing else "")
         models_raw = data.get("models", [])
@@ -212,6 +214,7 @@ class _UIHandler(BaseHTTPRequestHandler):
             base_url=base_url,
             upstream_url=upstream_url,
             api_key=api_key,
+            api_key_env=api_key_env,
             models=models,
             auto_refresh=bool(data.get("auto_refresh", False)),
             refresh_method=data.get("refresh_method", "api" if data.get("auto_refresh") else "manual"),

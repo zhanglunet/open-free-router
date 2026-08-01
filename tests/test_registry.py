@@ -81,6 +81,15 @@ class TestProviderConfig:
         p = ProviderConfig(name="test", api_key="sk-abc")
         assert p.effective_key == "sk-abc"
 
+    def test_effective_key_can_reference_environment(self, monkeypatch):
+        monkeypatch.setenv("DISCOVERED_PROVIDER_KEY", "from-env")
+        p = ProviderConfig(name="test", api_key_env="DISCOVERED_PROVIDER_KEY")
+        assert p.effective_key == "from-env"
+        registry = Registry()
+        registry.add_provider(p)
+        assert registry.to_dict()["test"]["api_key_env"] == "DISCOVERED_PROVIDER_KEY"
+        assert "from-env" not in str(registry.to_dict())
+
     def test_effective_key_multi(self):
         p = ProviderConfig(name="test", api_key="sk-old", api_keys=["sk-new1", "sk-new2"])
         assert p.effective_key == "sk-new1"

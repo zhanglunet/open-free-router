@@ -14,6 +14,10 @@ def test_config_defaults(tmp_path):
     assert cfg.refresh_interval_hours == 12
     assert cfg.discovery_enabled is True
     assert cfg.discovery_interval_hours == 24
+    assert cfg.discovery_auto_test is False
+    assert cfg.discovery_auto_adopt is False
+    assert cfg.discovery_max_providers == 5
+    assert cfg.discovery_max_models == 3
 
 
 def test_config_custom_values(tmp_path):
@@ -23,6 +27,8 @@ def test_config_custom_values(tmp_path):
         "ui:\n  host: 0.0.0.0\n  port: 9001\n"
         "refresh_interval_hours: 6\n"
         "discovery:\n  enabled: false\n  interval_hours: 8\n"
+        "  auto_test: true\n  auto_adopt: true\n"
+        "  max_providers_per_cycle: 2\n  max_models_per_provider: 1\n"
     )
     cfg = Config(config_path=cfg_path)
     assert cfg.proxy_host == "0.0.0.0"
@@ -32,6 +38,10 @@ def test_config_custom_values(tmp_path):
     assert cfg.refresh_interval_hours == 6
     assert cfg.discovery_enabled is False
     assert cfg.discovery_interval_hours == 8
+    assert cfg.discovery_auto_test is True
+    assert cfg.discovery_auto_adopt is True
+    assert cfg.discovery_max_providers == 2
+    assert cfg.discovery_max_models == 1
 
 
 def test_config_registry_relative_path(tmp_path):

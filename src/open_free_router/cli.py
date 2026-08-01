@@ -11,7 +11,7 @@ from open_free_router.refresh import refresh
 from open_free_router.ui import run_ui
 from open_free_router.serve import Daemon
 from open_free_router.auth import get_or_create_proxy_token
-from open_free_router.discovery import discover, save_discovery
+from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -124,6 +124,11 @@ def cmd_setup(args):
     changed = False
     for name, p in reg.providers.items():
 
+        if p.api_key_env:
+            status = "✓ available" if p.effective_key else "✗ not set"
+            print(f"  {name:25s} {status} via ${p.api_key_env}")
+            continue
+
         if p.api_key:
             masked = f"{p.api_key[:8]}...{p.api_key[-4:]}" if len(p.api_key) > 12 else "***"
             print(f"  {name:25s} ✓ {masked}")
@@ -198,16 +203,29 @@ def cmd_discover(args):
     _bootstrap_registry(cfg)
     reg = Registry.load(cfg.registry_path)
     snapshot = discover(reg, timeout=args.timeout)
+    if args.test or args.adopt:
+        validate_candidates(
+            snapshot,
+            timeout=args.timeout,
+            max_providers=args.max_providers,
+            max_models=args.max_models,
+        )
     print(
         f"Found {snapshot['candidate_provider_count']} candidate providers and "
         f"{snapshot['candidate_model_count']} explicit-free models."
     )
     for provider in snapshot["providers"][:20]:
-        print(f"  {provider['id']:24s} {provider['model_count']:3d} models  {provider['api']}")
+        state = provider.get("validation", {}).get("state", "candidate")
+        print(f"  {provider['id']:24s} {provider['model_count']:3d} models  {state:18s} {provider['api']}")
     if args.dry_run:
         print("Dry run: registry and discovery snapshot were not changed.")
         return
     output = Path(args.output).expanduser() if args.output else cfg.discovery_path
+    if args.adopt:
+        adopted = adopt_validated(snapshot, reg)
+        if adopted:
+            reg.save(cfg.registry_path)
+        print(f"Auto-adopted {len(adopted)} verified providers: {', '.join(adopted) or 'none'}")
     save_discovery(snapshot, output)
     print(f"Saved review-only candidates to {output}")
 
@@ -255,6 +273,10 @@ def main():
     p_discover.add_argument("--dry-run", action="store_true")
     p_discover.add_argument("--output", help="override discovery snapshot path")
     p_discover.add_argument("--timeout", type=int, default=30)
+    p_discover.add_argument("--test", action="store_true", help="test candidates using declared credential env vars")
+    p_discover.add_argument("--adopt", action="store_true", help="add only models that pass authenticated testing")
+    p_discover.add_argument("--max-providers", type=int, default=5)
+    p_discover.add_argument("--max-models", type=int, default=3)
     p_discover.set_defaults(func=cmd_discover)
 
     args = parser.parse_args()

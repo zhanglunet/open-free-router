@@ -16,8 +16,54 @@ def _capability_score(context: int, output: int, reasoning: bool, tools: bool) -
     return min(100, context_points + output_points + (20 if reasoning else 0) + (25 if tools else 0))
 
 
-def build_public_catalog(registry: Registry, status_snapshot: dict) -> dict:
+def _family_zh(model_id: str) -> str:
+    value = model_id.lower()
+    families = {
+        "gemini": "Google Gemini",
+        "gpt-oss": "OpenAI GPT-OSS 开放权重",
+        "deepseek": "DeepSeek",
+        "llama": "Meta Llama",
+        "nemotron": "NVIDIA Nemotron",
+        "glm": "智谱 GLM",
+        "qwen": "阿里 Qwen",
+        "gemma": "Google Gemma",
+        "minimax": "MiniMax",
+        "step": "阶跃 Step",
+        "ernie": "百度 ERNIE",
+        "kimi": "月之暗面 Kimi",
+        "laguna": "Poolside Laguna",
+        "ling": "Ling",
+    }
+    return next((label for marker, label in families.items() if marker in value), "通用大语言模型")
+
+
+def _use_case(context: int, reasoning: bool, tools: bool) -> str:
+    if reasoning and tools:
+        return "复杂编码、Agent 工具链和多步分析"
+    if tools:
+        return "函数调用、自动化流程和轻量代码任务"
+    if reasoning:
+        return "规划、推理、数学和复杂问题拆解"
+    if context >= 128_000:
+        return "长文档理解、摘要和通用问答"
+    return "日常问答、改写、分类和短文本生成"
+
+
+def _speed_tier(availability: str, latency_ms: int | None) -> str:
+    if availability != "available":
+        return "当前不可用"
+    if latency_ms is None:
+        return "未测"
+    if latency_ms <= 1500:
+        return "快"
+    if latency_ms <= 3000:
+        return "中等"
+    return "较慢"
+
+
+def build_public_catalog(registry: Registry, status_snapshot: dict, provider_profiles: dict | None = None) -> dict:
     statuses = status_snapshot.get("providers") or {}
+    provider_profiles = provider_profiles or {}
     providers = []
     model_total = 0
     for name, provider in registry.providers.items():
@@ -26,6 +72,7 @@ def build_public_catalog(registry: Registry, status_snapshot: dict) -> dict:
             "reason": "No recent smoke-test evidence",
             "latency_ms": None,
         }
+        profile = provider_profiles.get(name) or {}
         models = []
         for model in provider.models:
             model_total += 1
@@ -43,6 +90,18 @@ def build_public_catalog(registry: Registry, status_snapshot: dict) -> dict:
                 "capability_score": _capability_score(
                     model.context_window, model.max_tokens, model.reasoning, model.tool_calling
                 ),
+                "family_zh": _family_zh(model.effective_upstream_id),
+                "description_zh": (
+                    f"{_family_zh(model.effective_upstream_id)} 系列文本模型；声明上下文 "
+                    f"{model.context_window:,} tokens，最大输出 {model.max_tokens:,} tokens。"
+                ),
+                "recommended_for_zh": _use_case(
+                    model.context_window, model.reasoning, model.tool_calling
+                ),
+                "speed_tier_zh": _speed_tier(
+                    status.get("availability", "unverified"), status.get("latency_ms")
+                ),
+                "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
             })
         providers.append({
             "id": name,
@@ -55,6 +114,7 @@ def build_public_catalog(registry: Registry, status_snapshot: dict) -> dict:
             "checked_at": status.get("checked_at", status_snapshot.get("as_of", "")),
             "model_count": len(models),
             "models": models,
+            "profile": profile,
         })
     availability_order = {"available": 0, "unverified": 1, "unavailable": 2}
     providers.sort(key=lambda item: (availability_order.get(item["availability"], 9), item["id"]))

@@ -1,6 +1,6 @@
 # open-free-router
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [免费模型雷达](https://oaf.asia/models/)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装使用指南](https://oaf.asia/guide/) · [免费模型雷达](https://oaf.asia/models/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -11,8 +11,9 @@
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
-open-free-router serve
+curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
+less /tmp/open-free-router-install.sh
+bash /tmp/open-free-router-install.sh --codex
 ```
 
 追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，Codex、Hermes、OpenCode、PI、OMP 共享模型。
@@ -46,10 +47,15 @@ pip install -e .
 | `open-free-router setup` | 交互式向导：填写各上游源 API key |
 | `open-free-router refresh [--source NAME] [--dry-run]` | 拉取免费模型列表 |
 | `open-free-router discover [--dry-run]` | 从公开目录发现待人工验证的候选免费提供商 |
+| `open-free-router discover --test --adopt` | 用声明的环境变量实测候选，只接入真实成功模型 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
 | `open-free-router sync --agent codex [--codex-model ID]` | 生成独立的 Codex Responses API profile |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
+
+自动接入是显式启用的安全功能：只接受 models.dev 声明为 OpenAI
+兼容的公网 HTTPS 端点，要求用户主动提供对应环境变量，并通过真实的最小
+Chat Completions 请求。registry 只保存环境变量名，不复制密钥值。
 
 ## 快速开始
 
@@ -85,6 +91,14 @@ ui:
   port: 9057
 
 refresh_interval_hours: 12
+
+discovery:
+  enabled: true
+  interval_hours: 24
+  auto_test: false       # 显式开启后，测试专用 OFR_*_API_KEY 变量
+  auto_adopt: false      # 只接入真实请求成功的模型
+  max_providers_per_cycle: 5
+  max_models_per_provider: 3
 ```
 
 首次运行 `serve` 自动创建配置文件和注册表，无需手动初始化。
