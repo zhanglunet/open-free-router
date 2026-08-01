@@ -1,9 +1,16 @@
 # open-free-router
 
+> **Attribution:** This repository is derived from
+> [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
+> under the MIT License and is independently maintained by `zhanglunet`.
+> This version adds the Codex Responses API bridge, secure proxy auth, a
+> third-party model catalog, Gemini tool-call compatibility, expanded tests,
+> and the project documentation site. See [`NOTICE.md`](NOTICE.md).
+
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-router/main/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
 open-free-router serve
 ```
 
@@ -13,7 +20,7 @@ Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen
 
 **Option 1: One-liner (recommended)**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-router/main/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
 ```
 
 Install with systemd auto-start:
@@ -23,7 +30,7 @@ bash <(curl -fsSL ...) --with-systemd
 
 **Option 2: Manual**
 ```bash
-git clone https://github.com/NoelJudeNoel/open-free-router.git
+git clone https://github.com/zhanglunet/open-free-router.git
 cd open-free-router
 python3 -m venv .venv
 source .venv/bin/activate

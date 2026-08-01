@@ -1,9 +1,15 @@
 # open-free-router
 
+> **来源说明：** 本仓库基于原始项目
+> [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
+> 继续开发，遵循 MIT License。当前版本由 `zhanglunet` 独立维护，新增
+> Codex Responses API、安全鉴权、第三方模型目录、Gemini 工具调用兼容、
+> 扩展测试与项目文档网站。详见 [`NOTICE.md`](NOTICE.md)。
+
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-router/main/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
 open-free-router serve
 ```
 
@@ -13,7 +19,7 @@ open-free-router serve
 
 **方式一：一键安装（推荐）**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/NoelJudeNoel/open-free-router/main/scripts/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
 ```
 
 安装后打开 systemd 开机自启：
@@ -23,7 +29,7 @@ bash <(curl -fsSL ...) --with-systemd
 
 **方式二：手动安装**
 ```bash
-git clone https://github.com/NoelJudeNoel/open-free-router.git
+git clone https://github.com/zhanglunet/open-free-router.git
 cd open-free-router
 python3 -m venv .venv
 source .venv/bin/activate

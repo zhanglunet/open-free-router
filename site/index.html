@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#07110f">
+  <meta name="description" content="open-free-router：把多个免费模型提供商统一到一个本地、可鉴权、可自动刷新的模型路由入口，并原生接入 Codex。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="open-free-router · 一个入口，路由所有免费模型">
+  <meta property="og:description" content="系统架构、安装配置、Codex 集成、安全边界与完整使用说明。">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="open-free-router">
+  <meta name="twitter:description" content="One local gateway for Codex and free model providers.">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>open-free-router · 系统架构与使用手册</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到正文</a>
+  <div class="ambient ambient-a" aria-hidden="true"></div>
+  <div class="ambient ambient-b" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <a class="brand" href="#top" aria-label="open-free-router 首页">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+      <span>OPEN FREE ROUTER</span>
+    </a>
+    <nav aria-label="主导航">
+      <a href="#architecture">架构</a>
+      <a href="#quickstart">配置</a>
+      <a href="#codex">Codex</a>
+      <a href="#security">安全</a>
+    </nav>
+    <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub <span aria-hidden="true">↗</span></a>
+  </header>
+
+  <main id="main">
+    <section class="hero" id="top">
+      <div class="hero-copy reveal">
+        <p class="eyebrow"><span></span> LOCAL-FIRST MODEL INFRASTRUCTURE</p>
+        <h1>一个本地入口，<br><em>路由所有免费模型。</em></h1>
+        <p class="lede">把 Codex、Hermes、OpenCode、Pi 和 OMP 连接到统一代理。模型发现、鉴权、协议转换与提供商切换，都收敛在你自己的机器上。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="#quickstart">5 分钟开始</a>
+          <a class="button ghost" href="#architecture">查看数据流</a>
+        </div>
+        <div class="attribution">
+          <span>DERIVED FROM</span>
+          <a href="https://github.com/NoelJudeNoel/open-free-router" rel="noreferrer">NoelJudeNoel/open-free-router ↗</a>
+          <small>MIT License · 独立维护的增强版本</small>
+        </div>
+      </div>
+
+      <div class="console-card reveal" aria-label="路由状态演示">
+        <div class="console-head"><span></span><span></span><span></span><b>router.status</b></div>
+        <div class="console-body">
+          <div class="status-line"><span class="pulse"></span><b>PROXY ONLINE</b><code>127.0.0.1:8337</code></div>
+          <div class="route-line"><small>REQUEST</small><strong>ofr-or-gpt-oss-20b-free</strong></div>
+          <div class="route-track" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
+          <div class="route-line active"><small>ROUTED</small><strong>OpenRouter / gpt-oss-20b:free</strong></div>
+          <div class="metrics">
+            <div><b>11</b><span>PROVIDERS</span></div>
+            <div><b>51</b><span>MODELS*</span></div>
+            <div><b>1</b><span>LOCAL PORT</span></div>
+          </div>
+          <p class="metric-note">* 当前默认 registry 快照，刷新后可能变化</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="signal-strip" aria-label="核心能力">
+      <div><span>01</span><b>统一路由</b><small>按模型 ID 自动选择上游</small></div>
+      <div><span>02</span><b>协议适配</b><small>Responses API ↔ Chat Completions</small></div>
+      <div><span>03</span><b>本地鉴权</b><small>代理 token 与上游 Key 隔离</small></div>
+      <div><span>04</span><b>自动刷新</b><small>定期同步免费模型目录</small></div>
+    </section>
+
+    <section class="section architecture" id="architecture">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> SYSTEM ARCHITECTURE</p>
+        <h2>请求走一条清晰、<br>可审计的链路。</h2>
+        <p>客户端只知道本地代理；真实 API Key、提供商差异和上游模型 ID 都被封装在路由层内部。</p>
+      </header>
+
+      <div class="architecture-map reveal" role="img" aria-label="客户端经过 Responses 适配器、鉴权代理和模型路由器到达上游提供商">
+        <div class="map-column clients">
+          <span class="map-label">CLIENTS</span>
+          <div class="node"><i>⌁</i><div><b>Codex</b><small>Responses API</small></div></div>
+          <div class="node muted"><i>›_</i><div><b>Other agents</b><small>OpenAI compatible</small></div></div>
+        </div>
+        <div class="flow-arrow"><i></i><span>HTTP :8337</span></div>
+        <div class="map-core">
+          <span class="map-label">LOCAL CONTROL PLANE</span>
+          <div class="core-node"><small>01</small><b>Responses Adapter</b><span>工具调用 · SSE · Gemini signature</span></div>
+          <div class="core-link"></div>
+          <div class="core-node"><small>02</small><b>Auth Proxy</b><span>Bearer token · 超时 · 重试</span></div>
+          <div class="core-link"></div>
+          <div class="core-node accent"><small>03</small><b>Model Router</b><span>5 种 ID 格式 → upstream_id</span></div>
+        </div>
+        <div class="flow-arrow outbound"><i></i><span>TLS</span></div>
+        <div class="map-column providers">
+          <span class="map-label">UPSTREAMS</span>
+          <div class="provider-stack">
+            <span>OpenRouter</span><span>NVIDIA NIM</span><span>Google AI Studio</span><span>Groq</span><span>DeepSeek</span><span>+ 6 providers</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="component-grid">
+        <article class="component reveal"><span>registry.yaml</span><h3>唯一模型真源</h3><p>保存提供商、模型能力、上游 ID 和刷新策略。真实 API Key 只留在本机，不进入 Git。</p></article>
+        <article class="component reveal"><span>proxy.py</span><h3>单端口反向代理</h3><p>支持 bare、prefix、upstream、provider/upstream 和 Codex 安全别名五种模型 ID。</p></article>
+        <article class="component reveal"><span>responses.py</span><h3>Codex 协议桥</h3><p>转换 Responses API、SSE 与函数工具历史，并保留 Gemini thought signature。</p></article>
+        <article class="component reveal"><span>serve.py</span><h3>一条命令启动</h3><p>同时运行代理、控制台、定时刷新器与模型目录同步，无需外部 Web 框架。</p></article>
+      </div>
+    </section>
+
+    <section class="section purpose" id="purpose">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> WHY IT EXISTS</p>
+        <h2>它不是新的模型平台，<br>而是你的本地适配层。</h2>
+      </header>
+      <div class="purpose-layout">
+        <div class="use-cases reveal">
+          <article><span>01</span><div><h3>给 Codex 配置第三方模型</h3><p>生成独立 profile 和模型目录，不覆盖正常的 OpenAI 配置。</p></div></article>
+          <article><span>02</span><div><h3>减少多客户端重复配置</h3><p>Pi、OMP、OpenCode、Hermes 共享一个代理地址与统一 registry。</p></div></article>
+          <article><span>03</span><div><h3>追踪免费模型变化</h3><p>按计划轮询支持的提供商，刷新模型、上下文窗口和工具能力。</p></div></article>
+          <article><span>04</span><div><h3>把凭据留在自己的机器</h3><p>客户端只拿本地代理 token，上游 API Key 不写入同步后的客户端配置。</p></div></article>
+        </div>
+        <aside class="boundary-card reveal">
+          <p>DESIGN BOUNDARY</p>
+          <h3>本地控制面，<br><em>远端只做推理。</em></h3>
+          <ul>
+            <li><span>✓</span> 本地 registry 与 token</li>
+            <li><span>✓</span> 环回地址默认监听</li>
+            <li><span>✓</span> 请求按模型精确路由</li>
+            <li><span>—</span> 不托管你的推理数据</li>
+            <li><span>—</span> 不代理付费或计费承诺</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section quickstart" id="quickstart">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> QUICK START · 快速开始</p>
+        <h2>从安装到第一次路由，<br>只需要四步。</h2>
+      </header>
+      <div class="steps">
+        <article class="step reveal">
+          <div class="step-meta"><b>01</b><span>INSTALL</span></div>
+          <h3>安装到独立虚拟环境</h3>
+          <div class="codebox"><code>git clone https://github.com/zhanglunet/open-free-router.git
+cd open-free-router
+python3 -m venv .venv
+.venv/bin/pip install -e .</code><button class="copy" type="button" aria-label="复制安装命令">COPY</button></div>
+        </article>
+        <article class="step reveal">
+          <div class="step-meta"><b>02</b><span>SETUP</span></div>
+          <h3>录入你自己的提供商 Key</h3>
+          <div class="codebox"><code>.venv/bin/open-free-router setup</code><button class="copy" type="button" aria-label="复制配置命令">COPY</button></div>
+          <p>Key 写入本机 registry；该文件默认被 Git 忽略。</p>
+        </article>
+        <article class="step reveal">
+          <div class="step-meta"><b>03</b><span>SERVE</span></div>
+          <h3>启动代理、控制台与刷新器</h3>
+          <div class="codebox"><code>.venv/bin/open-free-router serve</code><button class="copy" type="button" aria-label="复制启动命令">COPY</button></div>
+          <p>Proxy：127.0.0.1:8337 · UI：127.0.0.1:9057</p>
+        </article>
+        <article class="step reveal">
+          <div class="step-meta"><b>04</b><span>CONNECT</span></div>
+          <h3>同步并启动 Codex</h3>
+          <div class="codebox"><code>.venv/bin/open-free-router sync --agent codex \
+  --codex-model 'or/gpt-oss-20b:free'
+codex --profile open-free-router</code><button class="copy" type="button" aria-label="复制 Codex 命令">COPY</button></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="section config" id="config">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> CONFIGURATION</p>
+        <h2>两个文件，分清职责。</h2>
+      </header>
+      <div class="config-grid">
+        <article class="config-card reveal">
+          <div class="file-title"><span>01</span><div><b>config.yaml</b><small>运行参数</small></div></div>
+          <pre><code>proxy_host: 127.0.0.1
+proxy_port: 8337
+ui_port: 9057
+refresh_interval_hours: 12
+upstream_timeout: 120
+registry: registry.yaml</code></pre>
+          <p>配置监听地址、端口、刷新周期、超时和 registry 路径。</p>
+        </article>
+        <article class="config-card reveal">
+          <div class="file-title"><span>02</span><div><b>registry.yaml</b><small>模型与提供商</small></div></div>
+          <pre><code>openrouter:
+  prefix: or
+  upstream_url: https://openrouter.ai/api/v1
+  api_key: ${YOUR_LOCAL_KEY}
+  models:
+    - id: gpt-oss-20b:free
+      tool_calling: true</code></pre>
+          <p>保存上游连接、私有 Key、模型 ID 和能力元数据。不要提交该文件。</p>
+        </article>
+      </div>
+      <div class="command-table reveal" role="region" aria-label="命令一览" tabindex="0">
+        <table>
+          <thead><tr><th>命令</th><th>作用</th><th>什么时候用</th></tr></thead>
+          <tbody>
+            <tr><td><code>serve</code></td><td>代理 + UI + scheduler</td><td>日常常驻运行</td></tr>
+            <tr><td><code>setup</code></td><td>交互式录入 API Key</td><td>首次安装或增加提供商</td></tr>
+            <tr><td><code>refresh</code></td><td>拉取免费模型变化</td><td>立即更新 registry</td></tr>
+            <tr><td><code>sync</code></td><td>同步客户端配置</td><td>模型变化或新增客户端</td></tr>
+            <tr><td><code>add</code></td><td>注册自定义提供商</td><td>接入新的 OpenAI 兼容源</td></tr>
+            <tr><td><code>token</code></td><td>供 Codex 命令鉴权读取</td><td>通常由 profile 自动调用</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="section codex" id="codex">
+      <div class="codex-panel reveal">
+        <div class="codex-copy">
+          <p class="eyebrow"><span></span> CODEX INTEGRATION</p>
+          <h2>第三方模型，<br>以 Codex 原生方式出现。</h2>
+          <p>同步命令生成隔离的 profile 与 51 条模型能力元数据。打开 <code>/model</code> 即可选择第三方模型，不修改你的常规 Codex profile。</p>
+          <ul>
+            <li><b>Responses API</b><span>文本、SSE、函数工具完整适配</span></li>
+            <li><b>Safe aliases</b><span><code>ofr-...</code> 模型名避免遥测字符错误</span></li>
+            <li><b>Command auth</b><span>运行时读取本地 token，不复制上游 Key</span></li>
+            <li><b>Isolated profile</b><span>关闭无关 Apps、插件与记忆加载</span></li>
+          </ul>
+        </div>
+        <div class="model-picker" aria-label="Codex 模型选择器示意">
+          <div class="picker-head"><span>SELECT MODEL</span><small>/model</small></div>
+          <div class="picker-row selected"><i>›</i><div><b>ofr-or-gpt-oss-20b-free</b><small>OpenRouter · tools enabled</small></div><em>CURRENT</em></div>
+          <div class="picker-row"><i></i><div><b>ofr-gai-gemini-3-6-flash</b><small>Google AI Studio</small></div></div>
+          <div class="picker-row"><i></i><div><b>ofr-nv-nemotron-3-ultra</b><small>NVIDIA NIM</small></div></div>
+          <div class="picker-row"><i></i><div><b>ofr-gq-llama-3-3-70b</b><small>Groq</small></div></div>
+          <div class="picker-foot">51 MODELS AVAILABLE <span>ENTER TO CONFIRM</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section providers" id="providers">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> PROVIDER MATRIX</p>
+        <h2>一个 registry，连接 11 个来源。</h2>
+        <p>模型可用性、免费额度与速率限制由各上游决定；路由器负责发现、适配与切换，不承诺上游服务等级。</p>
+      </header>
+      <div class="provider-grid reveal">
+        <span>OpenRouter<small>auto refresh</small></span><span>NVIDIA NIM<small>auto refresh</small></span><span>OpenCode Zen<small>free</small></span><span>SenseNova<small>free tier</small></span><span>StepFun<small>free tier</small></span><span>Google AI Studio<small>Gemini</small></span><span>Groq<small>low latency</small></span><span>DeepSeek<small>compatible API</small></span><span>Nous Research<small>free models</small></span><span>Poolside AI<small>coding</small></span><span>Gitee AI<small>China endpoint</small></span>
+      </div>
+    </section>
+
+    <section class="section security" id="security">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> SECURITY BOUNDARY</p>
+        <h2>知道什么留在本地，<br>比“免费”更重要。</h2>
+      </header>
+      <div class="security-grid">
+        <article class="security-card good reveal"><span>LOCAL / PRIVATE</span><h3>不会同步给客户端</h3><ul><li>上游提供商 API Key</li><li>registry.yaml 与备份</li><li>代理和控制台 token</li><li>本机客户端配置路径</li></ul></article>
+        <article class="security-card outbound reveal"><span>UPSTREAM / REQUIRED</span><h3>推理时必须发送</h3><ul><li>选择的上游模型 ID</li><li>当前请求的提示与上下文</li><li>工具定义和必要工具结果</li><li>提供商要求的鉴权信息</li></ul></article>
+        <article class="security-card rules reveal"><span>OPERATION RULES</span><h3>建议的安全习惯</h3><ul><li>默认只监听 127.0.0.1</li><li>定期轮换上游 Key</li><li>不要提交 config/registry</li><li>公开前执行全历史 secret scan</li></ul></article>
+      </div>
+      <div class="warning reveal"><b>注意</b><p>本地代理降低的是配置泄漏和多客户端复制风险，不会改变上游提供商对请求内容的处理方式。敏感任务仍需阅读并遵守对应提供商的数据政策。</p></div>
+    </section>
+
+    <section class="section troubleshoot" id="troubleshoot">
+      <header class="section-head reveal">
+        <p class="eyebrow"><span></span> TROUBLESHOOTING</p>
+        <h2>常见问题，直接定位。</h2>
+      </header>
+      <div class="faq">
+        <details class="reveal"><summary><span>端口 8337 显示 Address already in use</span><i>+</i></summary><p>已有代理进程正在运行。先用 <code>lsof -nP -iTCP:8337 -sTCP:LISTEN</code> 确认 PID；不要重复启动第二个 serve。</p></details>
+        <details class="reveal"><summary><span>Codex 的 /model 看不到第三方模型</span><i>+</i></summary><p>重新运行 <code>sync --agent codex</code>，完全退出旧 Codex 会话，再使用 <code>codex --profile open-free-router</code> 启动。</p></details>
+        <details class="reveal"><summary><span>模型能聊天，但不能使用 shell 工具</span><i>+</i></summary><p>该模型可能尚未标记或验证 <code>tool_calling</code>。显式选择已验证模型，或在 registry 中确认其能力后重新同步。</p></details>
+        <details class="reveal"><summary><span>上游返回 401、403 或计费错误</span><i>+</i></summary><p>代理路由已经成功，但提供商 Key、免费额度或账户状态不可用。打开本地 UI 检查对应 provider，而不是修改 Codex profile。</p></details>
+      </div>
+    </section>
+
+    <section class="final-cta reveal">
+      <p>READY TO ROUTE?</p>
+      <h2>把模型选择权，<br>收回到本地。</h2>
+      <div><a class="button primary" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">查看源代码 ↗</a><a class="button ghost" href="#quickstart">开始安装</a></div>
+    </section>
+  </main>
+
+  <footer>
+    <div><b>OPEN FREE ROUTER</b><span>Local-first model infrastructure.</span></div>
+    <p>原始代码来自 <a href="https://github.com/NoelJudeNoel/open-free-router" rel="noreferrer">NoelJudeNoel/open-free-router</a>。本增强版本由 <a href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">zhanglunet</a> 独立维护，遵循 MIT License。</p>
+    <a href="#top">返回顶部 ↑</a>
+  </footer>
+</body>
+</html>

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/NoelJudeNoel/open-free-router.git"
+REPO_URL="https://github.com/zhanglunet/open-free-router.git"
 INSTALL_SYSTEMD=false
 for arg in "$@"; do
   case "$arg" in
