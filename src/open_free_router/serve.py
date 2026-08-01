@@ -16,6 +16,7 @@ from open_free_router.ui import run_ui
 from open_free_router.refresh import refresh
 from open_free_router.sync import write_pi_models, sync_all
 from open_free_router.auth import get_or_create_proxy_token
+from open_free_router.discovery import discover, save_discovery
 
 
 class Daemon:
@@ -41,10 +42,32 @@ class Daemon:
             write_pi_models(self.reg, proxy_url=proxy_url)
             sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
 
+    def _discovery_scheduler(self):
+        if not self.cfg.discovery_enabled:
+            return
+        interval_hours = self.cfg.discovery_interval_hours
+        while not self._stop.is_set():
+            try:
+                snapshot = discover(self.reg)
+                save_discovery(snapshot, self.cfg.discovery_path)
+                print(
+                    "[discovery] found "
+                    f"{snapshot['candidate_provider_count']} provider candidates / "
+                    f"{snapshot['candidate_model_count']} explicit-free models"
+                )
+            except Exception as exc:
+                print(f"[discovery] scan failed: {exc}")
+            if self._stop.wait(interval_hours * 3600):
+                break
+
     def serve(self):
         print(f"  Proxy  : {self.cfg.proxy_host}:{self.cfg.proxy_port}")
         print(f"  UI     : http://{self.cfg.ui_host}:{self.cfg.ui_port}")
         print(f"  Refresh: every {self.cfg.refresh_interval_hours}h")
+        print(
+            "  Discover: "
+            + (f"every {self.cfg.discovery_interval_hours}h" if self.cfg.discovery_enabled else "disabled")
+        )
         print(f"  Timeout: {self.cfg.upstream_timeout}s")
         print(f"  Auth   : {self.cfg.config_dir / 'proxy.token'}")
         print()
@@ -63,6 +86,7 @@ class Daemon:
         threads = [
             threading.Thread(target=run_ui, args=(self.cfg, self.cfg.ui_port, self.reg), daemon=True),
             threading.Thread(target=self._scheduler, daemon=True),
+            threading.Thread(target=self._discovery_scheduler, daemon=True),
         ]
 
         for t in threads:

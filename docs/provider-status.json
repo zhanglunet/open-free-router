@@ -1,0 +1,17 @@
+{
+  "as_of": "2026-08-01T15:00:52Z",
+  "method": "One minimal authenticated Chat Completions request through the local proxy per provider; no credential values retained.",
+  "providers": {
+    "openrouter": {"availability": "available", "latency_ms": 9551, "reason": "HTTP 200 smoke test"},
+    "google-ai-studio": {"availability": "available", "latency_ms": 1602, "reason": "HTTP 200 smoke test and Codex tool loop verified"},
+    "groq": {"availability": "available", "latency_ms": 1011, "reason": "HTTP 200 smoke test"},
+    "nvidia-nim": {"availability": "available", "latency_ms": 2452, "reason": "HTTP 200 smoke test"},
+    "nous": {"availability": "available", "latency_ms": 1568, "reason": "HTTP 200 smoke test"},
+    "poolside": {"availability": "available", "latency_ms": 2480, "reason": "HTTP 200 smoke test"},
+    "opencode-zen-free": {"availability": "available", "latency_ms": 2222, "reason": "HTTP 200 smoke test"},
+    "sensenova": {"availability": "available", "latency_ms": 4151, "reason": "HTTP 200 smoke test"},
+    "stepfun": {"availability": "available", "latency_ms": 1682, "reason": "HTTP 200 smoke test"},
+    "deepseek": {"availability": "unavailable", "latency_ms": null, "reason": "No API key configured; latest proxy smoke test timed out"},
+    "gitee-ai": {"availability": "unavailable", "latency_ms": 4066, "reason": "Provider returned no available billing resource"}
+  }
+}

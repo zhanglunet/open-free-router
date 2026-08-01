@@ -1,6 +1,6 @@
 # open-free-router
 
-🌐 **项目网站：** [open-free-router.zhanglu-net.workers.dev](https://open-free-router.zhanglu-net.workers.dev)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [免费模型雷达](https://oaf.asia/models/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -45,6 +45,7 @@ pip install -e .
 | `open-free-router serve` | **★ 一条命令启动：** proxy(8337) + UI(9057) + 定时刷新(12h) |
 | `open-free-router setup` | 交互式向导：填写各上游源 API key |
 | `open-free-router refresh [--source NAME] [--dry-run]` | 拉取免费模型列表 |
+| `open-free-router discover [--dry-run]` | 从公开目录发现待人工验证的候选免费提供商 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
 | `open-free-router sync --agent codex [--codex-model ID]` | 生成独立的 Codex Responses API profile |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |

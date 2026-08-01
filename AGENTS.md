@@ -14,6 +14,7 @@
 | `open-free-router ui` | Web dashboard standalone |
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Poll provider APIs for free model changes |
+| `open-free-router discover [--dry-run] [--output PATH]` | Find review-only free-provider candidates from the public directory |
 | `open-free-router add NAME --base-url URL [--upstream-url URL] [--model ID] [--auto-refresh]` | Add a provider to registry |
 | `open-free-router sync [--agent omp,opencode,codex] [--diff]` | Sync registry to agent configs; Codex uses an isolated profile |
 | `open-free-router token` | Print the local inference proxy bearer token |
@@ -45,6 +46,8 @@ src/open_free_router/
 ├── registry.default.yaml  # Template with 10 upstream sources, no API keys
 ├── proxy.py            # Single-port proxy (8337), auth + model-ID routing
 ├── responses.py        # Codex Responses API compatibility over Chat Completions
+├── discovery.py        # Candidate-only free-provider discovery; never mutates registry
+├── public_catalog.py   # Credential-free provider/model catalog export
 ├── refresh.py          # Dispatches per-provider refresh from refresh_sources/
 ├── refresh_sources/    # Pluggable: openrouter.py, nvidia_nim.py, groq.py, etc.
 ├── serve.py            # Daemon: proxy + UI + scheduler + Pi models.json writer
@@ -64,6 +67,7 @@ src/open_free_router/
 - **Refresh sources** are pluggable modules. Each must export `fetch(upstream_url, api_key) -> list[ModelInfo]`
 - **Pi models.json** written by `serve.py` on startup and after each refresh. Format: `{providers: {name: {baseUrl, models: [...]}}}`. All providers point to local proxy; routing is by model ID.
 - **Scheduler interval** configurable via `config.yaml: refresh_interval_hours` (default 12)
+- **Discovery interval** configurable via `config.yaml: discovery.interval_hours` (default 24); candidates are review-only and never auto-promoted
 - **ModelInfo** fields: `id` (short display name, e.g. `glm-5.2`), `upstream_id` (optional, e.g. `z-ai/glm-5.2`, falls back to `id`)
 - **ProviderConfig** field: `prefix` (short channel prefix for model IDs, e.g. `nv`, `or`. Falls back to provider name)
 - **config.yaml `registry:` path** resolved relative to config's parent directory, not CWD
@@ -79,6 +83,8 @@ src/open_free_router/
 ## Scripts
 
 - `scripts/install.sh` — one-liner: clone → venv → pip install → optional systemd
+- `scripts/export-public-catalog.py` — redacted registry/status export for the public model radar
+- `scripts/discover-models.mjs` — build-time public candidate snapshot for Cloudflare
 - `contrib/systemd/open-free-router.service` — systemd unit file for Linux auto-start + auto-restart
 
 ## Testing
@@ -87,6 +93,8 @@ src/open_free_router/
 - `tests/test_sync_codex.py` — Codex profile and upstream-key isolation
 - `tests/test_config.py` — 4 tests: defaults, custom values, registry path resolution
 - `tests/test_serve.py` — 2 tests: Pi models.json format, skip when no Pi dir
+- `tests/test_discovery.py` — candidate filtering, registry exclusion, and secure persistence
+- `tests/test_public_catalog.py` — redacted public catalog and credential-field rejection
 - Run: `pip install -e ".[dev]" && python3 -m pytest tests/ -v`
 - No CI/CD configured yet
 

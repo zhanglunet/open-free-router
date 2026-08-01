@@ -4,6 +4,13 @@
 
 ### Added
 
+- Public `/models/` radar with provider availability, model limits, declared
+  capabilities, feature-density comparison, filtering, and Codex aliases.
+- Review-only continuous provider discovery from models.dev in both the local
+  daemon and a six-hour Cloudflare Cron/KV pipeline.
+- Public, credential-redacted model catalog export and `open-free-router
+  discover` CLI command.
+
 - Codex-compatible `POST /v1/responses` endpoint with buffered and SSE output.
 - Function tool and function-result translation for complete Codex tool loops.
 - Dedicated `open-free-router` Codex profile sync.

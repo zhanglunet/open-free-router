@@ -11,6 +11,7 @@ from open_free_router.refresh import refresh
 from open_free_router.ui import run_ui
 from open_free_router.serve import Daemon
 from open_free_router.auth import get_or_create_proxy_token
+from open_free_router.discovery import discover, save_discovery
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -191,6 +192,26 @@ def cmd_token(args):
     print(get_or_create_proxy_token(cfg.config_dir))
 
 
+def cmd_discover(args):
+    """Search public metadata feeds for review-only provider candidates."""
+    cfg = Config()
+    _bootstrap_registry(cfg)
+    reg = Registry.load(cfg.registry_path)
+    snapshot = discover(reg, timeout=args.timeout)
+    print(
+        f"Found {snapshot['candidate_provider_count']} candidate providers and "
+        f"{snapshot['candidate_model_count']} explicit-free models."
+    )
+    for provider in snapshot["providers"][:20]:
+        print(f"  {provider['id']:24s} {provider['model_count']:3d} models  {provider['api']}")
+    if args.dry_run:
+        print("Dry run: registry and discovery snapshot were not changed.")
+        return
+    output = Path(args.output).expanduser() if args.output else cfg.discovery_path
+    save_discovery(snapshot, output)
+    print(f"Saved review-only candidates to {output}")
+
+
 def main():
     parser = argparse.ArgumentParser(
         prog="open-free-router",
@@ -229,6 +250,12 @@ def main():
 
     p_token = sub.add_parser("token", help="print the local inference proxy token")
     p_token.set_defaults(func=cmd_token)
+
+    p_discover = sub.add_parser("discover", help="find review-only candidate free-model providers")
+    p_discover.add_argument("--dry-run", action="store_true")
+    p_discover.add_argument("--output", help="override discovery snapshot path")
+    p_discover.add_argument("--timeout", type=int, default=30)
+    p_discover.set_defaults(func=cmd_discover)
 
     args = parser.parse_args()
     if not args.command:

@@ -45,6 +45,11 @@ class Config:
         # scheduler
         self.refresh_interval_hours = int(self._raw.get("refresh_interval_hours", 12))
 
+        # Candidate discovery is review-only and never mutates registry.yaml.
+        discovery = self._raw.get("discovery", {})
+        self.discovery_enabled = bool(discovery.get("enabled", True))
+        self.discovery_interval_hours = int(discovery.get("interval_hours", 24))
+
         # proxy upstream timeout
         self.upstream_timeout = int(self._raw.get("upstream_timeout", 120))
 
@@ -72,6 +77,10 @@ class Config:
         d = Path(self._raw.get("data_dir", Path.home() / ".local" / "share" / "open-free-router"))
         d.mkdir(parents=True, exist_ok=True)
         return d
+
+    @property
+    def discovery_path(self) -> Path:
+        return self.data_dir / "discovery.json"
 
 
 def load_registry(registry_path: Path):

@@ -1,10 +1,13 @@
 {
   "name": "open-free-router-docs",
   "private": true,
+  "type": "module",
   "version": "0.2.0",
   "description": "Documentation website and Cloudflare deployment for open-free-router",
   "scripts": {
     "build": "node scripts/build-site.mjs",
+    "discover": "node scripts/discover-models.mjs",
+    "test:web": "node --test web-tests/*.test.mjs",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "deploy:dry-run": "npm run build && wrangler deploy --dry-run"

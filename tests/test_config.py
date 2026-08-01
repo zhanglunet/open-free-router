@@ -12,6 +12,8 @@ def test_config_defaults(tmp_path):
     assert cfg.ui_host == "127.0.0.1"
     assert cfg.ui_port == 9057
     assert cfg.refresh_interval_hours == 12
+    assert cfg.discovery_enabled is True
+    assert cfg.discovery_interval_hours == 24
 
 
 def test_config_custom_values(tmp_path):
@@ -20,6 +22,7 @@ def test_config_custom_values(tmp_path):
         "proxy:\n  host: 0.0.0.0\n  port: 9000\n"
         "ui:\n  host: 0.0.0.0\n  port: 9001\n"
         "refresh_interval_hours: 6\n"
+        "discovery:\n  enabled: false\n  interval_hours: 8\n"
     )
     cfg = Config(config_path=cfg_path)
     assert cfg.proxy_host == "0.0.0.0"
@@ -27,6 +30,8 @@ def test_config_custom_values(tmp_path):
     assert cfg.ui_host == "0.0.0.0"
     assert cfg.ui_port == 9001
     assert cfg.refresh_interval_hours == 6
+    assert cfg.discovery_enabled is False
+    assert cfg.discovery_interval_hours == 8
 
 
 def test_config_registry_relative_path(tmp_path):
