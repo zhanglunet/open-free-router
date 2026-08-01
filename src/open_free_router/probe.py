@@ -227,6 +227,62 @@ def snapshot_to_status(snapshot: dict) -> dict:
 def write_probe_status(snapshot: dict, path: Path) -> dict:
     """Persist the aggregated redacted status snapshot; returns it."""
     status = snapshot_to_status(snapshot)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(status, ensure_ascii=False, indent=2) + "\n")
+    _write_private_json(path, status)
     return status
+
+
+def _write_private_json(path: Path, payload: dict) -> None:
+    """Write dashboard evidence without making it readable by other users."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n")
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
+
+
+def _safe_probe_snapshot(snapshot: dict) -> dict:
+    """Return the small, redacted subset safe to expose from ``/api/probe``."""
+    safe = {
+        "running": False,
+        "started_at": snapshot.get("started_at"),
+        "finished_at": snapshot.get("finished_at"),
+        "total": int(snapshot.get("total") or 0),
+        "done": int(snapshot.get("done") or 0),
+        "results": {},
+    }
+    raw_results = snapshot.get("results")
+    if not isinstance(raw_results, dict):
+        return safe
+    for key, result in raw_results.items():
+        if not isinstance(key, str) or not isinstance(result, dict):
+            continue
+        safe["results"][key] = {
+            "provider": str(result.get("provider") or ""),
+            "model": str(result.get("model") or ""),
+            "display_id": str(result.get("display_id") or ""),
+            "ok": bool(result.get("ok")),
+            "status": str(result.get("status") or ""),
+            "latency_ms": result.get("latency_ms") if isinstance(result.get("latency_ms"), int) else None,
+            "error": _scrub(str(result.get("error") or ""))[:200],
+            "checked_at": str(result.get("checked_at") or ""),
+        }
+    return safe
+
+
+def write_probe_snapshot(snapshot: dict, path: Path) -> dict:
+    """Persist per-model probe evidence so a dashboard restart keeps history."""
+    safe = _safe_probe_snapshot(snapshot)
+    _write_private_json(path, safe)
+    return safe
+
+
+def load_probe_snapshot(path: Path) -> dict | None:
+    """Load a previously persisted probe snapshot, rejecting invalid files."""
+    try:
+        raw = json.loads(path.read_text())
+    except (OSError, ValueError, TypeError):
+        return None
+    if not isinstance(raw, dict) or not isinstance(raw.get("results"), dict):
+        return None
+    return _safe_probe_snapshot(raw)

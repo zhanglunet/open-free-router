@@ -10,8 +10,10 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from open_free_router.probe import (
     ProbeRunner,
+    load_probe_snapshot,
     probe_model,
     snapshot_to_status,
+    write_probe_snapshot,
 )
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
@@ -137,6 +139,32 @@ def test_snapshot_to_status_aggregates_by_provider():
     assert status["as_of"] == "2026-08-01T00:00:00+00:00"
     text = json.dumps(status)
     assert "api_key" not in text  # redaction-friendly field names only
+
+
+def test_probe_snapshot_round_trip_is_private_and_scrubbed(tmp_path):
+    path = tmp_path / "probe-results.json"
+    snapshot = {
+        "running": False,
+        "started_at": "2026-08-01T00:00:00+00:00",
+        "finished_at": "2026-08-01T00:00:01+00:00",
+        "total": 1,
+        "done": 1,
+        "results": {
+            "fake/m1": {
+                "provider": "fake", "model": "m1", "display_id": "fk/m1",
+                "ok": False, "status": "http_401", "latency_ms": 12,
+                "error": "rejected Bearer sk-private-secret-123456",
+                "checked_at": "2026-08-01T00:00:00+00:00",
+                "unexpected": "must be dropped",
+            },
+        },
+    }
+    persisted = write_probe_snapshot(snapshot, path)
+    loaded = load_probe_snapshot(path)
+    assert loaded == persisted
+    assert "private-secret" not in path.read_text()
+    assert "unexpected" not in path.read_text()
+    assert path.stat().st_mode & 0o077 == 0
 
 
 def test_ui_probe_endpoints_require_auth_for_post(tmp_path):

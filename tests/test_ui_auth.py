@@ -9,7 +9,7 @@ import time
 from open_free_router import ui
 from open_free_router.auth import check_auth, get_or_create_proxy_token, get_or_create_token
 from open_free_router.config import Config
-from open_free_router.registry import Registry
+from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
 
 class _FakeHeaders(dict):
@@ -132,5 +132,36 @@ def test_get_endpoints_do_not_require_auth(tmp_path):
         resp = conn.getresponse()
         assert resp.status == 200
         resp.read()
+    finally:
+        srv.shutdown()
+
+
+def test_status_exposes_dashboard_summary_without_credentials(tmp_path):
+    srv, port = _start_ui_server(tmp_path)
+    try:
+        ui._UIHandler.reg.add_provider(ProviderConfig(
+            name="secret-provider",
+            upstream_url="https://example.test/v1",
+            api_key="sk-must-never-reach-dashboard",
+            prefix="sp",
+            auto_refresh=True,
+            models=[ModelInfo(id="free-model", reasoning=True, tool_calling=True)],
+        ))
+        conn = http.client.HTTPConnection("127.0.0.1", port, timeout=5)
+        conn.request("GET", "/api/status")
+        resp = conn.getresponse()
+        assert resp.status == 200
+        payload = json.loads(resp.read())
+        assert payload["summary"] == {
+            "provider_count": 1,
+            "model_count": 1,
+            "credential_count": 1,
+            "auto_refresh_count": 1,
+        }
+        assert payload["providers"][0]["credential_configured"] is True
+        assert payload["providers"][0]["prefix"] == "sp"
+        assert "must-never-reach-dashboard" not in json.dumps(payload)
+        assert "codex" in payload["clients"]
+        assert "Anthropic Messages" in payload["service"]["protocols"]
     finally:
         srv.shutdown()

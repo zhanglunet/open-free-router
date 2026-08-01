@@ -6,9 +6,15 @@ import json
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
-from open_free_router.auth import check_auth, get_or_create_token
+from open_free_router import __version__
+from open_free_router.auth import check_auth, get_or_create_proxy_token, get_or_create_token
 from open_free_router.config import Config
-from open_free_router.probe import ProbeRunner, write_probe_status
+from open_free_router.probe import (
+    ProbeRunner,
+    load_probe_snapshot,
+    write_probe_snapshot,
+    write_probe_status,
+)
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 from open_free_router.proxy import rebuild_proxy_index
 from open_free_router.sync import write_pi_models
@@ -59,11 +65,16 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_providers()
         elif self.path == "/api/probe":
             self._api_probe_get()
+        elif self.path == "/api/discovery":
+            self._api_discovery_get()
         else:
             self.send_error(404)
 
     def do_POST(self):
-        if self.path not in ("/api/config", "/api/refresh", "/api/providers", "/api/probe"):
+        if self.path not in (
+            "/api/config", "/api/refresh", "/api/providers", "/api/probe",
+            "/api/discovery", "/api/sync",
+        ):
             self.send_error(404)
             return
         if not self._require_auth():
@@ -76,6 +87,10 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_providers_post()
         elif self.path == "/api/probe":
             self._api_probe_post()
+        elif self.path == "/api/discovery":
+            self._api_discovery_post()
+        elif self.path == "/api/sync":
+            self._api_sync_post()
 
     def _serve_file(self, rel: str, content_type: str):
         base = Path(__file__).parent
@@ -92,14 +107,41 @@ class _UIHandler(BaseHTTPRequestHandler):
         self.wfile.write(body)
 
     def _api_status(self):
+        providers = self.reg.providers if self.reg else {}
+        model_count = sum(len(p.models) for p in providers.values())
+        credential_count = sum(bool(p.effective_key) for p in providers.values())
         status = {
+            "version": __version__,
+            "service": {
+                "proxy_url": f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1" if self.cfg else "",
+                "ui_url": f"http://{self.cfg.ui_host}:{self.cfg.ui_port}" if self.cfg else "",
+                "protocols": ["OpenAI Chat Completions", "OpenAI Responses", "Anthropic Messages", "MCP"],
+                "auth_enabled": bool(self.token),
+            },
+            "summary": {
+                "provider_count": len(providers),
+                "model_count": model_count,
+                "credential_count": credential_count,
+                "auto_refresh_count": sum(p.auto_refresh for p in providers.values()),
+            },
+            "discovery": {
+                "enabled": self.cfg.discovery_enabled if self.cfg else False,
+                "interval_hours": self.cfg.discovery_interval_hours if self.cfg else 0,
+                "auto_test": self.cfg.discovery_auto_test if self.cfg else False,
+                "auto_adopt": self.cfg.discovery_auto_adopt if self.cfg else False,
+            },
+            "clients": ["pi", "omp", "opencode", "hermes", "codex", "claude", "kimi", "openclaw", "workbuddy"],
             "providers": [],
         }
-        for name, p in (self.reg.providers if self.reg else {}).items():
+        for name, p in providers.items():
             status["providers"].append({
                 "name": name,
                 "base_url": p.base_url,
+                "prefix": p.model_prefix,
+                "credential_configured": bool(p.effective_key),
+                "credential_env": p.api_key_env,
                 "auto_refresh": p.auto_refresh,
+                "refresh_method": p.refresh_method,
                 "model_count": len(p.models),
                 "models": [m.id for m in p.models],
             })
@@ -240,7 +282,12 @@ class _UIHandler(BaseHTTPRequestHandler):
 
     def _api_probe_get(self):
         """Current live-availability snapshot (read-only, no auth)."""
-        self._send_json(200, _PROBE_RUNNER.snapshot())
+        snapshot = _PROBE_RUNNER.snapshot()
+        if not snapshot["running"] and not snapshot["results"] and self.cfg:
+            persisted = load_probe_snapshot(self.cfg.data_dir / "probe-results.json")
+            if persisted:
+                snapshot = persisted
+        self._send_json(200, snapshot)
 
     def _api_probe_post(self):
         """Start a live availability probe run (real 1-token requests)."""
@@ -260,6 +307,7 @@ class _UIHandler(BaseHTTPRequestHandler):
             if self.cfg:
                 try:
                     write_probe_status(snapshot, self.cfg.data_dir / "probe-status.json")
+                    write_probe_snapshot(snapshot, self.cfg.data_dir / "probe-results.json")
                 except Exception as e:
                     print(f"  ⚠ failed to persist probe status: {e}")
 
@@ -274,6 +322,65 @@ class _UIHandler(BaseHTTPRequestHandler):
             "running": True,
             "hint": "" if started else "a probe run is already in progress",
         })
+
+    def _api_discovery_get(self):
+        """Return the latest review-only discovery snapshot."""
+        if not self.cfg or not self.cfg.discovery_path.exists():
+            self._send_json(200, {"providers": [], "candidate_provider_count": 0,
+                                  "candidate_model_count": 0})
+            return
+        try:
+            payload = json.loads(self.cfg.discovery_path.read_text())
+        except (OSError, ValueError):
+            self._send_json(500, {"error": "候选快照无法读取"})
+            return
+        self._send_json(200, payload if isinstance(payload, dict) else {"providers": []})
+
+    def _api_discovery_post(self):
+        """Refresh review-only candidates; never auto-adopt from the dashboard."""
+        if not self.reg or not self.cfg:
+            self._send_json(500, {"error": "server not initialized"})
+            return
+        try:
+            from open_free_router.discovery import discover, save_discovery
+            snapshot = discover(self.reg)
+            save_discovery(snapshot, self.cfg.discovery_path)
+        except Exception as e:
+            self._send_json(502, {"error": str(e)[:240]})
+            return
+        self._send_json(200, {
+            "ok": True,
+            "candidate_provider_count": snapshot.get("candidate_provider_count", 0),
+            "candidate_model_count": snapshot.get("candidate_model_count", 0),
+        })
+
+    def _api_sync_post(self):
+        """Synchronize explicitly selected local clients with the proxy."""
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            data = json.loads(self.rfile.read(length) if length else b"{}")
+        except Exception:
+            data = {}
+        allowed = {"pi", "omp", "opencode", "hermes", "codex", "claude", "kimi", "openclaw", "workbuddy"}
+        requested = data.get("agents", []) if isinstance(data, dict) else []
+        agents = [str(agent) for agent in requested if str(agent) in allowed]
+        if not agents:
+            self._send_json(400, {"error": "请至少选择一个受支持的客户端"})
+            return
+        if not self.reg or not self.cfg:
+            self._send_json(500, {"error": "server not initialized"})
+            return
+        from open_free_router.sync import sync_all
+        results = sync_all(
+            self.reg,
+            do_write=True,
+            agents=agents,
+            proxy_url=f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1",
+            proxy_token=get_or_create_proxy_token(self.cfg.config_dir),
+            codex_model=self.cfg.codex_model,
+            claude_model=self.cfg.claude_model,
+        )
+        self._send_json(200, {"ok": True, "results": results})
 
     def _send_json(self, code: int, obj: dict):
         body = json.dumps(obj, indent=2).encode()
