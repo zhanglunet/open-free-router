@@ -1,5 +1,7 @@
 # open-free-router
 
+🌐 **Project website:** [open-free-router.zhanglu-net.workers.dev](https://open-free-router.zhanglu-net.workers.dev)
+
 > **Attribution:** This repository is derived from
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
 > under the MIT License and is independently maintained by `zhanglunet`.

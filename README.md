@@ -1,5 +1,7 @@
 # open-free-router
 
+🌐 **项目网站：** [open-free-router.zhanglu-net.workers.dev](https://open-free-router.zhanglu-net.workers.dev)
+
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
 > 继续开发，遵循 MIT License。当前版本由 `zhanglunet` 独立维护，新增
