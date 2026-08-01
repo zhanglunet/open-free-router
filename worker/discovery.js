@@ -71,7 +71,7 @@ export async function fetchDiscovery(registeredProviders = [], fetcher = fetch) 
   if (!response.ok) throw new Error(`models.dev returned HTTP ${response.status}`);
   const providers = normalizeModelsDev(await response.json(), registeredProviders);
   return {
-    schema_version: 1,
+    schema_version: 2,
     generated_at: new Date().toISOString(),
     source: MODELS_DEV_URL,
     trust: "candidate-only; manual verification required before registry import",

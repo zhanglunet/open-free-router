@@ -22,7 +22,7 @@ async function refreshDiscovery(env) {
 
 async function getDiscovery(env, ctx) {
   const existing = await env.DISCOVERY.get(DISCOVERY_KEY, { type: "json" });
-  if (existing) {
+  if (existing?.schema_version >= 2) {
     const age = Date.now() - Date.parse(existing.generated_at || 0);
     if (age > 7 * 60 * 60 * 1000) ctx.waitUntil(refreshDiscovery(env));
     return existing;

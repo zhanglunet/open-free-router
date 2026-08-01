@@ -290,7 +290,7 @@ def discover(registry: Registry, timeout: int = 30) -> dict:
         raise ValueError("models.dev returned a non-object catalog")
     candidates = normalize_models_dev(data, registry)
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source": MODELS_DEV_URL,
         "trust": "candidate-only; manual verification required before registry import",

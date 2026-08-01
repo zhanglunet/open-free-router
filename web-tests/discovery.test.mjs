@@ -27,6 +27,7 @@ test("normalization excludes registered, paid and insecure endpoints", () => {
 
 test("fetchDiscovery labels data as candidate-only", async () => {
   const snapshot = await fetchDiscovery([], async () => new Response(JSON.stringify(source)));
+  assert.equal(snapshot.schema_version, 2);
   assert.equal(snapshot.candidate_provider_count, 2);
   assert.match(snapshot.trust, /manual verification/);
 });
