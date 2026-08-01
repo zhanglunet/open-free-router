@@ -64,12 +64,21 @@ class Config:
         # Codex profile defaults. An explicit CLI --codex-model overrides this.
         self.codex_model = self._raw.get("codex", {}).get("model", "")
 
+        # Claude Code defaults. An explicit CLI --claude-model overrides this.
+        self.claude_model = self._raw.get("claude", {}).get("model", "")
+
     @property
     def config_dir(self) -> Path:
         return self.path.parent if self.path else Path.home() / ".config" / "open-free-router"
 
     @staticmethod
     def _find_config() -> Optional[Path]:
+        # Explicit override first: cwd-launched commands (mcp under an MCP
+        # host, status/doctor in scripts) must be able to pin the same
+        # instance `serve` uses regardless of their working directory.
+        override = os.environ.get("OPEN_FREE_ROUTER_CONFIG", "")
+        if override:
+            return Path(override).expanduser()
         for p in DEFAULT_CONFIG_PATHS:
             if p.exists():
                 return p

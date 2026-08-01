@@ -4,98 +4,220 @@
     "organization": "OpenRouter",
     "region": "美国",
     "background_zh": "面向开发者的多模型聚合 API，通过统一的 OpenAI 兼容接口访问不同模型与推理供应商，并提供路由和回退能力。",
-    "strengths_zh": ["模型覆盖面广", "OpenAI 兼容接口", "适合快速比较不同模型"],
+    "strengths_zh": [
+      "模型覆盖面广",
+      "OpenAI 兼容接口",
+      "适合快速比较不同模型"
+    ],
     "cautions_zh": "免费后缀模型通常有速率、容量或可用时段限制，实际可用性取决于上游。",
-    "official_url": "https://openrouter.ai/docs/guides/overview/models"
+    "official_url": "https://openrouter.ai/docs/guides/overview/models",
+    "key_url": "https://openrouter.ai/settings/keys",
+    "key_steps_zh": [
+      "注册/登录 OpenRouter 账户",
+      "打开 Settings → Keys 页面",
+      "点击 Create Key 生成 API Key",
+      "选择带 :free 后缀的模型即可免费调用"
+    ],
+    "free_quota_zh": "免费后缀模型按账户限流（未充值账户每日请求数较低，充值 $10 后每日上限显著提高）。"
   },
   "google-ai-studio": {
     "zh_name": "Google AI Studio",
     "organization": "Google",
     "region": "美国",
     "background_zh": "Google 面向开发者提供 Gemini 模型实验和 API 接入的产品入口，覆盖长上下文、多模态与推理工作负载。",
-    "strengths_zh": ["长上下文", "Gemini 生态", "多模态能力"],
+    "strengths_zh": [
+      "长上下文",
+      "Gemini 生态",
+      "多模态能力"
+    ],
     "cautions_zh": "免费额度、地区开放范围和模型配额由 Google 账户策略决定。",
-    "official_url": "https://ai.google.dev/gemini-api/docs/models"
+    "official_url": "https://ai.google.dev/gemini-api/docs/models",
+    "key_url": "https://aistudio.google.com/apikey",
+    "key_steps_zh": [
+      "使用 Google 账户登录 AI Studio",
+      "打开 Get API key 页面",
+      "点击 Create API key（可绑定任一 Google Cloud 项目）",
+      "免费层无需绑定信用卡"
+    ],
+    "free_quota_zh": "免费层按模型区分 RPM/RPD 配额（如 Flash 系列每日限额较高，Pro 系列较低），超限返回 429。"
   },
   "groq": {
     "zh_name": "GroqCloud",
     "organization": "Groq",
     "region": "美国",
     "background_zh": "基于 Groq LPU 推理基础设施的云端模型服务，重点突出低延迟与高吞吐的开放模型推理。",
-    "strengths_zh": ["高吞吐", "低延迟", "OpenAI 兼容接口"],
+    "strengths_zh": [
+      "高吞吐",
+      "低延迟",
+      "OpenAI 兼容接口"
+    ],
     "cautions_zh": "开发者免费层存在速率限制，预览模型和模型目录可能较快调整。",
-    "official_url": "https://console.groq.com/docs/models"
+    "official_url": "https://console.groq.com/docs/models",
+    "key_url": "https://console.groq.com/keys",
+    "key_steps_zh": [
+      "注册/登录 GroqCloud 控制台",
+      "打开 API Keys 页面",
+      "点击 Create API Key 并妥善保存"
+    ],
+    "free_quota_zh": "开发者免费层按模型限 RPM/RPD 和 token 速率，无需信用卡。"
   },
   "nvidia-nim": {
     "zh_name": "NVIDIA NIM",
     "organization": "NVIDIA",
     "region": "美国",
     "background_zh": "NVIDIA 提供的模型推理微服务与托管 API 体系，覆盖多家模型厂商并针对 NVIDIA 加速栈优化。",
-    "strengths_zh": ["模型覆盖广", "GPU 优化推理", "企业部署生态"],
+    "strengths_zh": [
+      "模型覆盖广",
+      "GPU 优化推理",
+      "企业部署生态"
+    ],
     "cautions_zh": "开发者试用额度和模型访问权限可能随账户、地区及许可变化。",
-    "official_url": "https://docs.nvidia.com/nim/"
+    "official_url": "https://docs.nvidia.com/nim/",
+    "key_url": "https://build.nvidia.com/",
+    "key_steps_zh": [
+      "注册 NVIDIA 开发者账户并登录 build.nvidia.com",
+      "任选一个模型页面点击 Get API Key",
+      "生成 nvapi- 开头的 API Key"
+    ],
+    "free_quota_zh": "开发者账户提供免费调用额度（按请求数计），用于评估托管 NIM 端点。"
   },
   "nous": {
     "zh_name": "Nous Research Inference",
     "organization": "Nous Research",
     "region": "美国",
     "background_zh": "Nous Research 的模型与推理服务入口，本项目当前使用其免费后缀模型进行文本推理。",
-    "strengths_zh": ["开放模型社区", "免费模型入口", "OpenAI 兼容调用"],
+    "strengths_zh": [
+      "开放模型社区",
+      "免费模型入口",
+      "OpenAI 兼容调用"
+    ],
     "cautions_zh": "免费模型容量和服务稳定性需以实时验证为准。",
-    "official_url": "https://nousresearch.com/"
+    "official_url": "https://nousresearch.com/",
+    "key_url": "https://portal.nousresearch.com/api-keys",
+    "key_steps_zh": [
+      "注册/登录 Nous Research Portal",
+      "打开 API Keys 页面创建密钥"
+    ],
+    "free_quota_zh": "Portal 提供免费额度与免费后缀模型；容量与稳定性以实测为准。"
   },
   "poolside": {
     "zh_name": "Poolside Inference",
     "organization": "Poolside",
     "region": "美国/法国",
     "background_zh": "专注软件工程与代码智能的模型公司，本项目接入其 Laguna 系列免费推理入口。",
-    "strengths_zh": ["代码任务导向", "长上下文", "推理模型"],
+    "strengths_zh": [
+      "代码任务导向",
+      "长上下文",
+      "推理模型"
+    ],
     "cautions_zh": "免费 Laguna 入口的容量、条款和模型版本可能调整。",
-    "official_url": "https://poolside.ai/"
+    "official_url": "https://poolside.ai/",
+    "key_url": "https://poolside.ai/",
+    "key_steps_zh": [
+      "访问 Poolside 官网并注册",
+      "按官方指引申请 Laguna 系列 API 访问",
+      "在账户页面生成 API Key"
+    ],
+    "free_quota_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。"
   },
   "opencode-zen-free": {
     "zh_name": "OpenCode Zen 免费路由",
     "organization": "OpenCode",
     "region": "全球",
     "background_zh": "OpenCode 生态提供的模型路由入口，聚合多个带 free 标识的模型，适合代码代理和终端工作流。",
-    "strengths_zh": ["代码代理适配", "无需单独切换多个端点", "免费模型集合"],
+    "strengths_zh": [
+      "代码代理适配",
+      "无需单独切换多个端点",
+      "免费模型集合"
+    ],
     "cautions_zh": "模型别名与上游映射可能变化，工具调用能力必须逐个实测。",
-    "official_url": "https://opencode.ai/docs/zen/"
+    "official_url": "https://opencode.ai/docs/zen/",
+    "key_url": "https://opencode.ai/zen/",
+    "key_steps_zh": [
+      "注册 OpenCode 账户",
+      "打开 Zen 控制台创建 API Key",
+      "免费标识模型可直接调用"
+    ],
+    "free_quota_zh": "带 free 标识的模型免费；别名与上游映射可能变化，工具调用需逐个实测。"
   },
   "sensenova": {
     "zh_name": "商汤日日新 SenseNova",
     "organization": "商汤科技",
     "region": "中国",
     "background_zh": "商汤科技的大模型服务体系，提供模型 API 与开发平台，本项目当前接入部分免费可用模型。",
-    "strengths_zh": ["中国网络环境", "中文任务", "国内开发者平台"],
+    "strengths_zh": [
+      "中国网络环境",
+      "中文任务",
+      "国内开发者平台"
+    ],
     "cautions_zh": "账户认证、免费额度及模型开放范围以平台实时策略为准。",
-    "official_url": "https://platform.sensenova.cn/"
+    "official_url": "https://platform.sensenova.cn/",
+    "key_url": "https://console.sensecore.cn/iam/Security/access-key",
+    "key_steps_zh": [
+      "注册商汤大装置账户并完成实名认证",
+      "打开 控制台 → 访问密钥 页面",
+      "创建 AccessKey 并按平台文档换取 API Key"
+    ],
+    "free_quota_zh": "新账户通常附带免费体验额度；模型开放范围以平台实时策略为准。"
   },
   "stepfun": {
     "zh_name": "阶跃星辰 StepFun",
     "organization": "阶跃星辰",
     "region": "中国",
     "background_zh": "中国大模型厂商阶跃星辰提供的模型开放平台，覆盖通用、推理与多模态模型。",
-    "strengths_zh": ["中文能力", "国内 API", "推理模型生态"],
+    "strengths_zh": [
+      "中文能力",
+      "国内 API",
+      "推理模型生态"
+    ],
     "cautions_zh": "免费额度和具体模型可用性与账户活动及平台策略相关。",
-    "official_url": "https://platform.stepfun.com/"
+    "official_url": "https://platform.stepfun.com/",
+    "key_url": "https://platform.stepfun.com/interface-key",
+    "key_steps_zh": [
+      "注册阶跃星辰开放平台账户",
+      "打开 接口密钥 页面",
+      "创建 API Key（新账户附赠免费额度）"
+    ],
+    "free_quota_zh": "注册即送体验额度，部分模型有限时免费活动；以平台计费页为准。"
   },
   "deepseek": {
     "zh_name": "DeepSeek 开放平台",
     "organization": "深度求索 DeepSeek",
     "region": "中国",
     "background_zh": "深度求索提供的通用与推理模型 API 平台，以 DeepSeek Chat 和 Reasoner 系列为核心。",
-    "strengths_zh": ["中文与代码任务", "推理模型", "OpenAI 兼容接口"],
+    "strengths_zh": [
+      "中文与代码任务",
+      "推理模型",
+      "OpenAI 兼容接口"
+    ],
     "cautions_zh": "本项目最新状态未配置可用密钥；官方 API 并不等同于永久免费。",
-    "official_url": "https://api-docs.deepseek.com/"
+    "official_url": "https://api-docs.deepseek.com/",
+    "key_url": "https://platform.deepseek.com/",
+    "key_steps_zh": [
+      "注册 DeepSeek 开放平台账户",
+      "打开控制台的 API Keys 管理页面创建密钥",
+      "按量计费，充值后可用"
+    ],
+    "free_quota_zh": "官方 API 为付费按量计费（历史上有赠送额度活动）；并非永久免费，请留意余额。"
   },
   "gitee-ai": {
     "zh_name": "Gitee AI",
     "organization": "开源中国/Gitee",
     "region": "中国",
     "background_zh": "Gitee 面向开发者提供的模型 API 与 AI 能力平台，聚合多种中文和开放模型。",
-    "strengths_zh": ["国内开发者生态", "中文模型覆盖", "多厂商模型入口"],
+    "strengths_zh": [
+      "国内开发者生态",
+      "中文模型覆盖",
+      "多厂商模型入口"
+    ],
     "cautions_zh": "本项目最新实测账户没有可用计费资源，不能据目录状态推断当前可调用。",
-    "official_url": "https://ai.gitee.com/"
+    "official_url": "https://ai.gitee.com/",
+    "key_url": "https://ai.gitee.com/dashboard/settings/tokens",
+    "key_steps_zh": [
+      "注册/登录 Gitee AI（模力方舟）",
+      "打开 工作台 → 设置 → 访问令牌",
+      "创建私人令牌作为 API Key"
+    ],
+    "free_quota_zh": "Serverless API 提供每日免费调用次数；超出后需要计费资源包。"
   }
 }

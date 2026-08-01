@@ -1,0 +1,172 @@
+/* /architecture/architecture.css — 系统架构页（前缀 arch- / sg- / fl-） */
+.arch-eyebrow{color:#86a0b7;font:700 .62rem var(--mono);letter-spacing:.15em}
+.arch-eyebrow span{display:inline-block;width:28px;height:1px;margin-right:.65rem;vertical-align:middle;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+.repo-link{justify-self:end;padding:.55rem .85rem;border:1px solid var(--line-strong);color:#a9bfd1;font:700 .65rem var(--mono);letter-spacing:.06em;transition:.2s}
+.repo-link:hover{color:var(--cyan);border-color:var(--cyan)}
+
+/* ---------- Hero ---------- */
+.arch-hero{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:6.5rem 0 5rem;display:grid;grid-template-columns:1.1fr .9fr;gap:4.5rem;align-items:center}
+.arch-hero h1{margin:.6rem 0 1.6rem;font-size:clamp(2.6rem,5.2vw,5rem);line-height:1.06;letter-spacing:-.05em}
+.arch-hero>div>p:not(.arch-eyebrow){max-width:640px;color:#a9bfd1;font-size:clamp(1rem,1.25vw,1.15rem);line-height:1.85}
+.arch-hero-actions{display:flex;flex-wrap:wrap;gap:.8rem;margin-top:2.1rem}
+.arch-portcard{border:1px solid var(--line-strong);background:#04101e;box-shadow:18px 18px 0 rgba(36,214,200,.03)}
+.arch-portcard header{display:flex;align-items:center;gap:7px;height:46px;padding:0 1rem;border-bottom:1px solid var(--line)}
+.arch-portcard header i{width:8px;height:8px;border-radius:50%;background:var(--red)}
+.arch-portcard header i:nth-child(2){background:var(--amber)}
+.arch-portcard header i:nth-child(3){background:var(--green)}
+.arch-portcard header b{margin-left:auto;color:var(--dim);font:600 .55rem var(--mono)}
+.arch-portcard dl{margin:0;padding:1.6rem 1.8rem .6rem;font:600 .7rem/1.7 var(--mono)}
+.arch-portcard div{display:grid;grid-template-columns:92px 1fr;gap:.4rem;padding:.28rem 0}
+.arch-portcard dt{color:var(--dim);letter-spacing:.08em}
+.arch-portcard dd{margin:0;color:#b9d0e2}
+.arch-portcard dd em{color:var(--cyan);font-style:normal}
+.arch-portcard p{margin:1rem 1.8rem 1.8rem;padding:.7rem;border:1px solid rgba(74,222,128,.25);color:var(--green);font:600 .68rem var(--mono)}
+.arch-portcard p i{display:inline-block;width:7px;height:7px;margin-right:.5rem;border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green)}
+
+/* ---------- 统计条 ---------- */
+.arch-stats{display:grid;grid-template-columns:repeat(7,1fr);padding:0 max(24px,calc((100vw - var(--max))/2));border-top:1px solid var(--line);border-bottom:1px solid var(--line);background:rgba(8,24,43,.74)}
+.arch-stats article{min-height:120px;display:grid;align-content:center;gap:.2rem;padding:1.1rem 1rem;border-left:1px solid var(--line)}
+.arch-stats article:last-of-type{border-right:1px solid var(--line)}
+.arch-stats b{color:var(--cyan);font:750 1.9rem/1 var(--mono)}
+.arch-stats span{color:var(--text);font-size:.72rem;font-weight:650}
+.arch-stats small{color:var(--dim);font:600 .52rem var(--mono);letter-spacing:.1em}
+.arch-stats p{grid-column:1/-1;margin:0;padding:.85rem 0;border-top:1px solid var(--line);color:var(--dim);font:600 .6rem var(--mono);overflow-wrap:anywhere}
+.arch-stats p b{font-size:.6rem;color:var(--cyan)}
+
+/* ---------- 区块外壳 ---------- */
+.arch-section{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:7rem 0}
+.arch-section>header{max-width:860px;margin-bottom:3.2rem}
+.arch-section>header h2{margin:.7rem 0 1.2rem;font-size:clamp(2.5rem,4.8vw,4.6rem);line-height:1.02;letter-spacing:-.055em}
+.arch-section>header p{max-width:700px;color:var(--muted);font-size:.95rem}
+
+/* ---------- 总体架构图 ---------- */
+.arch-figure{border:1px solid var(--line-strong);background:rgba(6,17,32,.92);overflow-x:auto}
+.arch-figure svg{display:block;width:100%;min-width:1180px;height:auto}
+.arch-legend{display:flex;flex-wrap:wrap;gap:1.4rem;padding:.9rem 1.1rem;border:1px solid var(--line-strong);border-top:0;background:rgba(8,24,43,.7);color:var(--muted);font:600 .62rem var(--mono)}
+.arch-legend i{display:inline-block;width:18px;height:2px;margin-right:.5rem;vertical-align:middle}
+.lg-cy{background:var(--cyan)}.lg-bl{background:#6d8bff}.lg-gr{background:var(--green)}.lg-am{background:var(--amber)}
+/* SVG 文本 */
+.sg-rail{font:800 15px var(--sans);fill:var(--ice)}
+.sg-rails{font:700 13px var(--mono);fill:var(--dim);letter-spacing:.06em}
+.sg-name{font:600 13.5px var(--sans);fill:var(--text)}
+.sg-un{font:600 13px var(--sans);fill:var(--text)}
+.sg-t{font:700 14.5px var(--sans);fill:var(--text)}
+.sg-t15{font:700 15px var(--sans);fill:var(--text)}
+.sg-m{font:600 13px var(--mono);fill:var(--muted)}
+.sg-port{font:800 21px var(--mono);fill:var(--cyan)}
+.sg-reg-t{font:800 16px var(--mono);fill:var(--green)}
+.sg-dim{fill:var(--dim)}
+.sg-cy{fill:var(--cyan)}.sg-bl{fill:#7d97ff}.sg-gr{fill:var(--green)}.sg-am{fill:var(--amber)}
+/* SVG 面板 */
+.sg-box{fill:#0b1d33;stroke:var(--line-strong)}
+.sg-cont{fill:rgba(8,24,43,.55);stroke:rgba(73,109,255,.4)}
+.sg-proxy{fill:#081a30;stroke:rgba(36,214,200,.55)}
+.sg-chip{fill:rgba(36,214,200,.05);stroke:rgba(36,214,200,.3)}
+.sg-reg{fill:rgba(74,222,128,.06);stroke:rgba(74,222,128,.5)}
+.sg-sub{fill:#0b1d33;stroke:rgba(73,109,255,.35)}
+.sg-p-cy{fill:#0b1d33;stroke:rgba(36,214,200,.45)}
+.sg-p-bl{fill:#0b1d33;stroke:rgba(73,109,255,.55)}
+.sg-p-gr{fill:#0b1d33;stroke:rgba(74,222,128,.4)}
+.sg-p-am{fill:#0b1d33;stroke:rgba(255,202,104,.45)}
+.sg-bar-cy{fill:rgba(36,214,200,.7)}.sg-bar-bl{fill:rgba(73,109,255,.8)}.sg-bar-gr{fill:rgba(74,222,128,.6)}.sg-bar-am{fill:rgba(255,202,104,.65)}
+/* SVG 连接线 */
+.fl{fill:none;stroke-width:1.4}
+.fl-cy{stroke:rgba(36,214,200,.6)}
+.fl-bl{stroke:rgba(109,139,255,.65)}
+.fl-gr{stroke:rgba(74,222,128,.5)}
+.fl-am{stroke:rgba(255,202,104,.55)}
+.fl-dim{stroke:rgba(132,183,224,.4)}
+.sg-railline{stroke:rgba(132,183,224,.12);stroke-width:1}
+.fl-anim{stroke-dasharray:5 9;animation:archdash 1.5s linear infinite}
+@keyframes archdash{to{stroke-dashoffset:-14}}
+
+/* ---------- 请求生命周期 ---------- */
+.arch-steps{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.arch-step{position:relative;padding:1.6rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.6),rgba(7,22,39,.5))}
+.arch-step>b{color:var(--dim);font:800 .66rem var(--mono);letter-spacing:.14em}
+.arch-step h3{margin:.9rem 0 .4rem;font-size:1rem}
+.arch-step p{margin:0;color:var(--muted);font-size:.74rem}
+.arch-step::after{content:"";position:absolute;left:1.6rem;top:0;width:34px;height:2px;background:var(--cyan);opacity:.55}
+.arch-chips{display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.9rem}
+.arch-chips code{padding:.26rem .45rem;border:1px solid var(--line);background:rgba(36,214,200,.04);color:var(--cyan);font:600 .58rem var(--mono);overflow-wrap:anywhere}
+
+/* ---------- 同步扇出 ---------- */
+.arch-hub{position:relative;max-width:540px;margin:0 auto;padding:1.7rem;text-align:center;border:1px solid rgba(74,222,128,.45);background:rgba(74,222,128,.05)}
+.arch-hub b{font:800 1.15rem var(--mono);color:var(--green)}
+.arch-hub p{margin:.45rem 0 0;color:var(--muted);font:600 .66rem var(--mono)}
+.arch-hub::after{content:"";position:absolute;left:50%;bottom:-30px;width:1px;height:30px;background:var(--line-strong)}
+.arch-fan{position:relative;margin-top:30px;display:grid;grid-template-columns:repeat(3,1fr);gap:15px}
+.arch-fan::before{content:"";position:absolute;top:-15px;left:16.6%;right:16.6%;height:1px;background:var(--line-strong)}
+.arch-fan article{position:relative;padding:1.15rem 1.25rem;border:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.72),rgba(7,22,39,.62))}
+.arch-fan article:nth-child(-n+3)::before{content:"";position:absolute;top:-15px;left:50%;width:1px;height:15px;background:var(--line-strong)}
+.arch-fan article>div{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem}
+.arch-fan article b{font-size:.82rem}
+.arch-fan article small{color:var(--dim);font:700 .52rem var(--mono);letter-spacing:.1em}
+.arch-fan article code{display:block;margin-top:.5rem;color:var(--cyan);opacity:.85;font:600 .62rem var(--mono);overflow-wrap:anywhere}
+
+/* ---------- 模块表 ---------- */
+.arch-modwrap{border:1px solid var(--line);overflow-x:auto}
+.arch-modules{width:100%;min-width:780px;border-collapse:collapse;background:rgba(6,17,32,.94)}
+.arch-modules th{padding:.9rem .9rem;text-align:left;background:#0c2139;color:#7890a5;border-bottom:1px solid var(--line-strong);font:700 .55rem var(--mono);letter-spacing:.08em}
+.arch-modules td{padding:.8rem .9rem;border-bottom:1px solid var(--line);vertical-align:middle}
+.arch-modules tr:last-child td{border-bottom:0}
+.arch-modules tr:hover td{background:rgba(36,214,200,.025)}
+.arch-modules td:first-child code{color:var(--cyan);font:700 .68rem var(--mono)}
+.arch-modules td:nth-child(2){color:var(--text);font-size:.76rem;font-weight:650;white-space:nowrap}
+.arch-modules td:nth-child(3){color:var(--muted);font-size:.7rem}
+
+/* ---------- 安全边界 ---------- */
+.arch-sec{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
+.arch-sec article{padding:1.7rem;border-right:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.6),rgba(7,22,39,.5))}
+.arch-sec article:last-child{border-right:0}
+.arch-sec span{color:var(--cyan);font:700 .58rem var(--mono)}
+.arch-sec h3{margin:.8rem 0 .35rem;font-size:.95rem}
+.arch-sec p{margin:0;color:var(--muted);font-size:.72rem}
+.arch-sec em{color:var(--green);font-style:normal;font-family:var(--mono);font-size:.68rem}
+
+/* ---------- CTA ---------- */
+.arch-cta{width:min(var(--max),calc(100% - 48px));margin:0 auto 8rem;padding:5rem 2rem;text-align:center;border:1px solid rgba(36,214,200,.3);background:radial-gradient(circle at 50% 0,rgba(36,214,200,.09),transparent 42%),var(--navy-2)}
+.arch-cta>p{color:var(--cyan);font:700 .58rem var(--mono);letter-spacing:.14em}
+.arch-cta h2{max-width:900px;margin:0 auto 2.4rem;font-size:clamp(2.2rem,4.6vw,3.8rem);line-height:1.05;letter-spacing:-.05em}
+.arch-cta>div{display:flex;flex-wrap:wrap;justify-content:center;gap:.8rem}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:980px){
+  .arch-hero{grid-template-columns:1fr;gap:2.5rem}
+  .arch-portcard{max-width:640px}
+  .arch-stats{grid-template-columns:repeat(4,1fr)}
+  .arch-stats article:nth-child(4){border-right:1px solid var(--line)}
+  .arch-steps{grid-template-columns:1fr 1fr}
+  .arch-fan{grid-template-columns:1fr 1fr}
+  .arch-fan::before{left:25%;right:25%}
+  .arch-fan article:nth-child(3)::before{display:none}
+  .arch-sec{grid-template-columns:1fr 1fr}
+  .arch-sec article{border-bottom:1px solid var(--line)}
+  .arch-sec article:nth-child(2n){border-right:0}
+  .arch-sec article:nth-child(n+3){border-bottom:0}
+}
+@media(max-width:640px){
+  .arch-hero,.arch-section,.arch-cta{width:calc(100% - 32px)}
+  .arch-hero{padding:4.5rem 0 3.5rem}
+  .arch-section{padding:5rem 0}
+  .arch-section>header{margin-bottom:2.2rem}
+  .arch-portcard dl{padding:1.2rem 1.2rem .4rem}
+  .arch-portcard div{grid-template-columns:80px 1fr}
+  .arch-portcard p{margin:.8rem 1.2rem 1.2rem}
+  .arch-stats{grid-template-columns:1fr 1fr;padding:0 16px}
+  .arch-stats article{min-height:96px}
+  .arch-stats article:nth-child(4){border-right:0}
+  .arch-stats article:nth-child(2n){border-right:1px solid var(--line)}
+  .arch-stats article:last-of-type{grid-column:1/-1}
+  .arch-steps{grid-template-columns:1fr}
+  .arch-fan{grid-template-columns:1fr}
+  .arch-fan::before,.arch-fan article:nth-child(-n+3)::before{display:none}
+  .arch-hub::after{display:none}
+  .arch-sec{grid-template-columns:1fr}
+  .arch-sec article{border-right:0;border-bottom:1px solid var(--line)}
+  .arch-sec article:nth-child(n+3){border-bottom:1px solid var(--line)}
+  .arch-sec article:last-child{border-bottom:0}
+  .arch-cta{padding:3.5rem 1rem}
+  .arch-cta>div{flex-direction:column;align-items:stretch}
+}
+@media(prefers-reduced-motion:reduce){.fl-anim{animation:none;stroke-dasharray:none}}

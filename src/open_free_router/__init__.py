@@ -7,4 +7,7 @@ Quick start:
     open-free-router refresh # one-time free model list refresh
     open-free-router sync --agent codex  # create Codex Responses profile
     open-free-router add     # add a provider
+    open-free-router mcp     # MCP stdio server for agent hosts
 """
+
+__version__ = "0.2.0"

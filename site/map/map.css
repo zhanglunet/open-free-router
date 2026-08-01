@@ -1,0 +1,155 @@
+/* 全球分布地图页 · 模力自由港 —— 仅供 /map/ 使用，class 前缀 map-/mk-/region-/latency- */
+.eyebrow{color:#86a0b7;font:700 .62rem var(--mono);letter-spacing:.15em}
+.eyebrow span{display:inline-block;width:28px;height:1px;margin-right:.65rem;vertical-align:middle;background:var(--cyan);box-shadow:0 0 12px var(--cyan)}
+.repo-link{justify-self:end;color:#a9bfd1;font:700 .68rem var(--mono);letter-spacing:.06em}
+.repo-link:hover{color:var(--cyan)}
+
+/* ---------- Hero ---------- */
+.map-hero{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:7.5rem 0 4.5rem;display:grid;grid-template-columns:1.15fr .85fr;gap:4rem;align-items:end}
+.map-hero h1{margin:.5rem 0 1.6rem;font-size:clamp(3.4rem,6.8vw,6.6rem);line-height:.95;letter-spacing:-.06em}
+.map-hero>div>p:last-child{max-width:640px;color:var(--muted)}
+.map-hero-stats{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-strong);background:linear-gradient(145deg,rgba(73,109,255,.09),rgba(8,24,43,.75))}
+.map-hero-stats article{min-height:132px;display:grid;place-content:center;text-align:center;border-right:1px solid var(--line);padding:1rem}
+.map-hero-stats article:last-child{border-right:0}
+.map-hero-stats b{color:var(--cyan);font:750 clamp(1.9rem,3.4vw,3.2rem)/1 var(--mono)}
+.map-hero-stats span{margin-top:.55rem;color:var(--muted);font-size:.68rem}
+
+/* ---------- 地图区块 ---------- */
+.map-section{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:1.5rem 0 6rem}
+.map-head{display:flex;justify-content:space-between;align-items:end;gap:3rem;margin-bottom:2rem}
+.map-head h2{margin:.6rem 0 0;font-size:clamp(2.4rem,4.6vw,4.4rem);line-height:1.02;letter-spacing:-.055em}
+.map-head h2 em{color:var(--cyan);font-style:normal}
+.map-head>p{max-width:440px;margin:0;color:var(--muted);font-size:.8rem}
+.map-scroll{border:1px solid var(--line-strong);background:radial-gradient(circle at 50% 0,rgba(73,109,255,.1),transparent 55%),#071527}
+.map-stage{position:relative}
+.map-stage>img{display:block;width:100%;height:auto}
+.marker-layer{position:absolute;inset:0;margin:0;padding:0;list-style:none}
+
+/* ---------- 标记 ---------- */
+.map-marker{position:absolute;z-index:2;width:30px;height:30px;margin:-15px 0 0 -15px;display:grid;place-items:center;cursor:pointer;outline:none}
+.map-marker:focus-visible{z-index:6}
+.map-marker:hover{z-index:6}
+.mk-us{--mk:var(--cyan)}
+.mk-eu{--mk:var(--blue)}
+.mk-cn{--mk:var(--green)}
+.mk-dot{position:relative;width:10px;height:10px;border-radius:50%;background:var(--mk,var(--cyan));box-shadow:0 0 14px var(--mk,var(--cyan))}
+.mk-dot::before{content:"";position:absolute;inset:-7px;border-radius:50%;border:1px solid var(--mk,var(--cyan));animation:mk-pulse 2.6s ease-out infinite}
+.map-marker:focus-visible .mk-dot{outline:2px solid var(--ice);outline-offset:5px}
+@keyframes mk-pulse{0%{transform:scale(.5);opacity:.8}70%{transform:scale(1.9);opacity:0}100%{transform:scale(1.9);opacity:0}}
+
+/* 标记坐标（相对底图百分比；相邻点已手动错开） */
+.mk-openrouter{left:16%;top:28.6%}
+.mk-groq{left:17.7%;top:30.4%}
+.mk-google{left:14.5%;top:30.9%}
+.mk-nvidia{left:16.2%;top:32.4%}
+.mk-poolside-us{left:28.9%;top:26.7%}
+.mk-nous{left:30.4%;top:28.4%}
+.mk-poolside-eu{left:50.65%;top:21.43%}
+.mk-sensenova{left:84.3%;top:33.5%}
+.mk-stepfun{left:85.4%;top:35.7%}
+.mk-deepseek{left:82.5%;top:36.3%}
+.mk-gitee{left:81.68%;top:40.78%}
+.mk-zen{left:38%;top:40%}
+
+/* Tooltip */
+.mk-tip{position:absolute;left:50%;bottom:calc(100% + 10px);z-index:8;transform:translate(-50%,6px);min-width:158px;padding:.6rem .75rem;border:1px solid var(--line-strong);background:rgba(6,17,32,.96);box-shadow:0 10px 30px rgba(2,8,16,.5);text-align:left;opacity:0;visibility:hidden;pointer-events:none;transition:opacity .18s ease,transform .18s ease}
+.mk-tip::after{content:"";position:absolute;left:50%;top:100%;margin-left:-4px;border:4px solid transparent;border-top-color:var(--line-strong)}
+.mk-tip b{display:block;font-size:.72rem;line-height:1.35}
+.mk-tip small{display:block;margin-top:.15rem;color:var(--muted);font:600 .56rem var(--mono)}
+.mk-tip em{display:block;margin-top:.3rem;color:var(--mk,var(--cyan));font:700 .56rem var(--mono);font-style:normal}
+.map-marker:hover .mk-tip,.map-marker:focus .mk-tip{opacity:1;visibility:visible;transform:translate(-50%,0)}
+.map-marker:focus-visible .mk-tip{opacity:1;visibility:visible;transform:translate(-50%,0)}
+
+/* GLOBAL 分布式标记（OpenCode Zen） */
+.mk-global{--mk:var(--blue);width:46px;height:46px;margin:-23px 0 0 -23px}
+.mk-global .mk-dot{width:11px;height:11px}
+.mk-ring{position:absolute;inset:5px;border:1px dashed rgba(73,109,255,.6);border-radius:50%;animation:mk-spin 14s linear infinite}
+.mk-flag{position:absolute;top:calc(100% - 2px);left:50%;transform:translateX(-50%);white-space:nowrap;padding:.28rem .5rem;border:1px solid var(--line-strong);background:rgba(7,23,41,.92);color:#9dc0d1;font:700 .5rem var(--mono);letter-spacing:.08em}
+@keyframes mk-spin{to{transform:rotate(360deg)}}
+
+/* 图例 */
+.map-legend{display:flex;flex-wrap:wrap;gap:1rem 1.6rem;align-items:center;margin-top:1rem;padding:.95rem 1.2rem;border:1px solid var(--line);background:rgba(8,24,43,.62)}
+.map-legend span{display:inline-flex;align-items:center;gap:.5rem;color:#a9bfd1;font:650 .62rem var(--mono)}
+.map-legend i{width:9px;height:9px;border-radius:50%}
+.legend-us{background:var(--cyan);box-shadow:0 0 10px var(--cyan)}
+.legend-eu{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+.legend-cn{background:var(--green);box-shadow:0 0 10px var(--green)}
+.map-legend p{margin:0 0 0 auto;color:var(--dim);font-size:.62rem}
+
+/* ---------- 区域统计 ---------- */
+.map-regions{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:6rem 0;border-top:1px solid var(--line)}
+.map-regions>header{max-width:820px;margin-bottom:3rem}
+.map-regions h2{margin:.6rem 0 1rem;font-size:clamp(2.6rem,5vw,4.8rem);line-height:1.02;letter-spacing:-.06em}
+.map-regions h2 em{color:var(--cyan);font-style:normal}
+.map-regions>header>p{max-width:640px;margin:0;color:var(--muted);font-size:.9rem}
+.region-cards{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line)}
+.region-card{position:relative;padding:1.8rem;border-right:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.72),rgba(7,22,39,.62))}
+.region-card:last-child{border-right:0}
+.region-card::before{content:"";position:absolute;left:0;top:0;width:100%;height:2px;background:var(--rg,var(--cyan));opacity:.75}
+.region-us{--rg:var(--cyan)}
+.region-cn{--rg:var(--green)}
+.region-eu{--rg:var(--blue)}
+.region-card>header{display:flex;align-items:baseline;gap:.7rem}
+.region-card h3{margin:0;font-size:1.3rem}
+.region-card>header small{color:var(--dim);font:650 .55rem var(--mono);letter-spacing:.1em}
+.region-card>header b{margin-left:auto;color:var(--rg,var(--cyan));font:750 2rem var(--mono)}
+.region-card ul{list-style:none;margin:1.3rem 0 0;padding:0;display:grid;gap:.6rem}
+.region-card li{display:grid;gap:.1rem;padding:.65rem .8rem;border:1px solid var(--line);background:rgba(6,17,32,.55)}
+.region-card li b{font-size:.74rem}
+.region-card li small{color:var(--muted);font-size:.6rem}
+.region-card>p{margin:1rem 0 0;color:var(--dim);font-size:.58rem}
+
+/* ---------- 延迟视角 ---------- */
+.map-latency{width:min(var(--max),calc(100% - 48px));margin:0 auto;padding:6rem 0;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr .9fr;gap:4rem;align-items:center}
+.map-latency h2{margin:.6rem 0 1.2rem;font-size:clamp(2.4rem,4.6vw,4.4rem);line-height:1.02;letter-spacing:-.055em}
+.map-latency h2 em{color:var(--cyan);font-style:normal}
+.latency-copy>p:not(.eyebrow){max-width:620px;color:var(--muted)}
+.latency-copy .text-link{display:inline-flex;gap:1.5rem;margin-top:1.2rem;color:var(--cyan);font:750 .72rem var(--mono);letter-spacing:.06em}
+.latency-panel{border:1px solid var(--line-strong);background:rgba(6,17,32,.9);box-shadow:16px 16px 0 rgba(73,109,255,.04)}
+.latency-panel>header{display:flex;justify-content:space-between;gap:1rem;padding:.8rem 1rem;border-bottom:1px solid var(--line);color:var(--dim);font:650 .55rem var(--mono);letter-spacing:.09em}
+.latency-panel>header i{display:inline-block;width:6px;height:6px;margin-right:.5rem;border-radius:50%;background:var(--green);font-style:normal}
+.latency-row{display:grid;grid-template-columns:auto 1fr auto;gap:1rem;align-items:center;padding:1.05rem 1rem;border-bottom:1px solid var(--line)}
+.latency-row:last-child{border-bottom:0}
+.latency-row>i{color:var(--cyan);font:700 .58rem var(--mono);font-style:normal}
+.latency-row b{display:block;font-size:.78rem}
+.latency-row small{display:block;color:var(--muted);font-size:.6rem}
+.latency-row>span{font:700 .56rem var(--mono)}
+.latency-fast{color:var(--green)}
+.latency-mid{color:var(--amber)}
+.latency-var{color:var(--blue)}
+
+/* ---------- 页脚前 CTA ---------- */
+.map-cta{width:min(var(--max),calc(100% - 48px));margin:0 auto 7rem;padding:4.5rem 2rem;text-align:center;border:1px solid rgba(36,214,200,.3);background:radial-gradient(circle at 50% 0,rgba(36,214,200,.09),transparent 42%),var(--navy-2)}
+.map-cta>p:first-child{color:var(--cyan);font:700 .58rem var(--mono);letter-spacing:.14em}
+.map-cta h2{max-width:880px;margin:0 auto 2.2rem;font-size:clamp(2.4rem,5vw,4.6rem);line-height:1.02;letter-spacing:-.055em}
+.map-cta h2 em{color:var(--cyan);font-style:normal}
+.map-cta>div{display:flex;justify-content:center;gap:.8rem}
+
+/* ---------- 响应式 ---------- */
+@media(max-width:980px){
+  .map-hero{grid-template-columns:1fr;gap:2.5rem}
+  .map-head{display:block}
+  .map-head>p{max-width:640px;margin-top:1rem}
+  .region-cards{grid-template-columns:1fr}
+  .region-card{border-right:0;border-bottom:1px solid var(--line)}
+  .region-card:last-child{border-bottom:0}
+  .map-latency{grid-template-columns:1fr;gap:2.5rem}
+}
+@media(max-width:640px){
+  .map-hero,.map-section,.map-regions,.map-latency,.map-cta{width:calc(100% - 32px)}
+  .map-hero{padding:4.5rem 0 3rem}
+  .map-hero-stats article{min-height:104px}
+  .map-section{padding-bottom:4rem}
+  .map-regions,.map-latency{padding:4rem 0}
+  .map-scroll{overflow-x:auto}
+  .map-stage{min-width:640px}
+  .mk-tip{min-width:138px}
+  .map-legend p{margin-left:0;flex-basis:100%}
+  .map-cta{margin-bottom:4.5rem;padding:3.5rem 1rem}
+  .map-cta>div{flex-direction:column}
+}
+@media(prefers-reduced-motion:reduce){
+  .mk-dot::before{animation:none;opacity:.35}
+  .mk-ring{animation:none}
+  .mk-tip{transition:none}
+}

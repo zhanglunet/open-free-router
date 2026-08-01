@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-08-01T15:35:22.936537+00:00",
+  "generated_at": "2026-08-01T17:16:58.954505+00:00",
   "status_as_of": "2026-08-01T15:00:52Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence.",
   "provider_count": 11,
-  "model_count": 51,
+  "model_count": 55,
   "providers": [
     {
       "id": "google-ai-studio",
@@ -15,7 +15,7 @@
       "reason": "HTTP 200 smoke test and Codex tool loop verified",
       "latency_ms": 1602,
       "checked_at": "2026-08-01T15:00:52Z",
-      "model_count": 4,
+      "model_count": 3,
       "models": [
         {
           "id": "gemini-2.5-flash",
@@ -38,10 +38,10 @@
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
-          "id": "gemini-3.5-flash",
-          "upstream_id": "gemini-3.5-flash",
-          "codex_alias": "ofr-gai-gemini-3-5-flash",
-          "name": "gemini-3.5-flash",
+          "id": "gemini-2.5-flash-lite",
+          "upstream_id": "gemini-2.5-flash-lite",
+          "codex_alias": "ofr-gai-gemini-2-5-flash-lite",
+          "name": "gemini-2.5-flash-lite",
           "context_window": 131072,
           "max_tokens": 8192,
           "reasoning": false,
@@ -58,30 +58,10 @@
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
-          "id": "gemini-3.6-flash",
-          "upstream_id": "gemini-3.6-flash",
-          "codex_alias": "ofr-gai-gemini-3-6-flash",
-          "name": "gemini-3.6-flash",
-          "context_window": 131072,
-          "max_tokens": 8192,
-          "reasoning": false,
-          "tool_calling": false,
-          "input_modalities": [
-            "text"
-          ],
-          "availability": "available",
-          "capability_score": 55,
-          "family_zh": "Google Gemini",
-          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
-          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
-        },
-        {
-          "id": "gemini-3.1-flash-lite",
-          "upstream_id": "gemini-3.1-flash-lite",
-          "codex_alias": "ofr-gai-gemini-3-1-flash-lite",
-          "name": "gemini-3.1-flash-lite",
+          "id": "gemini-2.5-pro",
+          "upstream_id": "gemini-2.5-pro",
+          "codex_alias": "ofr-gai-gemini-2-5-pro",
+          "name": "gemini-2.5-pro",
           "context_window": 131072,
           "max_tokens": 8192,
           "reasoning": false,
@@ -109,7 +89,15 @@
           "多模态能力"
         ],
         "cautions_zh": "免费额度、地区开放范围和模型配额由 Google 账户策略决定。",
-        "official_url": "https://ai.google.dev/gemini-api/docs/models"
+        "official_url": "https://ai.google.dev/gemini-api/docs/models",
+        "key_url": "https://aistudio.google.com/apikey",
+        "key_steps_zh": [
+          "使用 Google 账户登录 AI Studio",
+          "打开 Get API key 页面",
+          "点击 Create API key（可绑定任一 Google Cloud 项目）",
+          "免费层无需绑定信用卡"
+        ],
+        "free_quota_zh": "免费层按模型区分 RPM/RPD 配额（如 Flash 系列每日限额较高，Pro 系列较低），超限返回 429。"
       }
     },
     {
@@ -121,7 +109,7 @@
       "reason": "HTTP 200 smoke test",
       "latency_ms": 1011,
       "checked_at": "2026-08-01T15:00:52Z",
-      "model_count": 2,
+      "model_count": 6,
       "models": [
         {
           "id": "llama-3.3-70b",
@@ -162,6 +150,86 @@
           "recommended_for_zh": "长文档理解、摘要和通用问答",
           "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
+        },
+        {
+          "id": "compound",
+          "upstream_id": "groq/compound",
+          "codex_alias": "ofr-gq-compound",
+          "name": "compound",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": false,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "available",
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
+        },
+        {
+          "id": "compound-mini",
+          "upstream_id": "groq/compound-mini",
+          "codex_alias": "ofr-gq-compound-mini",
+          "name": "compound-mini",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": false,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "available",
+          "capability_score": 55,
+          "family_zh": "通用大语言模型",
+          "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
+        },
+        {
+          "id": "gpt-oss-20b",
+          "upstream_id": "openai/gpt-oss-20b",
+          "codex_alias": "ofr-gq-gpt-oss-20b",
+          "name": "gpt-oss-20b",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": true,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "available",
+          "capability_score": 100,
+          "family_zh": "OpenAI GPT-OSS 开放权重",
+          "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "复杂编码、Agent 工具链和多步分析",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
+        },
+        {
+          "id": "gpt-oss-120b",
+          "upstream_id": "openai/gpt-oss-120b",
+          "codex_alias": "ofr-gq-gpt-oss-120b",
+          "name": "gpt-oss-120b",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": true,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "available",
+          "capability_score": 100,
+          "family_zh": "OpenAI GPT-OSS 开放权重",
+          "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "复杂编码、Agent 工具链和多步分析",
+          "speed_tier_zh": "快",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
       ],
       "profile": {
@@ -175,7 +243,14 @@
           "OpenAI 兼容接口"
         ],
         "cautions_zh": "开发者免费层存在速率限制，预览模型和模型目录可能较快调整。",
-        "official_url": "https://console.groq.com/docs/models"
+        "official_url": "https://console.groq.com/docs/models",
+        "key_url": "https://console.groq.com/keys",
+        "key_steps_zh": [
+          "注册/登录 GroqCloud 控制台",
+          "打开 API Keys 页面",
+          "点击 Create API Key 并妥善保存"
+        ],
+        "free_quota_zh": "开发者免费层按模型限 RPM/RPD 和 token 速率，无需信用卡。"
       }
     },
     {
@@ -241,7 +316,13 @@
           "OpenAI 兼容调用"
         ],
         "cautions_zh": "免费模型容量和服务稳定性需以实时验证为准。",
-        "official_url": "https://nousresearch.com/"
+        "official_url": "https://nousresearch.com/",
+        "key_url": "https://portal.nousresearch.com/api-keys",
+        "key_steps_zh": [
+          "注册/登录 Nous Research Portal",
+          "打开 API Keys 页面创建密钥"
+        ],
+        "free_quota_zh": "Portal 提供免费额度与免费后缀模型；容量与稳定性以实测为准。"
       }
     },
     {
@@ -367,7 +448,14 @@
           "企业部署生态"
         ],
         "cautions_zh": "开发者试用额度和模型访问权限可能随账户、地区及许可变化。",
-        "official_url": "https://docs.nvidia.com/nim/"
+        "official_url": "https://docs.nvidia.com/nim/",
+        "key_url": "https://build.nvidia.com/",
+        "key_steps_zh": [
+          "注册 NVIDIA 开发者账户并登录 build.nvidia.com",
+          "任选一个模型页面点击 Get API Key",
+          "生成 nvapi- 开头的 API Key"
+        ],
+        "free_quota_zh": "开发者账户提供免费调用额度（按请求数计），用于评估托管 NIM 端点。"
       }
     },
     {
@@ -533,7 +621,14 @@
           "免费模型集合"
         ],
         "cautions_zh": "模型别名与上游映射可能变化，工具调用能力必须逐个实测。",
-        "official_url": "https://opencode.ai/docs/zen/"
+        "official_url": "https://opencode.ai/docs/zen/",
+        "key_url": "https://opencode.ai/zen/",
+        "key_steps_zh": [
+          "注册 OpenCode 账户",
+          "打开 Zen 控制台创建 API Key",
+          "免费标识模型可直接调用"
+        ],
+        "free_quota_zh": "带 free 标识的模型免费；别名与上游映射可能变化，工具调用需逐个实测。"
       }
     },
     {
@@ -715,15 +810,15 @@
           "context_window": 131072,
           "max_tokens": 8192,
           "reasoning": false,
-          "tool_calling": false,
+          "tool_calling": true,
           "input_modalities": [
             "text"
           ],
           "availability": "available",
-          "capability_score": 55,
+          "capability_score": 80,
           "family_zh": "OpenAI GPT-OSS 开放权重",
           "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "recommended_for_zh": "函数调用、自动化流程和轻量代码任务",
           "speed_tier_zh": "较慢",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         }
@@ -739,7 +834,15 @@
           "适合快速比较不同模型"
         ],
         "cautions_zh": "免费后缀模型通常有速率、容量或可用时段限制，实际可用性取决于上游。",
-        "official_url": "https://openrouter.ai/docs/guides/overview/models"
+        "official_url": "https://openrouter.ai/docs/guides/overview/models",
+        "key_url": "https://openrouter.ai/settings/keys",
+        "key_steps_zh": [
+          "注册/登录 OpenRouter 账户",
+          "打开 Settings → Keys 页面",
+          "点击 Create Key 生成 API Key",
+          "选择带 :free 后缀的模型即可免费调用"
+        ],
+        "free_quota_zh": "免费后缀模型按账户限流（未充值账户每日请求数较低，充值 $10 后每日上限显著提高）。"
       }
     },
     {
@@ -805,7 +908,14 @@
           "推理模型"
         ],
         "cautions_zh": "免费 Laguna 入口的容量、条款和模型版本可能调整。",
-        "official_url": "https://poolside.ai/"
+        "official_url": "https://poolside.ai/",
+        "key_url": "https://poolside.ai/",
+        "key_steps_zh": [
+          "访问 Poolside 官网并注册",
+          "按官方指引申请 Laguna 系列 API 访问",
+          "在账户页面生成 API Key"
+        ],
+        "free_quota_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。"
       }
     },
     {
@@ -871,7 +981,14 @@
           "国内开发者平台"
         ],
         "cautions_zh": "账户认证、免费额度及模型开放范围以平台实时策略为准。",
-        "official_url": "https://platform.sensenova.cn/"
+        "official_url": "https://platform.sensenova.cn/",
+        "key_url": "https://console.sensecore.cn/iam/Security/access-key",
+        "key_steps_zh": [
+          "注册商汤大装置账户并完成实名认证",
+          "打开 控制台 → 访问密钥 页面",
+          "创建 AccessKey 并按平台文档换取 API Key"
+        ],
+        "free_quota_zh": "新账户通常附带免费体验额度；模型开放范围以平台实时策略为准。"
       }
     },
     {
@@ -917,7 +1034,14 @@
           "推理模型生态"
         ],
         "cautions_zh": "免费额度和具体模型可用性与账户活动及平台策略相关。",
-        "official_url": "https://platform.stepfun.com/"
+        "official_url": "https://platform.stepfun.com/",
+        "key_url": "https://platform.stepfun.com/interface-key",
+        "key_steps_zh": [
+          "注册阶跃星辰开放平台账户",
+          "打开 接口密钥 页面",
+          "创建 API Key（新账户附赠免费额度）"
+        ],
+        "free_quota_zh": "注册即送体验额度，部分模型有限时免费活动；以平台计费页为准。"
       }
     },
     {
@@ -983,7 +1107,14 @@
           "OpenAI 兼容接口"
         ],
         "cautions_zh": "本项目最新状态未配置可用密钥；官方 API 并不等同于永久免费。",
-        "official_url": "https://api-docs.deepseek.com/"
+        "official_url": "https://api-docs.deepseek.com/",
+        "key_url": "https://platform.deepseek.com/",
+        "key_steps_zh": [
+          "注册 DeepSeek 开放平台账户",
+          "打开控制台的 API Keys 管理页面创建密钥",
+          "按量计费，充值后可用"
+        ],
+        "free_quota_zh": "官方 API 为付费按量计费（历史上有赠送额度活动）；并非永久免费，请留意余额。"
       }
     },
     {
@@ -995,7 +1126,7 @@
       "reason": "Provider returned no available billing resource",
       "latency_ms": 4066,
       "checked_at": "2026-08-01T15:00:52Z",
-      "model_count": 15,
+      "model_count": 16,
       "models": [
         {
           "id": "DeepSeek-V3",
@@ -1198,6 +1329,26 @@
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
         {
+          "id": "kimi-k2-instruct",
+          "upstream_id": "kimi-k2-instruct",
+          "codex_alias": "ofr-gitee-kimi-k2-instruct",
+          "name": "kimi-k2-instruct",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": false,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unavailable",
+          "capability_score": 55,
+          "family_zh": "月之暗面 Kimi",
+          "description_zh": "月之暗面 Kimi 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "当前不可用",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
+        },
+        {
           "id": "MiniMax-M3",
           "upstream_id": "MiniMax-M3",
           "codex_alias": "ofr-gitee-minimax-m3",
@@ -1265,15 +1416,15 @@
           "context_window": 131072,
           "max_tokens": 8192,
           "reasoning": false,
-          "tool_calling": false,
+          "tool_calling": true,
           "input_modalities": [
             "text"
           ],
           "availability": "unavailable",
-          "capability_score": 55,
+          "capability_score": 80,
           "family_zh": "OpenAI GPT-OSS 开放权重",
           "description_zh": "OpenAI GPT-OSS 开放权重 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "recommended_for_zh": "函数调用、自动化流程和轻量代码任务",
           "speed_tier_zh": "当前不可用",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。"
         },
@@ -1309,7 +1460,14 @@
           "多厂商模型入口"
         ],
         "cautions_zh": "本项目最新实测账户没有可用计费资源，不能据目录状态推断当前可调用。",
-        "official_url": "https://ai.gitee.com/"
+        "official_url": "https://ai.gitee.com/",
+        "key_url": "https://ai.gitee.com/dashboard/settings/tokens",
+        "key_steps_zh": [
+          "注册/登录 Gitee AI（模力方舟）",
+          "打开 工作台 → 设置 → 访问令牌",
+          "创建私人令牌作为 API Key"
+        ],
+        "free_quota_zh": "Serverless API 提供每日免费调用次数；超出后需要计费资源包。"
       }
     }
   ]

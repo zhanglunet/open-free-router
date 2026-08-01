@@ -51,15 +51,28 @@ def get_or_create_proxy_token(config_dir: Path) -> str:
 
 
 def check_auth(headers, token: str) -> bool:
-    """Constant-time check of an ``Authorization: Bearer <token>`` header.
+    """Constant-time check of the local auth token.
+
+    Accepts either ``Authorization: Bearer <token>`` (OpenAI-style clients)
+    or ``x-api-key: <token>`` (Anthropic-style clients such as Claude Code
+    when configured via ``ANTHROPIC_API_KEY``). Both carry the same local
+    proxy token — never an upstream provider key.
 
     ``headers`` is anything with a ``.get(name, default)`` method, e.g. an
     ``http.client.HTTPMessage`` from ``BaseHTTPRequestHandler.headers``.
     """
     if not token:
         return False
+    # Compare as bytes: compare_digest raises TypeError on non-ASCII str
+    # inputs, and header values are attacker-controlled — a weird byte in
+    # the header must yield a clean 401, not a 500.
+    expected = token.encode()
     supplied = headers.get("Authorization", "")
-    if not supplied.startswith("Bearer "):
-        return False
-    supplied = supplied[len("Bearer "):].strip()
-    return hmac.compare_digest(supplied, token)
+    if supplied.startswith("Bearer "):
+        candidate = supplied[len("Bearer "):].strip()
+        if hmac.compare_digest(candidate.encode("utf-8", "surrogateescape"), expected):
+            return True
+    api_key = (headers.get("x-api-key", "") or "").strip()
+    if api_key:
+        return hmac.compare_digest(api_key.encode("utf-8", "surrogateescape"), expected)
+    return False

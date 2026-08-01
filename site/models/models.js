@@ -57,8 +57,21 @@ function renderProviders(catalog) {
       <div class="provider-tags">${(provider.profile?.strengths_zh || []).map((item) => `<span>${html(item)}</span>`).join("")}</div>
       <p class="provider-caution">${html(provider.profile?.cautions_zh || provider.reason)}</p>
       ${provider.profile?.official_url ? `<a class="provider-source" href="${externalUrl(provider.profile.official_url)}" rel="noreferrer">官方资料 ↗</a>` : ""}
+      ${renderKeyGuide(provider.profile)}
       <footer><b>${provider.model_count}</b><span>模型</span><b>${latencyLabel(provider.latency_ms)}</b><span>最近延迟</span></footer>
     </article>`).join("");
+}
+
+function renderKeyGuide(profile) {
+  if (!profile?.key_url) return "";
+  const steps = (profile.key_steps_zh || []).map((step) => `<li>${html(step)}</li>`).join("");
+  return `
+    <details class="key-guide">
+      <summary>🔑 如何获取 API Key</summary>
+      ${steps ? `<ol>${steps}</ol>` : ""}
+      ${profile.free_quota_zh ? `<p class="key-quota">${html(profile.free_quota_zh)}</p>` : ""}
+      <a href="${externalUrl(profile.key_url)}" rel="noreferrer">前往密钥控制台 ↗</a>
+    </details>`;
 }
 
 function filteredRows() {

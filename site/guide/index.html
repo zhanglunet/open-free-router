@@ -21,16 +21,16 @@
   <a class="skip-link" href="#install">跳到安装步骤</a>
   <header class="topbar">
     <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
-    <nav aria-label="指南导航"><a href="#install">安装</a><a href="#codex-cli">Codex CLI</a><a href="#codex-app">Codex 客户端</a><a href="#commands">命令</a><a href="#api">API</a></nav>
+    <nav aria-label="指南导航"><a href="#install">安装</a><a href="#clients">客户端接入</a><a href="#keys">API Key</a><a href="#mcp">MCP</a><a href="#commands">命令</a><a href="#api">API</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
 
   <main>
     <section class="guide-hero">
       <p class="eyebrow"><span></span> INSTALL & USE</p>
-      <h1>把免费大模型，<br><em>接入 Codex。</em></h1>
-      <p>面向 macOS、Linux、Codex CLI 和桌面客户端的完整航海手册。先启动本地安全代理，再用独立 profile 接入已验证免费模型，不覆盖正常 OpenAI 配置。</p>
-      <div class="path-cards"><article><b>01</b><span>安装路由</span><small>Python 3.11+ · 本地端口</small></article><article><b>02</b><span>配置提供商</span><small>密钥只保存在本机</small></article><article><b>03</b><span>连接 Codex</span><small>Responses API profile</small></article></div>
+      <h1>把免费大模型，<br><em>接入每个客户端。</em></h1>
+      <p>面向 Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy 与 MCP 宿主的完整航海手册。先启动本地安全代理，再按客户端图示一条命令接入已验证免费模型，不覆盖任何原有配置。</p>
+      <div class="path-cards"><article><b>01</b><span>安装路由</span><small>Python 3.11+ · 本地端口</small></article><article><b>02</b><span>配置提供商</span><small>密钥只保存在本机</small></article><article><b>03</b><span>接入客户端</span><small>9 个客户端 · 1 条命令</small></article></div>
     </section>
 
     <section class="guide-section" id="install">
@@ -65,6 +65,204 @@ codex --version</code></pre></li>
       <aside class="callout"><b>为什么要用独立 profile？</b><p>第三方模型元数据与 OpenAI 官方模型不同；隔离 profile 能避免第三方 provider、模型目录和 MCP 设置影响你的正常 Codex 会话。</p><a href="https://developers.openai.com/codex/app/" rel="noreferrer">Codex App 官方说明 ↗</a></aside>
     </section>
 
+    <section class="guide-section" id="clients">
+      <header><p class="eyebrow"><span></span> CLIENT ADAPTERS · 客户端接入</p><h2>九个客户端，<br>一条命令接入。</h2><p>每个客户端都由 <code>open-free-router sync</code> 写入官方配置格式；下发的只有本地代理 token，上游 API Key 永远留在本机。按你的客户端选择对应图示步骤。</p></header>
+      <div class="client-jump">
+        <a href="#client-claude"><b>Claude Code</b><small>Anthropic Messages</small></a>
+        <a href="#codex-cli"><b>Codex CLI</b><small>Responses API</small></a>
+        <a href="#client-opencode"><b>OpenCode</b><small>Chat Completions</small></a>
+        <a href="#client-kimi"><b>Kimi CLI</b><small>openai_legacy</small></a>
+        <a href="#client-openclaw"><b>OpenClaw</b><small>openai-completions</small></a>
+        <a href="#client-workbuddy"><b>WorkBuddy</b><small>自定义模型</small></a>
+        <a href="#client-hermes"><b>Hermes</b><small>自动发现模型</small></a>
+        <a href="#client-pi"><b>Pi / OMP</b><small>models.json / yml</small></a>
+        <a href="#mcp"><b>MCP 宿主</b><small>stdio JSON-RPC</small></a>
+      </div>
+
+      <article class="client-block" id="client-claude">
+        <div class="client-head"><span class="client-logo">CC</span><div><h3>Claude Code</h3><p>Anthropic 官方终端 Agent · 走 <code>/v1/messages</code> 协议层</p></div><span class="client-proto">ANTHROPIC MESSAGES</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>一条命令写入配置</b><pre><code>open-free-router sync --agent claude</code></pre><p>合并写入 <code>~/.claude/settings.json</code> 的 <code>env</code> 块，其余设置原样保留。</p></li>
+            <li><b>启动 Claude Code</b><pre><code>claude</code></pre><p>启动时会探测代理的 <code>GET /v1/models</code>，免费模型自动出现在 <code>/model</code> 选择器。</p></li>
+            <li><b>验证接入</b><pre><code>/status</code></pre><p>会话内执行 <code>/status</code>，确认 API Base URL 指向 <code>127.0.0.1:8337</code>。</p></li>
+            <li><b>指定主模型（可选）</b><pre><code>open-free-router sync --agent claude \
+  --claude-model gq/gpt-oss-120b</code></pre></li>
+          </ol>
+          <figure class="client-shot" aria-label="Claude Code 接入后的配置示意">
+            <figcaption><span></span><span></span><span></span><b>~/.claude/settings.json</b></figcaption>
+            <pre><code>{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8337",
+    "ANTHROPIC_AUTH_TOKEN": "<em>本地代理token</em>",
+    "ANTHROPIC_MODEL": "gq/gpt-oss-120b",
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "gq/llama-8b"
+  }
+}</code></pre>
+            <p class="shot-note">✓ 流式 SSE · ✓ 工具调用 · ✓ count_tokens · 还原方法：删除以上 env 键即可</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-opencode">
+        <div class="client-head"><span class="client-logo">OC</span><div><h3>OpenCode</h3><p>开源终端编码 Agent · <code>@ai-sdk/openai-compatible</code></p></div><span class="client-proto">CHAT COMPLETIONS</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>同步配置</b><pre><code>open-free-router sync --agent opencode</code></pre><p>写入 <code>~/.config/opencode/opencode.jsonc</code>，自动清理指向本地代理的旧条目。</p></li>
+            <li><b>选择模型</b><pre><code>opencode
+/models</code></pre><p>每个 provider 分组出现在模型列表中。</p></li>
+          </ol>
+          <figure class="client-shot" aria-label="OpenCode 模型选择示意">
+            <figcaption><span></span><span></span><span></span><b>opencode · /models</b></figcaption>
+            <pre><code>┃ 选择模型
+┃ ▸ groq          gpt-oss-120b     <em>tools · 131K</em>
+┃   openrouter    gpt-oss-20b-free <em>tools</em>
+┃   nvidia-nim    nemotron-ultra   <em>reasoning</em></code></pre>
+            <p class="shot-note">✓ 重启 opencode 后生效 · 手工配置的其他 provider 不受影响</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-kimi">
+        <div class="client-head"><span class="client-logo">KI</span><div><h3>Kimi CLI（kimi code）</h3><p>月之暗面官方终端 Agent · <code>~/.kimi/config.toml</code></p></div><span class="client-proto">OPENAI_LEGACY</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>同步配置</b><pre><code>open-free-router sync --agent kimi</code></pre><p>在 config.toml 中维护一个带标记的托管区块，用户注释与自有 provider 原样保留。</p></li>
+            <li><b>启动并切换模型</b><pre><code>kimi
+/model</code></pre><p><code>ofr-</code> 前缀的模型即来自本地免费代理；<code>default_model</code> 已自动指向首个工具模型。</p></li>
+          </ol>
+          <figure class="client-shot" aria-label="Kimi CLI 配置托管区块示意">
+            <figcaption><span></span><span></span><span></span><b>~/.kimi/config.toml</b></figcaption>
+            <pre><code># &gt;&gt;&gt; open-free-router managed &gt;&gt;&gt;
+[providers.open-free-router]
+type = "openai_legacy"
+base_url = "http://127.0.0.1:8337/v1"
+
+[models.ofr-gq-gpt-oss-120b]
+provider = "open-free-router"
+model = "gq/gpt-oss-120b"
+# &lt;&lt;&lt; open-free-router managed &lt;&lt;&lt;</code></pre>
+            <p class="shot-note">✓ 标记区块整体替换 · 用户手写内容不动 · <code>--model</code> 启动参数优先级最高</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-openclaw">
+        <div class="client-head"><span class="client-logo">OW</span><div><h3>OpenClaw</h3><p>开源个人 AI 助理（前身 Moltbot/Clawdbot）· 静态模型目录</p></div><span class="client-proto">OPENAI-COMPLETIONS</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>同步配置</b><pre><code>open-free-router sync --agent openclaw</code></pre><p>写入 <code>~/.openclaw/openclaw.json</code> 的 <code>models.providers</code>；OpenClaw 不自动发现模型，因此同步的是完整静态模型清单。</p></li>
+            <li><b>确认默认模型</b><pre><code>openclaw models set \
+  open-free-router/gq/gpt-oss-120b</code></pre><p>已自动设置 <code>agents.defaults.model.primary</code>（仅在缺省或指向本地代理时）；也可用命令显式切换。</p></li>
+            <li><b>热加载生效</b><p>Gateway 监听配置文件变化，保存后自动生效；也可在 Control UI（<code>127.0.0.1:18789</code>）查看。</p></li>
+          </ol>
+          <figure class="client-shot" aria-label="OpenClaw 配置示意">
+            <figcaption><span></span><span></span><span></span><b>~/.openclaw/openclaw.json</b></figcaption>
+            <pre><code>{
+  "models": { "providers": {
+    "open-free-router": {
+      "baseUrl": "http://127.0.0.1:8337/v1",
+      "api": "openai-completions",
+      "models": [{ "id": "gq/gpt-oss-120b",
+        "contextWindow": 131072, "cost": { "input": 0 } }]
+  }}},
+  "agents": { "defaults": { "model": {
+    "primary": "open-free-router/gq/gpt-oss-120b" }}}
+}</code></pre>
+            <p class="shot-note">✓ 严格 schema 校验通过 · 每次同步先移除指向本地代理的旧 provider 防止堆积</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-workbuddy">
+        <div class="client-head"><span class="client-logo">WB</span><div><h3>WorkBuddy</h3><p>腾讯 AI Agent 工作台（CodeBuddy 家族）· 自定义模型</p></div><span class="client-proto">CUSTOM MODELS</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>同步模型清单</b><pre><code>open-free-router sync --agent workbuddy</code></pre><p>写入 <code>~/.workbuddy/models.json</code>（JSON 数组，一模型一条），保留你自己添加的自定义模型。</p></li>
+            <li><b>重启 WorkBuddy</b><p>完全退出并重新打开 WorkBuddy（配置在启动时读取）。</p></li>
+            <li><b>选择自定义模型</b><p>输入框右下角模型选择器 → <b>Custom Models</b> 分组 → 选择 <code>gq/gpt-oss-120b</code> 等条目。</p></li>
+          </ol>
+          <figure class="client-shot" aria-label="WorkBuddy 模型选择示意">
+            <figcaption><span></span><span></span><span></span><b>WorkBuddy · 模型选择器</b></figcaption>
+            <pre><code>┌ Custom Models ──────────────┐
+│ ● gq/gpt-oss-120b   <em>tools</em>   │
+│ ○ or/gpt-oss-20b-free       │
+│ ○ nv/nemotron-ultra <em>reason</em>  │
+└─────────────────────────────┘</code></pre>
+            <p class="shot-note">✓ supportsToolCall 按注册表能力标注 · 改动后需重启应用</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-hermes">
+        <div class="client-head"><span class="client-logo">HE</span><div><h3>Hermes</h3><p>Nous Research 终端 Agent · 运行时自动发现模型</p></div><span class="client-proto">CHAT COMPLETIONS</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>同步配置</b><pre><code>open-free-router sync --agent hermes</code></pre><p>确保 <code>~/.hermes/config.yaml</code> 有指向本地代理的 <code>custom_providers</code> 条目。</p></li>
+            <li><b>重启 Hermes</b><p>Hermes 启动时调用代理的 <code>/v1/models</code> 自动发现全部免费模型，无需静态清单。</p></li>
+          </ol>
+          <figure class="client-shot" aria-label="Hermes 配置示意">
+            <figcaption><span></span><span></span><span></span><b>~/.hermes/config.yaml</b></figcaption>
+            <pre><code>custom_providers:
+  - name: open-free-router
+    api_mode: chat_completions
+    base_url: http://127.0.0.1:8337/v1
+    discover_models: true</code></pre>
+            <p class="shot-note">✓ discover_models 开启后模型列表实时跟随注册表</p>
+          </figure>
+        </div>
+      </article>
+
+      <article class="client-block" id="client-pi">
+        <div class="client-head"><span class="client-logo">PI</span><div><h3>Pi / OMP</h3><p>models.json / models.yml 静态目录 · serve 时自动维护</p></div><span class="client-proto">CHAT COMPLETIONS</span></div>
+        <div class="client-body">
+          <ol class="timeline">
+            <li><b>无需手动操作</b><pre><code>open-free-router serve</code></pre><p>守护进程在启动和每次刷新后自动写入 <code>~/.pi/agent/models.json</code> 与 <code>~/.omp/agent/models.yml</code>（检测到目录才写）。</p></li>
+            <li><b>手动触发（可选）</b><pre><code>open-free-router sync --agent pi,omp</code></pre></li>
+          </ol>
+          <figure class="client-shot" aria-label="Pi 模型目录示意">
+            <figcaption><span></span><span></span><span></span><b>~/.pi/agent/models.json</b></figcaption>
+            <pre><code>{ "providers": { "local-free": {
+  "baseUrl": "http://127.0.0.1:8337/v1",
+  "models": [{ "id": "or/gpt-oss-20b-free" }]
+}}}</code></pre>
+            <p class="shot-note">✓ 每次整体覆写，不会堆积旧条目 · OMP 用 ruamel.yaml 结构化编辑保留注释</p>
+          </figure>
+        </div>
+      </article>
+    </section>
+
+    <section class="guide-section" id="keys">
+      <header><p class="eyebrow"><span></span> API KEYS · 密钥获取</p><h2>免费模型的钥匙，<br>去哪里领？</h2><p>11 家提供商的 API Key 获取入口、步骤和免费额度说明已经整理成卡片，随模型雷达实时发布。</p></header>
+      <div class="steps">
+        <article><b>1</b><h3>打开模型雷达</h3><p>每张提供商卡片都有「🔑 如何获取 API Key」折叠区：控制台直达链接 + 步骤 + 免费额度注意事项。</p></article>
+        <article><b>2</b><h3>逐个填入密钥</h3><pre><code>open-free-router setup</code></pre><p>交互式向导按 provider 提示填写；跳过暂时不用的即可。</p></article>
+        <article><b>3</b><h3>实测可用性</h3><pre><code>open-free-router serve</code></pre><p>打开仪表盘 <code>127.0.0.1:9057</code> → Live Status → Probe All Models，用真实请求验证每个模型。</p></article>
+      </div>
+      <div class="quick-links"><a href="/models/#providers">打开提供商密钥指引 →</a><a href="/status/">查看公开实时状态 →</a></div>
+    </section>
+
+    <section class="guide-section split" id="mcp">
+      <header><p class="eyebrow"><span></span> MCP SERVER</p><h2>MCP 宿主接入</h2></header>
+      <div>
+        <p>路由器内置 MCP（Model Context Protocol）stdio 服务器，任何 MCP 宿主（Claude Code、Codex、Kimi CLI 等）都能以标准协议查询模型、发起推理、触发刷新与同步。</p>
+        <ol class="timeline">
+          <li><b>注册到 Claude Code（用户级）</b><pre><code>claude mcp add --scope user open-free-router \
+  -- open-free-router mcp</code></pre></li>
+          <li><b>或打印通用配置片段</b><pre><code>open-free-router mcp --print-config</code></pre><p>输出可直接粘贴到 <code>.mcp.json</code> / <code>~/.claude.json</code> 的 <code>mcpServers</code> 条目。</p></li>
+          <li><b>在会话中使用</b><p>例如让 Agent 调用 <code>list_models</code> 挑选空闲免费模型，或用 <code>chat</code> 把子任务转发给免费模型执行。</p></li>
+        </ol>
+      </div>
+      <aside class="facts"><h3>MCP Tools</h3><dl>
+        <dt>list_models</dt><dd>按 provider / 工具能力过滤模型清单</dd>
+        <dt>list_providers</dt><dd>提供商与密钥状态（不含密钥值）</dd>
+        <dt>get_status</dt><dd>代理/仪表盘可达性与注册表统计</dd>
+        <dt>chat</dt><dd>经本地代理向免费模型发起真实推理</dd>
+        <dt>refresh_models</dt><dd>刷新免费模型清单并保存</dd>
+        <dt>sync_clients</dt><dd>同步九个客户端配置</dd>
+      </dl><p class="fineprint">传输：stdio · 按行 JSON-RPC 2.0 · 协议版本 2024-11-05 ~ 2025-06-18 · 零第三方依赖</p></aside>
+    </section>
+
     <section class="guide-section" id="auto-discovery">
       <header><p class="eyebrow"><span></span> VERIFIED AUTO-ADOPTION</p><h2>自动测试与安全接入</h2><p>自动接入不会使用未知凭据，也不会把“目录中价格为 0”直接当作可运行。</p></header>
       <div class="verification-flow"><span>发现候选</span><i>→</i><span>识别声明凭据</span><i>→</i><span>公网 HTTPS 检查</span><i>→</i><span>真实最小请求</span><i>→</i><span>只接入成功模型</span></div>
@@ -78,13 +276,13 @@ open-free-router sync --agent codex</code></pre></div>
     <section class="guide-section" id="commands">
       <header><p class="eyebrow"><span></span> CLI REFERENCE</p><h2>完整 CLI 接口</h2></header>
       <div class="command-grid">
-        <article><code>serve</code><p>启动代理、管理页、刷新与发现调度器。</p></article><article><code>setup</code><p>交互式填写已登记供应商密钥。</p></article><article><code>sync --agent codex</code><p>生成 Codex profile 与模型目录。</p></article><article><code>discover --dry-run</code><p>只扫描候选，不写文件。</p></article><article><code>discover --test</code><p>使用声明的环境变量测试候选。</p></article><article><code>discover --test --adopt</code><p>只接入真实请求成功的模型。</p></article><article><code>refresh [--source NAME]</code><p>刷新已登记供应商模型列表。</p></article><article><code>add NAME --base-url URL</code><p>手工添加提供商和模型。</p></article><article><code>token</code><p>供 Codex 命令认证读取本地代理令牌。</p></article><article><code>ui</code><p>单独启动本地管理页。</p></article>
+        <article><code>serve</code><p>启动代理、管理页、刷新与发现调度器。</p></article><article><code>setup</code><p>交互式填写已登记供应商密钥。</p></article><article><code>sync --agent claude,codex,…</code><p>同步九个客户端：pi、omp、opencode、hermes、codex、claude、kimi、openclaw、workbuddy。</p></article><article><code>mcp [--print-config]</code><p>MCP stdio 服务器；或打印宿主注册片段。</p></article><article><code>status [--json]</code><p>一屏健康摘要：注册表、密钥、端口可达性。</p></article><article><code>doctor</code><p>体检安装：配置、密钥、端口与九客户端配置状态。</p></article><article><code>models [--json]</code><p>列出全部注册表模型与能力标记。</p></article><article><code>discover --test --adopt</code><p>只接入真实请求成功的候选模型。</p></article><article><code>refresh [--source NAME]</code><p>刷新已登记供应商模型列表。</p></article><article><code>add NAME --base-url URL</code><p>手工添加提供商和模型。</p></article><article><code>token</code><p>供命令式认证读取本地代理令牌。</p></article><article><code>ui</code><p>单独启动本地管理页。</p></article>
       </div>
     </section>
 
     <section class="guide-section" id="api">
       <header><p class="eyebrow"><span></span> API SURFACE</p><h2>程序提供的接口</h2><p>推理接口只监听本机并要求 Bearer Token；网站目录 API 不包含上游凭据。</p></header>
-      <div class="api-table"><div><b>GET</b><code>/health</code><span>本地代理健康检查</span></div><div><b>GET</b><code>/v1/models</code><span>Codex 可用模型目录</span></div><div><b>POST</b><code>/v1/chat/completions</code><span>OpenAI Chat Completions</span></div><div><b>POST</b><code>/v1/responses</code><span>Codex Responses API 兼容层</span></div><div><b>POST</b><code>/v1/completions</code><span>传统文本补全</span></div><div><b>POST</b><code>/v1/embeddings</code><span>向量接口透传</span></div><div><b>GET</b><code>https://oaf.asia/api/install</code><span>一键安装清单与后续命令</span></div><div><b>GET</b><code>https://oaf.asia/api/catalog</code><span>脱敏正式模型与候选状态</span></div><div><b>GET</b><code>https://oaf.asia/api/discovery</code><span>持续发现候选快照</span></div></div>
+      <div class="api-table"><div><b>GET</b><code>/health</code><span>本地代理健康检查</span></div><div><b>GET</b><code>/v1/models</code><span>可用模型目录（Codex / Claude Code 自动发现）</span></div><div><b>POST</b><code>/v1/chat/completions</code><span>OpenAI Chat Completions</span></div><div><b>POST</b><code>/v1/responses</code><span>Codex Responses API 兼容层</span></div><div><b>POST</b><code>/v1/messages</code><span>Anthropic Messages 兼容层（Claude Code）</span></div><div><b>POST</b><code>/v1/messages/count_tokens</code><span>输入 token 本地估算</span></div><div><b>POST</b><code>/v1/completions</code><span>传统文本补全</span></div><div><b>POST</b><code>/v1/embeddings</code><span>向量接口透传</span></div><div><b>GET/POST</b><code>:9057/api/probe</code><span>实时可用性探测（POST 需仪表盘 token）</span></div><div><b>STDIO</b><code>open-free-router mcp</code><span>MCP JSON-RPC：6 个工具</span></div><div><b>GET</b><code>https://oaf.asia/api/install</code><span>一键安装清单与后续命令</span></div><div><b>GET</b><code>https://oaf.asia/api/catalog</code><span>脱敏正式模型、状态与候选</span></div><div><b>GET</b><code>https://oaf.asia/api/discovery</code><span>持续发现候选快照</span></div></div>
     </section>
 
     <section class="guide-section troubleshooting"><header><p class="eyebrow"><span></span> TROUBLESHOOTING</p><h2>常见问题</h2></header><details><summary>Address already in use</summary><p>8337 已被占用通常表示 open-free-router 已经运行。先执行 <code>lsof -nP -iTCP:8337 -sTCP:LISTEN</code>，不要启动第二个实例。</p></details><details><summary>模型出现在列表里，但工具调用失败</summary><p>“可见”不等于“工具已验证”。模型雷达会分别显示推理和工具能力；自动发现接入默认不会宣称工具调用已验证。</p></details><details><summary>Codex 看不到第三方 provider</summary><p>provider 必须放在用户级 profile，不能放项目级 .codex/config.toml。重新执行 <code>open-free-router sync --agent codex</code>，并用 <code>codex --profile open-free-router</code> 启动。</p></details></section>

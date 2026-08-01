@@ -8,9 +8,13 @@ from pathlib import Path
 
 from open_free_router.auth import check_auth, get_or_create_token
 from open_free_router.config import Config
+from open_free_router.probe import ProbeRunner, write_probe_status
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 from open_free_router.proxy import rebuild_proxy_index
 from open_free_router.sync import write_pi_models
+
+# One probe runner per process; the dashboard polls its snapshot.
+_PROBE_RUNNER = ProbeRunner()
 
 
 class _UIHandler(BaseHTTPRequestHandler):
@@ -53,11 +57,13 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_config_get()
         elif self.path == "/api/providers":
             self._api_providers()
+        elif self.path == "/api/probe":
+            self._api_probe_get()
         else:
             self.send_error(404)
 
     def do_POST(self):
-        if self.path not in ("/api/config", "/api/refresh", "/api/providers"):
+        if self.path not in ("/api/config", "/api/refresh", "/api/providers", "/api/probe"):
             self.send_error(404)
             return
         if not self._require_auth():
@@ -68,6 +74,8 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_refresh()
         elif self.path == "/api/providers":
             self._api_providers_post()
+        elif self.path == "/api/probe":
+            self._api_probe_post()
 
     def _serve_file(self, rel: str, content_type: str):
         base = Path(__file__).parent
@@ -160,6 +168,8 @@ class _UIHandler(BaseHTTPRequestHandler):
             data = json.loads(body)
         except Exception:
             data = {}
+        if not isinstance(data, dict):
+            data = {}
         provider_name = data.get("provider")
         from open_free_router.refresh import refresh
         results = refresh(self.reg, provider_name=provider_name)
@@ -227,6 +237,43 @@ class _UIHandler(BaseHTTPRequestHandler):
             proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
             write_pi_models(self.reg, proxy_url=proxy_url)
         self._send_json(200, {"ok": True, "provider": name, "models": len(models)})
+
+    def _api_probe_get(self):
+        """Current live-availability snapshot (read-only, no auth)."""
+        self._send_json(200, _PROBE_RUNNER.snapshot())
+
+    def _api_probe_post(self):
+        """Start a live availability probe run (real 1-token requests)."""
+        length = int(self.headers.get("Content-Length", 0))
+        body = self.rfile.read(length) if length else b"{}"
+        try:
+            data = json.loads(body)
+        except Exception:
+            data = {}
+        if not isinstance(data, dict):
+            data = {}
+        if not self.reg:
+            self._send_json(500, {"error": "server not initialized"})
+            return
+
+        def on_finish(snapshot):
+            if self.cfg:
+                try:
+                    write_probe_status(snapshot, self.cfg.data_dir / "probe-status.json")
+                except Exception as e:
+                    print(f"  ⚠ failed to persist probe status: {e}")
+
+        started = _PROBE_RUNNER.start(
+            self.reg,
+            provider=data.get("provider", "") or "",
+            model=data.get("model", "") or "",
+            on_finish=on_finish,
+        )
+        self._send_json(200 if started else 409, {
+            "ok": started,
+            "running": True,
+            "hint": "" if started else "a probe run is already in progress",
+        })
 
     def _send_json(self, code: int, obj: dict):
         body = json.dumps(obj, indent=2).encode()

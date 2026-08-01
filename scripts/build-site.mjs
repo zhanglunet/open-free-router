@@ -15,6 +15,10 @@ const modelsHtml = await readFile(resolve(output, "models", "index.html"), "utf8
 const modelsJs = await readFile(resolve(output, "models", "models.js"), "utf8");
 const guideHtml = await readFile(resolve(output, "guide", "index.html"), "utf8");
 const brandHtml = await readFile(resolve(output, "brand", "index.html"), "utf8");
+const architectureHtml = await readFile(resolve(output, "architecture", "index.html"), "utf8");
+const statusHtml = await readFile(resolve(output, "status", "index.html"), "utf8");
+const statusJs = await readFile(resolve(output, "status", "status.js"), "utf8");
+const mapHtml = await readFile(resolve(output, "map", "index.html"), "utf8");
 const required = [
   "NoelJudeNoel/open-free-router",
   "系统架构",
@@ -35,9 +39,37 @@ for (const marker of ["免费模型", "模型参数与能力比较", "持续发�
 if (!modelsJs.includes("function html(value)") || !modelsJs.includes("&lt;")) {
   throw new Error("Model radar must HTML-escape public catalog fields");
 }
-for (const marker of ["Codex CLI", "Codex 客户端", "一键安装", "/v1/responses", "discover --test --adopt"]) {
+for (const marker of [
+  "Codex CLI", "Codex 客户端", "一键安装", "/v1/responses", "discover --test --adopt",
+  "Claude Code", "Kimi CLI", "OpenClaw", "WorkBuddy", "/v1/messages",
+  "MCP", "sync --agent claude", "如何获取 API Key",
+]) {
   if (!guideHtml.includes(marker)) {
     throw new Error(`Generated guide is missing required content: ${marker}`);
+  }
+}
+if (!modelsJs.includes("key_url") || !modelsJs.includes("key_steps_zh")) {
+  throw new Error("Model radar must render provider API-key guidance");
+}
+for (const marker of ["系统架构", "8337", "Claude Code", "/v1/messages", "MCP", "registry.yaml"]) {
+  if (!architectureHtml.includes(marker)) {
+    throw new Error(`Generated architecture page is missing required content: ${marker}`);
+  }
+}
+for (const marker of ["实时", "/api/catalog"]) {
+  if (!statusHtml.includes(marker) && !statusJs.includes(marker)) {
+    throw new Error(`Generated status page is missing required content: ${marker}`);
+  }
+}
+for (const marker of ["全球", "world-dots.svg"]) {
+  if (!mapHtml.includes(marker)) {
+    throw new Error(`Generated map page is missing required content: ${marker}`);
+  }
+}
+await readFile(resolve(output, "assets", "map", "world-dots.svg"));
+for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml]) {
+  if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
+    throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }
 }
 for (const marker of ["模力自由港", "FreeModel Port", "品牌宣言", "下载主 Logo PNG"]) {
