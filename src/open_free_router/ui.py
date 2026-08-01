@@ -168,6 +168,8 @@ class _UIHandler(BaseHTTPRequestHandler):
             data = json.loads(body)
         except Exception:
             data = {}
+        if not isinstance(data, dict):
+            data = {}
         provider_name = data.get("provider")
         from open_free_router.refresh import refresh
         results = refresh(self.reg, provider_name=provider_name)
@@ -247,6 +249,8 @@ class _UIHandler(BaseHTTPRequestHandler):
         try:
             data = json.loads(body)
         except Exception:
+            data = {}
+        if not isinstance(data, dict):
             data = {}
         if not self.reg:
             self._send_json(500, {"error": "server not initialized"})

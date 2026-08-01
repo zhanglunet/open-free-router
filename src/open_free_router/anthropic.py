@@ -193,6 +193,8 @@ def _stop_reason(finish_reason: str | None, has_tool_calls: bool) -> str:
         return "tool_use"
     if finish_reason == "length":
         return "max_tokens"
+    if finish_reason == "content_filter":
+        return "refusal"
     return "end_turn"
 
 
@@ -365,16 +367,18 @@ class AnthropicStreamAdapter:
 
         content = delta.get("content")
         if content:
-            if self.text_block_index is None or self.open_kind != "text":
+            if self.open_kind != "text":
+                # A block emits exactly one start and one stop; once text was
+                # interrupted by a tool block its old index is closed for
+                # good, so text resuming afterwards opens a fresh block.
                 events.extend(self._close_open_block())
-                if self.text_block_index is None:
-                    self.text_block_index = self.next_index
-                    self.next_index += 1
-                    events.append({
-                        "type": "content_block_start",
-                        "index": self.text_block_index,
-                        "content_block": {"type": "text", "text": ""},
-                    })
+                self.text_block_index = self.next_index
+                self.next_index += 1
+                events.append({
+                    "type": "content_block_start",
+                    "index": self.text_block_index,
+                    "content_block": {"type": "text", "text": ""},
+                })
                 self.open_index = self.text_block_index
                 self.open_kind = "text"
             events.append({
@@ -422,7 +426,8 @@ class AnthropicStreamAdapter:
                 "stop_sequence": None,
             },
             "usage": {
-                "output_tokens": int((self.usage or {}).get("completion_tokens", 0) or 0)
+                "input_tokens": int((self.usage or {}).get("prompt_tokens", 0) or 0),
+                "output_tokens": int((self.usage or {}).get("completion_tokens", 0) or 0),
             },
         })
         events.append({"type": "message_stop"})

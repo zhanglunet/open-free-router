@@ -58,7 +58,7 @@ async function loadStatus() {
   $('providers').innerHTML = data.providers.map(p => `
     <div class="provider-row">
       <div class="dot ${p.auto_refresh ? 'ok' : 'manual'}"></div>
-      <div class="pname">${p.name} <span class="badge">${p.model_count} models</span></div>
+      <div class="pname">${esc(p.name)} <span class="badge">${p.model_count} models</span></div>
       <div class="pmeta">${p.auto_refresh ? 'auto-refresh' : 'manual'}</div>
     </div>
   `).join('') || '<div class="status-line">No providers configured</div>';
@@ -102,17 +102,17 @@ async function loadProviders() {
     <div class="card provider-card">
       <div class="provider-header">
         <div>
-          <div class="pname">${p.name}</div>
-          <div class="pmeta">${p.base_url || p.upstream_url}</div>
+          <div class="pname">${esc(p.name)}</div>
+          <div class="pmeta">${esc(p.base_url || p.upstream_url)}</div>
         </div>
         <div class="badge ${p.auto_refresh ? 'ok' : 'manual'}">${p.auto_refresh ? 'auto' : 'manual'}</div>
       </div>
-      <div class="provider-meta">API key: ${p.api_key || 'empty'}</div>
+      <div class="provider-meta">API key: ${esc(p.api_key || 'empty')}</div>
       <div class="provider-meta">${p.model_count} models</div>
       <details>
         <summary>Models</summary>
         <div class="model-grid">
-          ${p.models.map(m => `<div class="model-card"><div class="mid">${m.id}</div></div>`).join('')}
+          ${p.models.map(m => `<div class="model-card"><div class="mid">${esc(m.id)}</div></div>`).join('')}
         </div>
       </details>
     </div>
@@ -149,12 +149,12 @@ async function loadModels() {
   const el = $('models');
   const cards = [];
   for (const [provider, models] of Object.entries(data)) {
-    cards.push(`<h3 style="color:#38bdf8;margin:1rem 0 .5rem">${provider}</h3>`);
+    cards.push(`<h3 style="color:#38bdf8;margin:1rem 0 .5rem">${esc(provider)}</h3>`);
     cards.push('<div class="model-grid">');
     for (const m of models) {
       cards.push(`
         <div class="model-card">
-          <div class="mid">${m.id}</div>
+          <div class="mid">${esc(m.id)}</div>
           <div class="mctx">
             ctx=${m.context_window?.toLocaleString?.() ?? '?'}
             ${m.reasoning ? '<span class="badge reasoning">reasoning</span>' : ''}

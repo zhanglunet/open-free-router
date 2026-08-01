@@ -126,6 +126,24 @@ def test_unknown_tool_and_method_errors(tmp_path):
     assert response["error"]["code"] == -32601
 
 
+def test_stdio_loop_rejects_non_object_messages(tmp_path):
+    server = _server(tmp_path)
+    stdin = io.StringIO('[1,2,3]\n"just a string"\n')
+    stdout = io.StringIO()
+    server.serve_stdio(stdin=stdin, stdout=stdout)
+    lines = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    assert len(lines) == 2
+    for response in lines:
+        assert response["error"]["code"] == -32600
+
+
+def test_probe_error_scrubs_credential_shaped_strings():
+    from open_free_router.probe import _scrub
+    assert "sk-abcdef123456" not in _scrub("invalid key: sk-abcdef123456 provided")
+    assert "[redacted-credential]" in _scrub("Bearer nvapi-secret-value-123")
+    assert _scrub("quota exhausted") == "quota exhausted"
+
+
 def test_stdio_loop_speaks_line_delimited_jsonrpc(tmp_path):
     server = _server(tmp_path)
     stdin = io.StringIO(

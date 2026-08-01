@@ -121,6 +121,42 @@ def _backup():
             shutil.copy2(str(f), str(BACKUP_DIR / f.name))
 
 
+def _strip_json_comments(raw_text: str) -> str:
+    """Remove ``// line comments`` outside of strings.
+
+    A plain regex would also eat the ``//`` inside every ``http://`` URL
+    value, silently corrupting configs, so this walks the text tracking
+    string state.
+    """
+    out: list[str] = []
+    in_string = False
+    escape = False
+    i = 0
+    n = len(raw_text)
+    while i < n:
+        c = raw_text[i]
+        if in_string:
+            out.append(c)
+            if escape:
+                escape = False
+            elif c == "\\":
+                escape = True
+            elif c == '"':
+                in_string = False
+            i += 1
+        elif c == '"':
+            in_string = True
+            out.append(c)
+            i += 1
+        elif c == "/" and i + 1 < n and raw_text[i + 1] == "/":
+            while i < n and raw_text[i] != "\n":
+                i += 1
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
 def _parse_json5(raw_text: str):
     """Best-effort parse of a JSON5-ish config (comments, trailing commas).
 
@@ -130,7 +166,7 @@ def _parse_json5(raw_text: str):
         return json.loads(raw_text)
     except json.JSONDecodeError:
         pass
-    text = re.sub(r'//[^\n]*', '', raw_text)
+    text = _strip_json_comments(raw_text)
     text = re.sub(r',\s*([}\]])', r'\1', text)
     try:
         return json.loads(text)
@@ -141,6 +177,14 @@ def _parse_json5(raw_text: str):
             return data
         except json.JSONDecodeError:
             return None
+
+
+def _restrict_permissions(path: Path) -> None:
+    """These configs carry the local proxy token; keep them user-only."""
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass  # best-effort; not all platforms support POSIX perms
 
 
 def _default_tool_model(reg: Registry, requested: str = "") -> str:
@@ -172,12 +216,17 @@ def _default_tool_model(reg: Registry, requested: str = "") -> str:
 
 
 def _small_fast_model(reg: Registry, fallback: str) -> str:
-    """Prefer an obviously small/fast model for background-task slots."""
-    hints = ("haiku", "mini", "small", "flash", "lite", "tiny", "8b", "9b")
+    """Prefer an obviously small/fast model for background-task slots.
+
+    Hints are matched against delimiter-split tokens, not raw substrings —
+    otherwise "mini" matches "ge*mini*-2.5-pro" and a large model wins the
+    small/fast slot.
+    """
+    hints = {"haiku", "mini", "small", "flash", "lite", "tiny", "8b", "9b"}
     for p in reg.providers.values():
         for m in p.models:
-            lowered = f"{m.id} {m.name}".lower()
-            if any(h in lowered for h in hints):
+            tokens = set(re.split(r"[^a-z0-9]+", f"{m.id} {m.name}".lower()))
+            if tokens & hints:
                 return f"{p.model_prefix}/{m.id}"
     return fallback
 
@@ -307,7 +356,10 @@ def sync_opencode(
     if OPENCODE_CONFIG.exists():
         data = _parse_json5(OPENCODE_CONFIG.read_text())
         if data is None:
-            data = {"provider": {}}
+            # Rewriting from scratch here would wipe the user's hand-written
+            # providers; refuse instead and let them fix the file.
+            print(f"  ⚠ {OPENCODE_CONFIG} is unparseable; not touching it")
+            return []
     else:
         data = {"provider": {}}
 
@@ -489,6 +541,7 @@ def sync_claude(
         CLAUDE_SETTINGS.write_text(
             json.dumps(settings, indent=2, ensure_ascii=False) + "\n"
         )
+        _restrict_permissions(CLAUDE_SETTINGS)
         print(f"  ✓ wrote Claude Code env ({CLAUDE_SETTINGS}); main model {model}")
     return [model]
 
@@ -527,6 +580,11 @@ def sync_kimi(
             re.DOTALL,
         )
         text = pattern.sub("", text)
+        if KIMI_BLOCK_BEGIN in text:
+            # Orphan BEGIN without END (e.g. a truncated previous write).
+            # The managed block is always written last, so dropping from the
+            # marker to EOF removes only router-owned content.
+            text = text[: text.index(KIMI_BLOCK_BEGIN)]
 
     lines = [KIMI_BLOCK_BEGIN]
     lines.append("[providers.open-free-router]")
@@ -548,21 +606,29 @@ def sync_kimi(
             changes.append(alias)
     if not default_alias and changes:
         default_alias = changes[0]
+    if len(changes) != len(set(changes)):
+        raise ValueError("Kimi model aliases collide; use distinct provider prefixes/model IDs")
     lines.append(KIMI_BLOCK_END)
     block = "\n".join(lines) + "\n"
 
     # default_model is a top-level key: it must stay above any [table]
-    # header. Replace an existing router-managed value in place; otherwise
-    # only add one when the user hasn't chosen a default themselves.
+    # header, and only occurrences in that head region are top-level (the
+    # same key inside a [table] belongs to the table). Replace an existing
+    # router-managed value in place; otherwise only add one when the user
+    # hasn't chosen a default themselves. Accept both TOML quote styles.
+    first_table = re.search(r"^\s*\[", text, re.MULTILINE)
+    head = text[: first_table.start()] if first_table else text
+    tail = text[first_table.start():] if first_table else ""
     default_line = f"default_model = {_toml_str(default_alias)}"
-    existing_default = re.search(r'^default_model\s*=\s*"([^"]*)"', text, re.MULTILINE)
+    default_re = re.compile(r'^default_model\s*=\s*(?:"([^"]*)"|\'([^\']*)\')', re.MULTILINE)
+    existing_default = default_re.search(head)
     if existing_default:
-        if existing_default.group(1).startswith("ofr-"):
-            text = re.sub(
-                r'^default_model\s*=\s*"[^"]*"', default_line, text, count=1, flags=re.MULTILINE
-            )
+        current = existing_default.group(1) or existing_default.group(2) or ""
+        if current.startswith("ofr-") and default_alias:
+            head = default_re.sub(default_line, head, count=1)
     elif default_alias:
-        text = default_line + "\n" + text
+        head = default_line + "\n" + head
+    text = head + tail
 
     if text and not text.endswith("\n"):
         text += "\n"
@@ -571,6 +637,7 @@ def sync_kimi(
     if do_write:
         KIMI_CONFIG.parent.mkdir(parents=True, exist_ok=True)
         KIMI_CONFIG.write_text(text)
+        _restrict_permissions(KIMI_CONFIG)
         print(f"  ✓ wrote {len(changes)} Kimi CLI models ({KIMI_CONFIG})")
     return changes
 
@@ -615,10 +682,14 @@ def sync_openclaw(
         return []
 
     local_proxy_markers = ("127.0.0.1", "localhost")
+    current_proxy = proxy_url.rstrip("/")
     removed = [
         pname for pname, block in list(providers.items())
         if isinstance(block, dict)
-        and any(m in str(block.get("baseUrl", "")) for m in local_proxy_markers)
+        and (
+            any(m in str(block.get("baseUrl", "")) for m in local_proxy_markers)
+            or str(block.get("baseUrl", "")).rstrip("/") == current_proxy
+        )
     ]
     for pname in removed:
         del providers[pname]
@@ -658,9 +729,17 @@ def sync_openclaw(
                 model_cfg = defaults.setdefault("model", {})
                 if isinstance(model_cfg, dict):
                     primary = str(model_cfg.get("primary", ""))
+                    # A user-chosen router model stays as long as it still
+                    # exists; only dangling references get re-pointed.
+                    valid_primaries = {f"open-free-router/{model_id}" for model_id in changes}
                     stale = any(
-                        primary.startswith(f"{name}/") for name in removed
-                    ) or primary.startswith("open-free-router/")
+                        primary.startswith(f"{name}/")
+                        for name in removed
+                        if name != "open-free-router"
+                    ) or (
+                        primary.startswith("open-free-router/")
+                        and primary not in valid_primaries
+                    )
                     if not primary or stale:
                         model_cfg["primary"] = f"open-free-router/{default_model}"
 
@@ -670,6 +749,7 @@ def sync_openclaw(
     if do_write:
         OPENCLAW_CONFIG.parent.mkdir(parents=True, exist_ok=True)
         OPENCLAW_CONFIG.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
+        _restrict_permissions(OPENCLAW_CONFIG)
         print(f"  ✓ wrote {len(changes)} OpenClaw models ({OPENCLAW_CONFIG})")
     return changes
 
@@ -700,14 +780,23 @@ def sync_workbuddy(
         parsed = _parse_json5(WORKBUDDY_MODELS.read_text())
         if isinstance(parsed, list):
             entries = parsed
-        elif parsed is not None:
-            print(f"  ⚠ {WORKBUDDY_MODELS} is not a JSON array; not touching it")
+        else:
+            # None (unparseable) or a non-array object: rewriting would wipe
+            # the user's custom models, so refuse to touch the file.
+            print(f"  ⚠ {WORKBUDDY_MODELS} is unparseable or not a JSON array; not touching it")
             return []
 
     local_proxy_markers = ("127.0.0.1", "localhost")
+    current_proxy = proxy_url.rstrip("/")
     entries = [
         e for e in entries
-        if not (isinstance(e, dict) and any(m in str(e.get("url", "")) for m in local_proxy_markers))
+        if not (
+            isinstance(e, dict)
+            and (
+                any(m in str(e.get("url", "")) for m in local_proxy_markers)
+                or str(e.get("url", "")).rstrip("/") == current_proxy
+            )
+        )
     ]
 
     changes = []
@@ -732,6 +821,7 @@ def sync_workbuddy(
     if do_write:
         WORKBUDDY_MODELS.parent.mkdir(parents=True, exist_ok=True)
         WORKBUDDY_MODELS.write_text(json.dumps(entries, indent=2, ensure_ascii=False) + "\n")
+        _restrict_permissions(WORKBUDDY_MODELS)
         print(f"  ✓ wrote {len(changes)} WorkBuddy models ({WORKBUDDY_MODELS}); restart WorkBuddy to apply")
     return changes
 

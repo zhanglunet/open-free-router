@@ -249,7 +249,7 @@
         <article class="arch-step"><b>STEP 04</b><h3>协议转换</h3><p>不同客户端协议双向映射到统一的 Chat 语义。</p><div class="arch-chips"><code>Messages ↔ Chat</code><code>Responses ↔ Chat</code></div></article>
         <article class="arch-step"><b>STEP 05</b><h3>请求净化</h3><p>只保留白名单字段，剔除非标字段，参数按上游习惯归一。</p><div class="arch-chips"><code>allowlist</code><code>max_completion_tokens → max_tokens</code></div></article>
         <article class="arch-step"><b>STEP 06</b><h3>上游转发</h3><p>本机注入 Provider Key 与 UA，经 HTTPS 直连上游。</p><div class="arch-chips"><code>Authorization</code><code>User-Agent</code></div></article>
-        <article class="arch-step"><b>STEP 07</b><h3>流式透传</h3><p>SSE 逐行真流式转发，推理增量字段统一归一。</p><div class="arch-chips"><code>SSE</code><code>reasoning_content</code></div></article>
+        <article class="arch-step"><b>STEP 07</b><h3>流式透传</h3><p>SSE 逐行真流式转发，首 token 不等整包；缓冲响应归一 reasoning_content。</p><div class="arch-chips"><code>SSE</code><code>chunked</code></div></article>
         <article class="arch-step"><b>STEP 08</b><h3>返回客户端</h3><p>统一格式的流式响应回到调用方，首 token 不等待整包。</p><div class="arch-chips"><code>stream=true</code></div></article>
       </div>
     </section>
@@ -295,7 +295,7 @@
             <tr><td><code>registry.py</code></td><td>事实源</td><td>registry.yaml 读写 · 0600 权限管理</td></tr>
             <tr><td><code>ui.py</code></td><td>Web 仪表盘</td><td>:9057 Provider 管理与实时探测界面</td></tr>
             <tr><td><code>serve.py</code></td><td>守护进程</td><td>代理 + 仪表盘 + 调度器一键启动</td></tr>
-            <tr><td><code>cli.py</code></td><td>命令行入口</td><td>12 个子命令（serve / sync / discover / probe…）</td></tr>
+            <tr><td><code>cli.py</code></td><td>命令行入口</td><td>12 个子命令（serve / sync / discover / doctor…）</td></tr>
           </tbody>
         </table>
       </div>

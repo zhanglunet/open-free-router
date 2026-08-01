@@ -226,6 +226,62 @@ def test_stream_adapter_emits_ordered_block_events():
     assert message_delta["usage"]["output_tokens"] == 6
 
 
+def test_stream_adapter_text_resuming_after_tool_opens_new_block():
+    """Text → tool → text must open a *new* text block: each block emits
+    exactly one start and one stop, with strictly increasing indices."""
+    adapter = AnthropicStreamAdapter("t/coder")
+    events = adapter.start()
+    events += adapter.feed({"choices": [{"delta": {"content": "before"}}]})
+    events += adapter.feed({"choices": [{"delta": {"tool_calls": [{
+        "index": 0, "id": "call_1",
+        "function": {"name": "read_file", "arguments": "{}"},
+    }]}}]})
+    events += adapter.feed({"choices": [{"delta": {"content": "after"}, "finish_reason": "stop"}]})
+    events += adapter.finish()
+    starts = [e["index"] for e in events if e["type"] == "content_block_start"]
+    stops = [e["index"] for e in events if e["type"] == "content_block_stop"]
+    assert starts == [0, 1, 2]
+    assert sorted(stops) == [0, 1, 2]
+    assert len(stops) == 3  # no duplicate stop for the first text block
+    # every delta targets a block that is open at that point
+    open_blocks = set()
+    for event in events:
+        if event["type"] == "content_block_start":
+            open_blocks.add(event["index"])
+        elif event["type"] == "content_block_stop":
+            open_blocks.remove(event["index"])
+        elif event["type"] == "content_block_delta":
+            assert event["index"] in open_blocks
+
+
+def test_stream_adapter_reports_input_tokens_in_message_delta():
+    adapter = AnthropicStreamAdapter("t/coder")
+    adapter.start()
+    adapter.feed({"choices": [{"delta": {"content": "hi"}, "finish_reason": "stop"}]})
+    adapter.feed({"choices": [], "usage": {"prompt_tokens": 42, "completion_tokens": 3}})
+    message_delta = [e for e in adapter.finish() if e["type"] == "message_delta"][0]
+    assert message_delta["usage"] == {"input_tokens": 42, "output_tokens": 3}
+
+
+def test_content_filter_maps_to_refusal():
+    result = chat_to_messages({
+        "choices": [{"message": {"content": "…"}, "finish_reason": "content_filter"}],
+    }, "t/coder")
+    assert result["stop_reason"] == "refusal"
+
+
+def test_auth_rejects_non_ascii_header_without_crash():
+    from open_free_router.auth import check_auth
+
+    class Headers(dict):
+        def get(self, key, default=""):
+            return super().get(key, default)
+
+    assert check_auth(Headers({"Authorization": "Bearer sécret"}), "secret") is False
+    assert check_auth(Headers({"x-api-key": "密钥"}), "secret") is False
+    assert check_auth(Headers({"x-api-key": "secret"}), "secret") is True
+
+
 # ── endpoint tests ──
 
 def test_messages_endpoint_round_trip_and_upstream_key_private():

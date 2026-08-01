@@ -173,6 +173,7 @@ def cmd_sync(args):
         reg,
         do_write=do_write,
         agents=agents,
+        proxy_url=f"http://{cfg.proxy_host}:{cfg.proxy_port}/v1",
         proxy_token=proxy_token,
         codex_model=args.codex_model or cfg.codex_model,
         claude_model=args.claude_model or cfg.claude_model,

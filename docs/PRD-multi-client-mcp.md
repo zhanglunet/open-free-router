@@ -150,15 +150,22 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
 
 ## 6. 验收与测试
 
-- `tests/test_anthropic.py`（16 例）：转换、流式事件顺序、工具循环、
-  x-api-key/Bearer 双鉴权、Anthropic 错误包裹、count_tokens。
-- `tests/test_sync_clients.py`（13 例）：四适配器 schema 正确性、
-  幂等性、用户配置保留、坏文件拒写、密钥不泄漏、显式/检测行为。
-- `tests/test_mcp.py`（9 例）：握手/版本协商、tools 清单、过滤调用、
-  无 serve 时的干净报错、stdio 行协议（含 parse error）。
-- `tests/test_probe.py`（7 例）：真实假上游探测、429 原因提取、
+- `tests/test_anthropic.py`（20 例）：转换、流式事件顺序（含
+  文本→工具→文本 重开新块、input_tokens 上报、content_filter→refusal）、
+  工具循环、x-api-key/Bearer 双鉴权（含非 ASCII 头拒绝）、Anthropic
+  错误包裹、count_tokens。
+- `tests/test_sync_clients.py`（22 例）：四适配器 schema 正确性、
+  幂等性、用户配置保留（含用户自选默认模型保留、单引号 TOML、
+  孤儿标记块恢复）、坏文件拒写（WorkBuddy/OpenCode 不清空）、
+  JSON5 注释剥离不吃 URL、密钥不泄漏、显式/检测行为。
+- `tests/test_mcp.py`（11 例）：握手/版本协商、tools 清单、过滤调用、
+  无 serve 时的干净报错、stdio 行协议（parse error、非对象消息
+  -32600、凭据擦除）。
+- `tests/test_probe.py`（6 例）：真实假上游探测、429 原因提取、
   no_key 跳过、并发运行互斥、聚合、`/api/probe` 鉴权。
-- 全量套件 144 例通过；`node scripts/build-site.mjs` 构建校验通过。
+- 全量套件 158 例通过；`node scripts/build-site.mjs` 构建校验通过。
+- 对抗性审查：5 维度 × 独立验证 agent，30 项确认问题全部修复
+  （含 1 项 critical：适配器在配置文件损坏时的清空风险）。
 
 ## 7. 发布说明
 

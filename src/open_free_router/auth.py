@@ -63,12 +63,16 @@ def check_auth(headers, token: str) -> bool:
     """
     if not token:
         return False
+    # Compare as bytes: compare_digest raises TypeError on non-ASCII str
+    # inputs, and header values are attacker-controlled — a weird byte in
+    # the header must yield a clean 401, not a 500.
+    expected = token.encode()
     supplied = headers.get("Authorization", "")
     if supplied.startswith("Bearer "):
-        supplied = supplied[len("Bearer "):].strip()
-        if hmac.compare_digest(supplied, token):
+        candidate = supplied[len("Bearer "):].strip()
+        if hmac.compare_digest(candidate.encode("utf-8", "surrogateescape"), expected):
             return True
     api_key = (headers.get("x-api-key", "") or "").strip()
     if api_key:
-        return hmac.compare_digest(api_key, token)
+        return hmac.compare_digest(api_key.encode("utf-8", "surrogateescape"), expected)
     return False

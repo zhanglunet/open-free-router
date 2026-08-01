@@ -217,6 +217,93 @@ def test_workbuddy_sync_skips_when_not_installed(tmp_path):
         assert not models.exists()
 
 
+# ── review-driven regressions ──
+
+def test_parse_json5_preserves_urls_containing_double_slash():
+    from open_free_router.sync import _parse_json5
+    raw = '{\n  // comment\n  "provider": {"x": {"options": {"baseURL": "http://127.0.0.1:8337/v1"}}},\n}\n'
+    data = _parse_json5(raw)
+    assert data["provider"]["x"]["options"]["baseURL"] == "http://127.0.0.1:8337/v1"
+
+
+def test_workbuddy_sync_refuses_to_wipe_unparseable_file(tmp_path):
+    models = tmp_path / "models.json"
+    models.write_text("[{broken json!!")
+    with patch("open_free_router.sync.WORKBUDDY_MODELS", models):
+        assert sync_workbuddy(_registry(), explicit=True) == []
+    assert models.read_text() == "[{broken json!!"
+
+
+def test_opencode_sync_refuses_to_wipe_unparseable_file(tmp_path):
+    from open_free_router.sync import sync_opencode
+    config = tmp_path / "opencode.jsonc"
+    config.write_text("{definitely not json")
+    with patch("open_free_router.sync.OPENCODE_CONFIG", config):
+        assert sync_opencode(_registry()) == []
+    assert config.read_text() == "{definitely not json"
+
+
+def test_kimi_sync_keeps_single_quoted_user_default_and_ignores_table_keys(tmp_path):
+    config = tmp_path / "config.toml"
+    config.write_text("default_model = 'my-own'\n[providers.mine]\ndefault_model = \"ofr-inside-table\"\ntype = \"kimi\"\n")
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(_registry(), explicit=True)
+    import tomllib
+    data = tomllib.loads(config.read_text())
+    assert data["default_model"] == "my-own"                       # user choice kept
+    assert data["providers"]["mine"]["default_model"] == "ofr-inside-table"  # table key untouched
+
+
+def test_kimi_sync_recovers_from_orphan_managed_block(tmp_path):
+    from open_free_router.sync import KIMI_BLOCK_BEGIN
+    config = tmp_path / "config.toml"
+    config.write_text(f"# user\n{KIMI_BLOCK_BEGIN}\n[providers.open-free-router]\ntruncated")
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(_registry(), explicit=True)
+    import tomllib
+    text = config.read_text()
+    tomllib.loads(text)  # must parse
+    assert text.count("[providers.open-free-router]") == 1
+    assert "# user" in text
+
+
+def test_openclaw_sync_keeps_user_selected_router_model(tmp_path):
+    config = tmp_path / "openclaw.json"
+    config.write_text(json.dumps({
+        "agents": {"defaults": {"model": {"primary": "open-free-router/gq/llama-8b-mini"}}},
+        "models": {"providers": {}},
+    }))
+    with patch("open_free_router.sync.OPENCLAW_CONFIG", config):
+        sync_openclaw(_registry(), explicit=True)
+    data = json.loads(config.read_text())
+    # user picked a *different* router model that still exists — keep it
+    assert data["agents"]["defaults"]["model"]["primary"] == "open-free-router/gq/llama-8b-mini"
+
+
+def test_openclaw_sync_repoints_dangling_router_model(tmp_path):
+    config = tmp_path / "openclaw.json"
+    config.write_text(json.dumps({
+        "agents": {"defaults": {"model": {"primary": "open-free-router/gone/model"}}},
+        "models": {"providers": {}},
+    }))
+    with patch("open_free_router.sync.OPENCLAW_CONFIG", config):
+        sync_openclaw(_registry(), explicit=True)
+    data = json.loads(config.read_text())
+    assert data["agents"]["defaults"]["model"]["primary"] == "open-free-router/gq/gpt-oss"
+
+
+def test_small_fast_model_does_not_match_mini_inside_gemini():
+    from open_free_router.sync import _small_fast_model
+    reg = Registry({
+        "google": {
+            "upstream_url": "https://example.com/v1",
+            "prefix": "gai",
+            "models": [{"id": "gemini-2.5-pro"}],
+        }
+    })
+    assert _small_fast_model(reg, "fallback") == "fallback"
+
+
 # ── sync_all integration ──
 
 def test_sync_all_reaches_new_agents_explicitly(tmp_path):

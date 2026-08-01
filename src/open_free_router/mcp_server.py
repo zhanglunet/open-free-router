@@ -15,8 +15,10 @@ Or print a ready-to-paste config snippet:
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import sys
+import threading
 import urllib.error
 import urllib.request
 
@@ -234,7 +236,10 @@ class McpServer:
         from open_free_router.refresh import refresh
 
         reg = self._registry()
-        results = refresh(reg, provider_name=args.get("source") or None)
+        # refresh() prints progress; on the MCP transport stdout IS the
+        # protocol stream, so route the chatter to stderr (host log).
+        with contextlib.redirect_stdout(sys.stderr):
+            results = refresh(reg, provider_name=args.get("source") or None)
         changed = {k: v for k, v in results.items() if v}
         if changed:
             reg.save(self.cfg.registry_path)
@@ -253,7 +258,8 @@ class McpServer:
             agents = [str(a).strip() for a in agents if str(a).strip()]
         token = get_or_create_proxy_token(self.cfg.config_dir)
         proxy_url = f"{self._proxy_base()}/v1"
-        results = sync_all(reg, agents=agents, proxy_url=proxy_url, proxy_token=token)
+        with contextlib.redirect_stdout(sys.stderr):
+            results = sync_all(reg, agents=agents, proxy_url=proxy_url, proxy_token=token)
         return _text_result({"synced": results})
 
     # ── JSON-RPC dispatch ──
@@ -265,8 +271,15 @@ class McpServer:
         method = message.get("method", "")
         params = message.get("params") or {}
 
-        if method.startswith("notifications/"):
+        # JSON-RPC notifications are id-less requests; they never get a
+        # response. This subsumes the "notifications/" method prefix.
+        if "id" not in message:
             return None
+        if not isinstance(method, str):
+            return {
+                "jsonrpc": "2.0", "id": msg_id,
+                "error": {"code": -32600, "message": "Invalid Request: method must be a string"},
+            }
 
         def ok(result) -> dict:
             return {"jsonrpc": "2.0", "id": msg_id, "result": result}
@@ -298,9 +311,27 @@ class McpServer:
         return err(-32601, f"Method not found: {method}")
 
     def serve_stdio(self, stdin=None, stdout=None):
-        """Blocking loop: one JSON-RPC message per stdin line."""
+        """Blocking loop: one JSON-RPC message per stdin line.
+
+        ``tools/call`` runs on a worker thread so a slow tool (``chat`` can
+        legitimately take up to the upstream timeout) doesn't block pings
+        and other requests; stdout writes are serialized with a lock.
+        """
         stdin = stdin or sys.stdin
         stdout = stdout or sys.stdout
+        write_lock = threading.Lock()
+
+        def write(response: dict):
+            with write_lock:
+                stdout.write(json.dumps(response, ensure_ascii=False) + "\n")
+                stdout.flush()
+
+        def respond(message: dict):
+            response = self.handle(message)
+            if response is not None:
+                write(response)
+
+        workers: list[threading.Thread] = []
         for line in stdin:
             line = line.strip()
             if not line:
@@ -308,17 +339,25 @@ class McpServer:
             try:
                 message = json.loads(line)
             except json.JSONDecodeError:
-                response = {
+                write({
                     "jsonrpc": "2.0", "id": None,
                     "error": {"code": -32700, "message": "Parse error"},
-                }
-                stdout.write(json.dumps(response, ensure_ascii=False) + "\n")
-                stdout.flush()
+                })
                 continue
-            response = self.handle(message)
-            if response is not None:
-                stdout.write(json.dumps(response, ensure_ascii=False) + "\n")
-                stdout.flush()
+            if not isinstance(message, dict):
+                write({
+                    "jsonrpc": "2.0", "id": None,
+                    "error": {"code": -32600, "message": "Invalid Request: expected a JSON object"},
+                })
+                continue
+            if message.get("method") == "tools/call":
+                worker = threading.Thread(target=respond, args=(message,), daemon=True)
+                worker.start()
+                workers.append(worker)
+            else:
+                respond(message)
+        for worker in workers:
+            worker.join(timeout=5)
 
 
 def print_client_config():

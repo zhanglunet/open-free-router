@@ -9,6 +9,7 @@ content — only status, latency, and a short error reason.
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -21,6 +22,18 @@ from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
 PROBE_TIMEOUT = 45
 PROBE_MAX_WORKERS = 4
+
+# Upstream error bodies occasionally echo the credential they rejected.
+# Probe results flow to the unauthenticated GET /api/probe and into the
+# exported public status snapshot, so scrub anything key-shaped.
+_CREDENTIAL_RE = re.compile(
+    r"(?:Bearer\s+)?\b(?:sk|nvapi|gsk|xai|pplx|or)[-_][A-Za-z0-9._\-]{6,}",
+    re.IGNORECASE,
+)
+
+
+def _scrub(text: str) -> str:
+    return _CREDENTIAL_RE.sub("[redacted-credential]", text or "")
 
 
 def _now() -> str:
@@ -68,17 +81,17 @@ def probe_model(provider: ProviderConfig, model: ModelInfo, timeout: int = PROBE
             raw = e.read()
             parsed = json.loads(raw)
             err = parsed.get("error")
-            detail = (err.get("message", "") if isinstance(err, dict) else str(err))[:200]
+            detail = _scrub(err.get("message", "") if isinstance(err, dict) else str(err))[:200]
         except Exception:
             pass
         return {"ok": False, "status": f"http_{e.code}", "latency_ms": latency,
                 "error": detail or f"HTTP {e.code}", "checked_at": checked_at}
     except URLError as e:
         return {"ok": False, "status": "network_error", "latency_ms": None,
-                "error": str(getattr(e, "reason", e))[:200], "checked_at": checked_at}
+                "error": _scrub(str(getattr(e, "reason", e)))[:200], "checked_at": checked_at}
     except Exception as e:
         return {"ok": False, "status": "error", "latency_ms": None,
-                "error": str(e)[:200], "checked_at": checked_at}
+                "error": _scrub(str(e))[:200], "checked_at": checked_at}
 
 
 class ProbeRunner:
@@ -125,6 +138,15 @@ class ProbeRunner:
             self.state["finished_at"] = None
             self.state["total"] = len(targets)
             self.state["done"] = 0
+            # Drop results for models no longer in the registry so removed
+            # models don't linger in snapshots and the exported status file;
+            # scoped runs still accumulate across invocations.
+            valid = {
+                f"{p.name}/{m.id}" for p in reg.providers.values() for m in p.models
+            }
+            self.state["results"] = {
+                key: value for key, value in self.state["results"].items() if key in valid
+            }
 
         def worker():
             def probe_one(pair):

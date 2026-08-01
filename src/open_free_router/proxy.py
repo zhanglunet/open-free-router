@@ -144,7 +144,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         from urllib.parse import urlparse
         path = urlparse(self.path).path
-        if path == "/":
+        if path in ("/", "/health"):
             self._send_json(200, {
                 "service": "open-free-router",
                 "version": "0.1",
@@ -210,16 +210,25 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             self.close_connection = True
             return
 
+        anthropic_endpoint = upstream_suffix in ("messages", "count_tokens")
         length_header = self.headers.get("Content-Length")
         try:
             length = int(length_header) if length_header is not None else None
         except ValueError:
             length = None
         if length is None:
-            self._send_json(411, {"error": "Content-Length required"})
+            message = "Content-Length required"
+            self._send_json(
+                411,
+                anthropic_error(411, message) if anthropic_endpoint else {"error": message},
+            )
             return
         if length > self.MAX_BODY_BYTES:
-            self._send_json(413, {"error": f"request body too large (> {self.MAX_BODY_BYTES} bytes)"})
+            message = f"request body too large (> {self.MAX_BODY_BYTES} bytes)"
+            self._send_json(
+                413,
+                anthropic_error(413, message) if anthropic_endpoint else {"error": message},
+            )
             self.close_connection = True
             return
 
