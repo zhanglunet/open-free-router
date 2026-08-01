@@ -4,6 +4,10 @@
 
 ### Added
 
+- Public `/logs/` development history with search and type filters, a structured
+  append-only log workflow, and a dedicated recommendation article at
+  `/stories/free-model-port/` with a copy-ready WeChat Moments message.
+
 - Anthropic Messages API compatibility (`POST /v1/messages` +
   `/v1/messages/count_tokens`) with typed SSE streaming, tool_use/tool_result
   translation, dual `Authorization: Bearer` / `x-api-key` auth, and Anthropic

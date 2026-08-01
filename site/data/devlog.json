@@ -1,0 +1,125 @@
+{
+  "schema_version": 1,
+  "updated_at": "2026-08-02T06:30:00+09:00",
+  "project": "模力自由港 / open-free-router",
+  "repository": "https://github.com/zhanglunet/open-free-router",
+  "entries": [
+    {
+      "id": "2026-08-02-content-hub",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "站点更新",
+      "title": "开发日志与推荐内容中心上线",
+      "summary": "新增可检索的公开开发日志、历史时间线、功能推荐长文和朋友圈一键复制，让项目进展与使用价值更容易被了解和分享。",
+      "items": [
+        "开发日志支持关键词搜索和更新类型筛选",
+        "建立结构化日志数据与追加日志命令，方便后续持续维护",
+        "发布《为什么你需要一座模力自由港》推荐文章与专属分享卡"
+      ],
+      "links": [
+        { "label": "阅读推荐文章", "url": "/stories/free-model-port/" }
+      ]
+    },
+    {
+      "id": "2026-08-02-dashboard-cn",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "v0.2.0",
+      "title": "本地仪表盘完成全中文升级",
+      "summary": "将原有英文开发面板升级为“模力自由港 · 本地控制台”，把最新路由、实测、发现和客户端同步能力集中到一个清晰界面。",
+      "items": [
+        "新增运行总览、服务地址、协议能力和自动化策略",
+        "提供商与模型支持搜索、凭据状态和能力筛选",
+        "Live Status 支持分范围实测、中文错误解释与历史结果恢复",
+        "新增免费模型雷达和九类客户端一键同步"
+      ],
+      "commit": "8658e85"
+    },
+    {
+      "id": "2026-08-02-brand-site",
+      "date": "2026-08-02",
+      "type": "milestone",
+      "version": "品牌发布",
+      "title": "“模力自由港”品牌与官网正式发布",
+      "summary": "确立 FreeModel Port 中文品牌、Logo、品牌色和深海港口视觉体系，并把公开网站升级为免费大模型发现、比较和接入门户。",
+      "items": [
+        "上线品牌页面、品牌故事与可下载 Logo",
+        "发布免费模型雷达、中文模型说明与厂商背景",
+        "上线详细安装指南、Codex 独立配置和一键安装脚本",
+        "配置 oaf.asia 域名并部署 Cloudflare Worker"
+      ],
+      "commit": "6ae2229",
+      "links": [
+        { "label": "查看品牌页面", "url": "/brand/" },
+        { "label": "浏览模型雷达", "url": "/models/" }
+      ]
+    },
+    {
+      "id": "2026-08-01-multi-client",
+      "date": "2026-08-01",
+      "type": "feature",
+      "version": "v0.2.0",
+      "title": "多客户端、Anthropic Messages 与 MCP 能力完成",
+      "summary": "自由港从 Codex 专用路由扩展为九类 AI 客户端的统一免费模型接入层，并补齐 Claude Code 和 MCP 宿主所需协议。",
+      "items": [
+        "新增 Anthropic Messages API 与工具调用、SSE 流式兼容",
+        "新增 Claude Code、Kimi CLI、OpenClaw、WorkBuddy 同步适配",
+        "内置 MCP stdio 服务器及六个管理与聊天工具",
+        "新增 status、models、doctor 等运维诊断命令"
+      ],
+      "commit": "14d95bd",
+      "links": [
+        { "label": "查看系统架构", "url": "/architecture/" }
+      ]
+    },
+    {
+      "id": "2026-08-01-live-evidence",
+      "date": "2026-08-01",
+      "type": "improvement",
+      "version": "可用性证据",
+      "title": "真实模型实测、实时状态与全球分布上线",
+      "summary": "模型是否可用不再只看静态目录：系统会向真实上游发送最小请求，记录脱敏状态和延迟，并在公开状态页展示。",
+      "items": [
+        "每个模型执行一次最小真实 Chat Completions 请求",
+        "持久化不含密钥和响应正文的状态证据",
+        "上线实时状态、系统架构和全球提供商分布页面",
+        "增加提供商 API Key 获取说明和客户端图文指南"
+      ],
+      "commit": "30397c5",
+      "links": [
+        { "label": "查看实时状态", "url": "/status/" },
+        { "label": "查看全球分布", "url": "/map/" }
+      ]
+    },
+    {
+      "id": "2026-07-31-p0-hardening",
+      "date": "2026-07-31",
+      "type": "security",
+      "version": "P0",
+      "title": "P0 路由稳定性与安全加固完成",
+      "summary": "完成单端口代理、真实流式传输、请求限制、UI 写操作鉴权和十家提供商刷新覆盖，建立可安全日常使用的基础版本。",
+      "items": [
+        "UI 所有写操作增加本地 Bearer Token 鉴权",
+        "SSE 改为逐行真实流式透传并处理客户端断开",
+        "增加请求体大小限制、Retry-After 透传与备份保留上限",
+        "补齐 Completions、Embeddings 和十家提供商刷新支持"
+      ],
+      "commit": "fa1af56"
+    },
+    {
+      "id": "2026-07-29-router-foundation",
+      "date": "2026-07-29",
+      "type": "milestone",
+      "version": "基础能力",
+      "title": "统一路由与客户端同步基础成型",
+      "summary": "确立 registry.yaml 单一事实源、8337 单端口代理和模型 ID 路由机制，让不同客户端开始通过本地入口使用多家免费模型。",
+      "items": [
+        "OMP 与 OpenCode 统一改为经本地代理访问上游",
+        "调度器刷新后自动同步客户端配置",
+        "加入 Hermes、Pi 等客户端配置生成与去重",
+        "逐步扩充免费提供商和模型能力元数据"
+      ],
+      "commit": "ea2bb46"
+    }
+  ]
+}

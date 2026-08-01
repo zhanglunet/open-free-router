@@ -19,6 +19,11 @@ const architectureHtml = await readFile(resolve(output, "architecture", "index.h
 const statusHtml = await readFile(resolve(output, "status", "index.html"), "utf8");
 const statusJs = await readFile(resolve(output, "status", "status.js"), "utf8");
 const mapHtml = await readFile(resolve(output, "map", "index.html"), "utf8");
+const logsHtml = await readFile(resolve(output, "logs", "index.html"), "utf8");
+const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
+const storyHtml = await readFile(resolve(output, "stories", "free-model-port", "index.html"), "utf8");
+const storyJs = await readFile(resolve(output, "stories", "free-model-port", "article.js"), "utf8");
+const devlog = JSON.parse(await readFile(resolve(output, "data", "devlog.json"), "utf8"));
 const required = [
   "NoelJudeNoel/open-free-router",
   "系统架构",
@@ -66,11 +71,36 @@ for (const marker of ["全球", "world-dots.svg"]) {
     throw new Error(`Generated map page is missing required content: ${marker}`);
   }
 }
+for (const marker of ["开发日志", "搜索历史", "/data/devlog.json", "推荐文章"]) {
+  if (!logsHtml.includes(marker) && !logsJs.includes(marker)) {
+    throw new Error(`Generated development log is missing required content: ${marker}`);
+  }
+}
+if (!Array.isArray(devlog.entries) || devlog.entries.length < 5) {
+  throw new Error("Development log must contain structured historical entries");
+}
+for (const entry of devlog.entries) {
+  if (!entry.id || !entry.date || !entry.type || !entry.title || !entry.summary) {
+    throw new Error(`Development log entry is incomplete: ${entry.id || "unknown"}`);
+  }
+}
+for (const marker of ["免费大模型", "真实实测", "本地优先", "复制朋友圈文案", "https://oaf.asia/"]) {
+  if (!storyHtml.includes(marker) && !storyJs.includes(marker)) {
+    throw new Error(`Generated recommendation story is missing required content: ${marker}`);
+  }
+}
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
-for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml]) {
+await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));
+for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }
+}
+if (!logsJs.includes("function html(value)") || !logsJs.includes("&lt;")) {
+  throw new Error("Development log must HTML-escape public log fields");
+}
+if (!storyJs.includes("textContent")) {
+  throw new Error("Recommendation story copy action must use text content safely");
 }
 for (const marker of ["模力自由港", "FreeModel Port", "品牌宣言", "下载主 Logo PNG"]) {
   if (!brandHtml.includes(marker)) {

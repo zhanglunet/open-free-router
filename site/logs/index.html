@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港开发日志：按时间查看免费模型路由、真实实测、多客户端接入、网站与安全能力的每次重要更新。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="开发日志 · 模力自由港">
+  <meta property="og:description" content="每一次开发都有记录：搜索、筛选并回看模力自由港的功能演进。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-free-model-port-share.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>开发日志 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/logs/logs.css">
+  <script src="/logs/logs.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#log-list">跳到日志列表</a>
+  <div class="site-grid" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="日志页导航"><a href="/models/">免费模型</a><a href="/status/">实时状态</a><a href="/guide/">安装指南</a><a href="/stories/free-model-port/">推荐文章</a></nav>
+    <a class="nav-cta" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub <span>↗</span></a>
+  </header>
+
+  <main>
+    <section class="log-hero">
+      <div>
+        <p class="log-eyebrow"><i></i> DEVELOPMENT LOG</p>
+        <h1>每一次开发，<br><em>都有航迹可查。</em></h1>
+        <p>这里记录模力自由港的功能演进、问题修复、安全加固与重要里程碑。不是只展示结果，也保留我们如何一步步把免费模型变得更可发现、更可验证、更容易接入。</p>
+      </div>
+      <aside class="log-stat" aria-label="开发日志统计">
+        <span><b data-log-stat="entries">—</b> 条公开日志</span>
+        <span><b data-log-stat="days">—</b> 个开发日期</span>
+        <span><b data-log-stat="latest">—</b> 最近更新</span>
+      </aside>
+    </section>
+
+    <section class="log-tools" aria-label="日志搜索与筛选">
+      <label><span>搜索历史</span><input id="log-search" type="search" placeholder="搜索功能、协议、客户端或问题……"></label>
+      <div class="log-filters" role="group" aria-label="更新类型">
+        <button class="active" data-log-type="all">全部</button>
+        <button data-log-type="feature">新功能</button>
+        <button data-log-type="improvement">体验改进</button>
+        <button data-log-type="security">安全修复</button>
+        <button data-log-type="milestone">里程碑</button>
+      </div>
+      <span id="log-result-count" aria-live="polite"></span>
+    </section>
+
+    <section class="log-layout">
+      <div id="log-list" class="log-list" aria-live="polite"><p class="log-loading">正在读取开发航迹……</p></div>
+      <aside class="log-side">
+        <div><small>持续记录规则</small><h2>代码在变，文档也要同步。</h2><p>每次重要开发都追加结构化日志，写清楚日期、类型、变化内容和关联提交。页面会自动按时间倒序展示。</p></div>
+        <div><small>了解项目</small><h2>第一次来到自由港？</h2><p>先读这篇完整介绍，了解它解决什么问题、适合谁，以及如何开始。</p><a href="/stories/free-model-port/">阅读推荐文章 →</a></div>
+      </aside>
+    </section>
+  </main>
+
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Development Log</small></span></div><p>公开日志只包含开发记录，不包含 API Key、注册表或其他本机配置。</p><div class="footer-links"><a href="/stories/free-model-port/">推荐文章</a><a href="/guide/">安装指南</a><a href="/">返回首页</a></div></footer>
+</body>
+</html>

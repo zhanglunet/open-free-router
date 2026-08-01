@@ -102,6 +102,13 @@ src/open_free_router/
 - `scripts/install.sh --codex` — one-click isolated install plus Codex profile; deployed as `https://oaf.asia/install.sh`
 - `contrib/systemd/open-free-router.service` — systemd unit file for Linux auto-start + auto-restart
 
+## Public development log
+
+- `site/data/devlog.json` is the single source for the public `/logs/` history.
+- Every user-visible feature, fix, security hardening, release, or website change must add one concise Chinese entry in the same change set.
+- Add entries with `npm run log:add -- --title "标题" --summary "摘要" --type feature --items "变化一|变化二" --commit abc1234` or edit the JSON directly when links are needed.
+- Allowed types: `feature`, `improvement`, `security`, `milestone`. Never include credentials, private paths, registry content, or user data.
+
 ## Testing
 
 - `tests/test_responses.py` — auth, Responses conversion, SSE text/function calls, live index rebuild

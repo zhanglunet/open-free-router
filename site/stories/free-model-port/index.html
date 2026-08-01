@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="为什么你需要一座模力自由港：把散落在全球的免费大模型持续发现、真实实测，再安全接入 Codex、Claude Code 和各种 AI CLI。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="免费大模型不该靠碰运气 · 模力自由港">
+  <meta property="og:description" content="一站发现、实测、比较并接入全球免费大模型，本地优先，开源免费。">
+  <meta property="og:url" content="https://oaf.asia/stories/free-model-port/">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-free-model-port-share.jpg">
+  <meta property="article:published_time" content="2026-08-02T06:30:00+09:00">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="免费大模型不该靠碰运气 · 模力自由港">
+  <meta name="twitter:description" content="全球免费大模型，一站发现、实测、接入。">
+  <meta name="twitter:image" content="https://oaf.asia/assets/brand/og-free-model-port-share.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>免费大模型不该靠碰运气 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/stories/free-model-port/article.css">
+  <script src="/stories/free-model-port/article.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#article">跳到文章正文</a>
+  <div class="site-grid" aria-hidden="true"></div>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="文章页导航"><a href="/models/">免费模型</a><a href="/status/">实时状态</a><a href="/guide/">安装指南</a><a href="/logs/">开发日志</a></nav>
+    <a class="nav-cta" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub <span>↗</span></a>
+  </header>
+
+  <main>
+    <section class="story-hero">
+      <p class="story-eyebrow"><i></i> FEATURE STORY · 2026.08.02</p>
+      <h1>免费大模型，<br><em>不该靠碰运气。</em></h1>
+      <p class="story-lede">为什么你需要一座“模力自由港”：把散落在全球的免费模型持续发现、真实实测，再通过一个安全的本地入口接入 Codex 与各种 AI 开发工具。</p>
+      <div class="story-meta"><span>模力自由港团队</span><span>约 8 分钟阅读</span><a href="#share">直接分享 ↓</a></div>
+      <img src="/assets/brand/og-free-model-port-share.jpg" alt="模力自由港：免费大模型，一站发现、实测、接入">
+    </section>
+
+    <div class="story-layout">
+      <aside class="story-toc" aria-label="文章目录">
+        <small>文章目录</small>
+        <a href="#problem">01 免费模型的真实难题</a>
+        <a href="#what">02 自由港做了什么</a>
+        <a href="#features">03 五项核心服务</a>
+        <a href="#who">04 适合哪些人</a>
+        <a href="#safety">05 为什么本地优先</a>
+        <a href="#start">06 如何开始</a>
+        <a href="#share">07 一键分享</a>
+      </aside>
+
+      <article id="article" class="story-body">
+        <p class="lead">今天的大模型世界有一个很有意思的矛盾：一边是越来越多能力不错的模型开放免费额度，另一边是普通用户很难真正把这些资源用起来。</p>
+
+        <section id="problem">
+          <span class="chapter">01 · THE REAL PROBLEM</span>
+          <h2>免费模型很多，但“能找到”和“能用上”是两回事。</h2>
+          <p>你可能在社区看到某个平台提供免费模型，注册后才发现需要特定地区、信用卡或邀请资格；也可能好不容易拿到 API Key，模型名称、接口格式和工具调用又与现有客户端不兼容。今天可用的免费额度，明天可能限流；静态清单里写着“免费”，并不代表你的账户此刻真的能完成一次请求。</p>
+          <p>更麻烦的是，这些变化分散在不同厂商、文档和社区讨论里。开发者为了让 Codex、Claude Code 或 OpenCode 换一个模型，往往要反复修改配置、复制密钥、猜测模型 ID，然后在一串难懂的错误里寻找原因。</p>
+          <blockquote>免费不应该意味着低效、盲选和碰运气。真正需要的是一条持续更新、能够验证、随时可切换的航路。</blockquote>
+        </section>
+
+        <section id="what">
+          <span class="chapter">02 · WHAT IS FREE MODEL PORT</span>
+          <h2>模力自由港，不是又一个模型平台。</h2>
+          <p>它是一套开源、本地优先的免费大模型路由与发现系统。它不生产模型，也不替你托管上游密钥，而是把散落在不同厂商的免费资源整理成一张航图：哪些是正式接入的模型，哪些只是公开目录中的候选，哪些经过真实请求验证，哪些因为密钥、额度或上游状态暂时不可用。</p>
+          <p>安装后，你的 AI 客户端只需要面对一个本地地址。模型路由、协议差异、流式响应、工具调用和客户端配置同步，都由自由港在本机处理。想换模型时，不必重新改一套上游配置；想检查可用性时，也不必逐个打开控制台试错。</p>
+          <div class="story-callout"><b>一句话理解</b><p>它把“寻找免费模型 → 验证能否运行 → 比较能力 → 接入开发工具”连成了一条可重复、可审计的流程。</p></div>
+        </section>
+
+        <section id="features">
+          <span class="chapter">03 · FIVE CORE SERVICES</span>
+          <h2>五项服务，让免费模型真正进入日常工作流。</h2>
+          <div class="feature-list">
+            <article><i>01</i><div><h3>持续发现新的免费提供商</h3><p>模型雷达定时扫描公开目录，筛选明确零价格、公开 HTTPS 且尚未登记的候选。候选不会因为“看起来免费”就直接进入正式路由。</p></div></article>
+            <article><i>02</i><div><h3>用真实请求验证可用性</h3><p>Live Status 会向真实上游发送最小请求，只记录成功状态、延迟和脱敏错误。你看到的“可用”，来自实际响应证据，而不是宣传页或静态标签。</p></div></article>
+            <article><i>03</i><div><h3>中文比较模型与厂商</h3><p>公开模型雷达集中展示上下文窗口、最大输出、推理能力、工具调用、速度定位、厂商背景和 API Key 获取方法，帮助你根据任务选择，而不是只看模型名字。</p></div></article>
+            <article><i>04</i><div><h3>一个端口接入九类客户端</h3><p>Codex、Claude Code、OpenCode、Kimi CLI、OpenClaw、WorkBuddy、Hermes、Pi 和 OMP 都能从同一注册表同步。Responses、Anthropic Messages、OpenAI 兼容接口与 MCP 通道同时可用。</p></div></article>
+            <article><i>05</i><div><h3>本地控制台统一管理</h3><p>全中文仪表盘提供运行总览、提供商与模型筛选、真实实测、候选雷达、客户端一键同步和系统配置。最近实测结果在服务重启后仍可查看。</p></div></article>
+          </div>
+        </section>
+
+        <section id="who">
+          <span class="chapter">04 · WHO IT IS FOR</span>
+          <h2>谁会最喜欢这座自由港？</h2>
+          <div class="audience-grid">
+            <article><h3>AI 编程工具用户</h3><p>希望给 Codex、Claude Code 或 OpenCode 增加更多模型选择，同时保留官方配置作为稳定后路。</p></article>
+            <article><h3>独立开发者与学生</h3><p>需要控制 API 成本，愿意使用不同厂商的免费额度完成学习、原型和个人项目。</p></article>
+            <article><h3>模型研究与评测者</h3><p>想快速比较不同模型的上下文、推理、工具调用和真实可用状态，减少重复环境配置。</p></article>
+            <article><h3>重视数据边界的团队</h3><p>希望上游密钥由本机掌握，公开网站只呈现脱敏目录和状态，不上传私有注册表。</p></article>
+          </div>
+        </section>
+
+        <section id="safety">
+          <span class="chapter">05 · LOCAL FIRST</span>
+          <h2>为什么我们反复强调“本地优先”？</h2>
+          <p>因为一个统一路由器很容易变成高权限中心：它能接触多个提供商的 API Key，也能改写开发客户端配置。模力自由港把这个控制面留在你的电脑上，默认只监听 <code>127.0.0.1</code>。客户端拿到的是本地代理 Token，不需要接触任何上游密钥。</p>
+          <p>公开网站发布的是经过脱敏的模型元数据、候选资料和验证状态；本地 <code>registry.yaml</code>、API Key、代理 Token 和响应正文不进入公开目录。候选自动接入也不是默认行为，只有在公开 HTTPS、协议兼容、专用环境变量和真实响应全部满足时，才允许进入可信路由。</p>
+          <div class="safety-row"><span>上游密钥留本机</span><span>候选与正式目录隔离</span><span>写操作需要本地令牌</span><span>公开数据持续脱敏</span></div>
+        </section>
+
+        <section id="start">
+          <span class="chapter">06 · GET STARTED</span>
+          <h2>三步开始使用。</h2>
+          <ol class="start-list">
+            <li><b>安装</b><p>先阅读安装脚本，再使用一键命令创建独立环境和 Codex 配置档。</p></li>
+            <li><b>配置</b><p>运行交互式设置，按需填写你已经拥有的免费提供商 API Key。</p></li>
+            <li><b>启动</b><p>一条命令同时启动代理、中文仪表盘、模型刷新和候选发现。</p></li>
+          </ol>
+          <div class="terminal-snippet"><span>$</span><code>curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex --auto-discovery</code></div>
+          <div class="story-actions"><a class="button primary" href="/guide/">查看完整安装指南 <span>→</span></a><a class="button secondary" href="/models/">先比较免费模型</a></div>
+          <p class="fineprint">免费额度、账户资格与模型目录可能随提供商政策变化；重要生产任务仍应准备稳定付费通道与降级方案。</p>
+        </section>
+
+        <section id="share" class="share-section">
+          <span class="chapter">07 · SHARE THE PORT</span>
+          <h2>把这座自由港，分享给需要的人。</h2>
+          <p>下面这段文案已经为朋友圈整理好，点击即可复制：</p>
+          <blockquote id="moment-copy">最近发现一个挺实用的开源项目——「模力自由港」⚓️
+
+它能持续发现全球免费的 AI 大模型，真实测试哪些可用，再统一接入 Codex、Claude Code、OpenCode 等开发工具。模型参数、厂商背景和使用方法都有中文说明，API Key 只保存在本机。
+
+适合想低成本体验不同大模型、又不想反复折腾配置的朋友。开源免费，可以直接看看：
+https://oaf.asia/</blockquote>
+          <button id="copy-moment" class="button primary" type="button">复制朋友圈文案</button>
+          <span id="copy-status" aria-live="polite"></span>
+        </section>
+      </article>
+    </div>
+  </main>
+
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Open Source</small></span></div><p>不是另一个模型平台，是通往全球免费模型的开放港口。</p><div class="footer-links"><a href="/logs/">开发日志</a><a href="/guide/">安装指南</a><a href="/">返回首页</a></div></footer>
+</body>
+</html>
