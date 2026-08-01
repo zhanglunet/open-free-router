@@ -1,13 +1,15 @@
 # open-free-router
 
-🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Install guide](https://oaf.asia/guide/) · [Free Model Radar](https://oaf.asia/models/)
+🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Install guide](https://oaf.asia/guide/) · [Free Model Radar](https://oaf.asia/models/) · [Live Status](https://oaf.asia/status/) · [Architecture](https://oaf.asia/architecture/) · [World Map](https://oaf.asia/map/)
 
 > **Attribution:** This repository is derived from
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
 > under the MIT License and is independently maintained by `zhanglunet`.
-> This version adds the Codex Responses API bridge, secure proxy auth, a
-> third-party model catalog, Gemini tool-call compatibility, expanded tests,
-> and the project documentation site. See [`NOTICE.md`](NOTICE.md).
+> This version adds the Codex Responses API bridge, the Anthropic Messages
+> API bridge (Claude Code), nine-client config sync, a built-in MCP server,
+> live availability probing, secure proxy auth, a third-party model catalog,
+> Gemini tool-call compatibility, expanded tests, and the project
+> documentation site. See [`NOTICE.md`](NOTICE.md).
 
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
@@ -16,7 +18,33 @@ bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/
 open-free-router serve
 ```
 
-Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy routing by model ID to the correct upstream, and auto-refreshes the model list. Configure once, share across Codex, Hermes, OpenCode, PI, and OMP.
+Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy routing by model ID to the correct upstream, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
+
+## Website preview
+
+| Home | Architecture |
+|---|---|
+| ![Home page](docs/screenshots/home.png) | ![Architecture page](docs/screenshots/architecture.png) |
+
+| Live status | World map |
+|---|---|
+| ![Live status page](docs/screenshots/status.png) | ![World map page](docs/screenshots/map.png) |
+
+## Client support matrix
+
+| Client | Protocol | One command | Written to |
+|---|---|---|---|
+| **Codex CLI** | Responses API | `sync --agent codex` | `~/.codex/open-free-router.config.toml` (isolated profile) |
+| **Claude Code** | Anthropic Messages | `sync --agent claude` | `~/.claude/settings.json` `env` block (merged) |
+| **OpenCode** | Chat Completions | `sync --agent opencode` | `~/.config/opencode/opencode.jsonc` |
+| **Hermes** | Chat Completions | `sync --agent hermes` | `~/.hermes/config.yaml` (runtime model discovery) |
+| **Kimi CLI** | Chat Completions | `sync --agent kimi` | `~/.kimi/config.toml` (managed marker block) |
+| **OpenClaw** | Chat Completions | `sync --agent openclaw` | `~/.openclaw/openclaw.json` (static model catalog) |
+| **WorkBuddy** | Chat Completions | `sync --agent workbuddy` | `~/.workbuddy/models.json` (restart to apply) |
+| **Pi / OMP** | Chat Completions | automatic via serve | `~/.pi/agent/models.json` / `~/.omp/agent/models.yml` |
+| **MCP hosts** | MCP (stdio) | `claude mcp add … -- open-free-router mcp` | any `mcpServers` config |
+
+Every client receives only the **local proxy token** — upstream API keys never leave `registry.yaml`. Default `sync` touches only detected clients; explicit `--agent NAME` forces creation.
 
 ## Install
 
@@ -47,7 +75,11 @@ pip install -e .
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Refresh free models from APIs |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | Add a provider |
-| `open-free-router sync --agent codex [--codex-model ID]` | Generate an isolated Codex Responses API profile |
+| `open-free-router sync --agent codex,claude,kimi,…` | Sync 9 client configs; `--codex-model` / `--claude-model` pick defaults |
+| `open-free-router mcp [--print-config]` | Built-in MCP stdio server; print host registration snippets |
+| `open-free-router status [--json]` | One-shot health summary |
+| `open-free-router models [--json]` | List registry models with capability flags |
+| `open-free-router doctor` | Diagnose install: config, keys, ports, 9 client config files |
 | `open-free-router token` | Print the local inference proxy token for command auth |
 | `open-free-router ui` | Web dashboard standalone (debug) |
 
@@ -100,8 +132,11 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 
 | Module | Purpose |
 |---|---|
-| `proxy.py` | Single-port proxy(8337), model-ID routing, Chat Completions and Codex Responses API |
+| `proxy.py` | Single-port proxy(8337), model-ID routing, Chat Completions, Codex Responses API, and Anthropic Messages API |
 | `responses.py` | Responses ↔ Chat messages, function tools, and SSE event conversion |
+| `anthropic.py` | Messages ↔ Chat conversion (Claude Code): content blocks, tool_use/tool_result, typed SSE events |
+| `probe.py` | Live availability probing: one real 1-token request per model |
+| `mcp_server.py` | MCP stdio server (line-delimited JSON-RPC 2.0, 6 tools) |
 | `serve.py` | Daemon: proxy + UI + scheduler + auto-write Pi models.json |
 | `ui.py` | Web dashboard(9057): status, provider CRUD, model refresh, live config editor |
 | `refresh.py` | Poll provider APIs for free model changes. Pluggable sources |
@@ -127,11 +162,14 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 | `/v1/models` | GET | List all free models (OpenAI-compatible) |
 | `/v1/chat/completions` | POST | Route by model ID to upstream (OpenAI-compatible) |
 | `/v1/responses` | POST | Codex Responses-compatible endpoint with SSE and function tools |
+| `/v1/messages` | POST | Anthropic Messages-compatible endpoint (Claude Code) with SSE and tool_use |
+| `/v1/messages/count_tokens` | POST | Local input-token estimate |
 | `/api/status` | GET | Dashboard status |
 | `/api/providers` | GET / POST | Provider list / CRUD |
 | `/api/models` | GET | Model details grouped by provider |
 | `/api/config` | GET / POST | Read / write config.yaml |
 | `/api/refresh` | POST | Trigger model refresh (optional `--source`) |
+| `/api/probe` | GET / POST | Live availability probing (POST requires dashboard token) |
 
 ## Tests
 
@@ -140,7 +178,29 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-86 tests covering registry/config, refresh sources, sync, proxy authentication, Responses text/tool streams, streaming, and Codex profiles.
+144 tests covering registry/config, refresh sources, nine-client sync (incl. Claude/Kimi/OpenClaw/WorkBuddy adapters), proxy authentication (Bearer + x-api-key), Responses and Messages conversion, streaming, live probing, MCP handshake/tools, and Codex profiles.
+
+## Claude Code integration
+
+```bash
+open-free-router sync --agent claude   # writes the env block in ~/.claude/settings.json
+claude                                 # free models appear in the /model picker
+```
+
+The proxy implements the Anthropic Messages API on `/v1/messages` (streaming + tools). `ANTHROPIC_BASE_URL` points at `http://127.0.0.1:8337` and `ANTHROPIC_AUTH_TOKEN` carries only the local proxy token. Remove the `ANTHROPIC_*` keys from the env block to restore official models.
+
+## MCP interface
+
+```bash
+claude mcp add --scope user open-free-router -- open-free-router mcp
+open-free-router mcp --print-config
+```
+
+Six tools over stdio JSON-RPC: `list_models`, `list_providers`, `get_status`, `chat`, `refresh_models`, `sync_clients`.
+
+## Live availability
+
+The dashboard's **Live Status** tab fires one real 1-token request per model and shows status, latency, and failure reasons. Aggregated snapshots drive the public [status page](https://oaf.asia/status/) (auto-refreshing every 60 s). Per-provider **API-key acquisition steps** live on each provider card of the [model radar](https://oaf.asia/models/#providers).
 
 ## Codex integration
 

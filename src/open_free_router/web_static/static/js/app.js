@@ -40,8 +40,16 @@ document.querySelectorAll('.tab').forEach(btn => {
     if (btn.dataset.tab === 'config') loadConfig();
     if (btn.dataset.tab === 'models') loadModels();
     if (btn.dataset.tab === 'providers') loadProviders();
+    if (btn.dataset.tab === 'live') loadProbe();
   });
 });
+
+// Escape untrusted text (upstream error messages) before injecting HTML.
+function esc(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+}
 
 // Dashboard
 async function loadStatus() {
@@ -197,6 +205,74 @@ $('config-save').addEventListener('click', async () => {
 $('config-reload').addEventListener('click', () => {
   loadConfig();
   $('config-status').textContent = '';
+});
+
+// Live availability probing
+let probeTimer = null;
+
+function renderProbe(state) {
+  const progress = $('probe-progress');
+  if (state.running) {
+    progress.textContent = `Probing… ${state.done}/${state.total}`;
+    progress.style.color = '#eab308';
+  } else if (state.finished_at) {
+    progress.textContent = `Last run finished ${new Date(state.finished_at).toLocaleTimeString()}`;
+    progress.style.color = '#22c55e';
+  } else {
+    progress.textContent = '';
+  }
+
+  const results = Object.values(state.results || {});
+  if (!results.length) return;
+
+  const byProvider = {};
+  for (const r of results) (byProvider[r.provider] ??= []).push(r);
+
+  const parts = [];
+  for (const [provider, rows] of Object.entries(byProvider).sort()) {
+    const okCount = rows.filter(r => r.ok).length;
+    parts.push(`<h3 style="color:#38bdf8;margin:1rem 0 .5rem">${esc(provider)} `
+      + `<span class="badge ${okCount ? 'ok' : 'manual'}">${okCount}/${rows.length} live</span></h3>`);
+    parts.push('<div class="model-grid">');
+    for (const r of rows.sort((a, b) => a.model.localeCompare(b.model))) {
+      const stateLabel = r.ok ? `✓ ${r.latency_ms}ms`
+        : (r.status === 'no_key' ? '– no key' : `✗ ${esc(r.status)}`);
+      const color = r.ok ? '#22c55e' : (r.status === 'no_key' ? '#64748b' : '#ef4444');
+      parts.push(`
+        <div class="model-card" title="${esc(r.error || '')}">
+          <div class="mid">${esc(r.display_id)}</div>
+          <div class="mctx" style="color:${color}">${stateLabel}</div>
+        </div>
+      `);
+    }
+    parts.push('</div>');
+  }
+  $('probe-results').innerHTML = parts.join('');
+}
+
+async function loadProbe() {
+  try {
+    const r = await fetch('/api/probe');
+    const state = await r.json();
+    renderProbe(state);
+    clearTimeout(probeTimer);
+    // Poll fast while a run is active, slowly otherwise.
+    probeTimer = setTimeout(loadProbe, state.running ? 2000 : 60000);
+  } catch (e) { /* dashboard may be restarting; retry on next tab click */ }
+}
+
+$('probe-run').addEventListener('click', async () => {
+  const r = await authFetch('/api/probe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: '{}',
+  });
+  const data = await r.json();
+  if (!r.ok && !data.ok) {
+    $('probe-progress').textContent = data.hint || 'probe already running';
+    $('probe-progress').style.color = '#eab308';
+  }
+  loadProbe();
 });
 
 // Init

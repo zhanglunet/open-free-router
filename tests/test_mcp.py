@@ -1,0 +1,145 @@
+"""MCP stdio server tests: JSON-RPC handshake, tool listing, tool calls."""
+from __future__ import annotations
+
+import io
+import json
+
+import yaml
+
+from open_free_router.config import Config
+from open_free_router.mcp_server import McpServer, TOOLS
+
+
+def _server(tmp_path) -> McpServer:
+    registry = tmp_path / "registry.yaml"
+    registry.write_text(yaml.safe_dump({
+        "groq": {
+            "upstream_url": "https://api.groq.com/openai/v1",
+            "api_key": "upstream-secret",
+            "prefix": "gq",
+            "models": [
+                {"id": "gpt-oss", "tool_calling": True},
+                {"id": "chat-only"},
+            ],
+        }
+    }))
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump({
+        "registry": str(registry),
+        # unroutable ports so reachability probes fail fast without a server
+        "proxy": {"host": "127.0.0.1", "port": 1},
+        "ui": {"host": "127.0.0.1", "port": 1},
+    }))
+    return McpServer(Config(config_path))
+
+
+def _call(server, method, params=None, msg_id=1):
+    return server.handle({
+        "jsonrpc": "2.0", "id": msg_id, "method": method, "params": params or {},
+    })
+
+
+def _tool_payload(response):
+    assert "error" not in response, response
+    result = response["result"]
+    return json.loads(result["content"][0]["text"]), result.get("isError", False)
+
+
+def test_initialize_handshake_and_version_negotiation(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "initialize", {"protocolVersion": "2025-06-18"})
+    assert response["result"]["protocolVersion"] == "2025-06-18"
+    assert response["result"]["serverInfo"]["name"] == "open-free-router"
+    assert "tools" in response["result"]["capabilities"]
+    # unknown client version falls back to the newest we support
+    response = _call(server, "initialize", {"protocolVersion": "2099-01-01"})
+    assert response["result"]["protocolVersion"] == "2025-06-18"
+
+
+def test_notifications_get_no_response(tmp_path):
+    server = _server(tmp_path)
+    assert server.handle({"jsonrpc": "2.0", "method": "notifications/initialized"}) is None
+
+
+def test_tools_list_matches_declared_tools(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "tools/list")
+    names = [t["name"] for t in response["result"]["tools"]]
+    assert names == [t["name"] for t in TOOLS]
+    assert {"list_models", "list_providers", "get_status", "chat",
+            "refresh_models", "sync_clients"} <= set(names)
+    for tool in response["result"]["tools"]:
+        assert tool["inputSchema"]["type"] == "object"
+
+
+def test_list_models_tool_with_filters(tmp_path):
+    server = _server(tmp_path)
+    payload, is_error = _tool_payload(_call(server, "tools/call", {
+        "name": "list_models", "arguments": {},
+    }))
+    assert not is_error
+    assert payload["count"] == 2
+    assert payload["models"][0]["id"] == "gq/gpt-oss"
+
+    payload, _ = _tool_payload(_call(server, "tools/call", {
+        "name": "list_models", "arguments": {"tool_calling_only": True},
+    }))
+    assert payload["count"] == 1
+    assert payload["models"][0]["tool_calling"] is True
+
+
+def test_list_providers_never_leaks_keys(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "tools/call", {"name": "list_providers", "arguments": {}})
+    text = response["result"]["content"][0]["text"]
+    assert "upstream-secret" not in text
+    payload = json.loads(text)
+    assert payload["providers"][0]["has_key"] is True
+
+
+def test_get_status_reports_unreachable_proxy(tmp_path):
+    server = _server(tmp_path)
+    payload, is_error = _tool_payload(_call(server, "tools/call", {
+        "name": "get_status", "arguments": {},
+    }))
+    assert not is_error
+    assert payload["providers"] == 1
+    assert payload["models"] == 2
+    assert payload["proxy_reachable"] is False
+
+
+def test_chat_tool_fails_cleanly_without_serve(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "tools/call", {
+        "name": "chat", "arguments": {"model": "gq/gpt-oss", "prompt": "hi"},
+    })
+    result = response["result"]
+    assert result["isError"] is True
+    assert "proxy request failed" in result["content"][0]["text"]
+
+
+def test_unknown_tool_and_method_errors(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "tools/call", {"name": "nope", "arguments": {}})
+    assert response["error"]["code"] == -32602
+    response = _call(server, "bogus/method")
+    assert response["error"]["code"] == -32601
+
+
+def test_stdio_loop_speaks_line_delimited_jsonrpc(tmp_path):
+    server = _server(tmp_path)
+    stdin = io.StringIO(
+        json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                    "params": {"protocolVersion": "2025-06-18"}}) + "\n"
+        + json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}) + "\n"
+        + "not-json\n"
+        + json.dumps({"jsonrpc": "2.0", "id": 2, "method": "tools/list"}) + "\n"
+    )
+    stdout = io.StringIO()
+    server.serve_stdio(stdin=stdin, stdout=stdout)
+    lines = [json.loads(line) for line in stdout.getvalue().splitlines()]
+    assert len(lines) == 3  # init response, parse error, tools/list response
+    assert lines[0]["id"] == 1
+    assert lines[1]["error"]["code"] == -32700
+    assert lines[2]["id"] == 2
+    assert lines[2]["result"]["tools"]

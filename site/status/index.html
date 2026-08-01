@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港实时可用状态：每个免费大模型提供商的状态灯、实测延迟、原因与最近探测时间，每 60 秒自动刷新。">
+  <meta property="og:title" content="实时可用状态 · 模力自由港">
+  <meta property="og:description" content="免费大模型提供商与模型的实时可用性快照：绿灯可用、红灯不可用、黄灯候选未验证。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>实时可用状态 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/status/status.css">
+  <script src="/status/status.js" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <a class="skip-link" href="#board">跳到状态面板</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="状态页导航"><a href="/models/">模型雷达</a><a href="/architecture/">系统架构</a><a href="/map/">全球分布</a><a href="/guide/">安装指南</a></nav>
+    <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
+  </header>
+
+  <main>
+    <div class="st-refreshbar" aria-label="自动刷新控制">
+      <span class="st-pulse" aria-hidden="true"></span>
+      <p class="st-countdown-text" role="timer">下次刷新 <b id="st-countdown">60</b><i>s</i></p>
+      <button id="st-refresh" type="button">立即刷新</button>
+      <p class="st-generated" id="st-generated" aria-live="polite">正在读取状态快照…</p>
+    </div>
+    <div class="st-error" id="st-error" role="alert" hidden>
+      <b>刷新失败</b>
+      <span id="st-error-text">网络请求失败</span>
+      <em>已保留上一次成功获取的数据。</em>
+    </div>
+
+    <section class="st-hero">
+      <div>
+        <p class="st-eyebrow"><span></span> LIVE STATUS</p>
+        <h1>每个免费模型，<br><em>实时验证在线。</em></h1>
+        <p class="st-lede">不靠营销宣称，只看真实探测。这里汇总每个提供商、每个模型最近一次真实请求的结果：绿灯可用、红灯不可用、黄灯候选未验证。页面每 60 秒自动重新拉取快照。</p>
+      </div>
+      <div class="st-stats" aria-live="polite">
+        <article><b id="st-stat-providers">—</b><span>可用提供商 / 总数</span></article>
+        <article><b id="st-stat-models">—</b><span>可用模型 / 总数</span></article>
+        <article><b id="st-stat-asof">—</b><span>最近检查</span></article>
+      </div>
+    </section>
+
+    <section class="st-section" id="board">
+      <header class="st-head">
+        <div><p class="st-eyebrow"><span></span> PROVIDER BOARD</p><h2>提供商与模型实时面板</h2></div>
+        <ul class="st-legend" aria-label="状态图例">
+          <li><span class="st-lamp available" aria-hidden="true"></span>可用</li>
+          <li><span class="st-lamp unavailable" aria-hidden="true"></span>不可用</li>
+          <li><span class="st-lamp unverified" aria-hidden="true"></span>候选未验证</li>
+        </ul>
+      </header>
+      <div class="st-cards" id="st-cards" aria-live="polite" aria-busy="true">
+        <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
+        <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
+        <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
+        <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
+      </div>
+    </section>
+
+    <section class="st-section" id="honest">
+      <header class="st-head">
+        <div><p class="st-eyebrow"><span></span> HONEST STATUS</p><h2>状态非 SLA。</h2></div>
+      </header>
+      <div class="st-honest">
+        <div>
+          <p>本页每个状态灯都来自<b>维护者实例</b>对该模型发起的<b>真实 1-token 探测</b>的最近一次快照：请求真的发出去、真的等到了响应或错误，才写入这里。它反映的是“刚才那一刻这条航线通不通”，不构成任何可用性承诺。</p>
+          <p>免费额度、区域限制和账户状态因人而异——你的部署结果可能与这里不同。本地仪表盘的 <b>Live Status</b> 标签页可以用同样的探测方式对<b>你自己的部署</b>逐个模型实测。</p>
+        </div>
+        <blockquote class="st-note">
+          <span>status_note · 来自 /api/catalog</span>
+          <p id="st-note-text">Availability is the latest safe smoke-test snapshot, not an SLA.</p>
+        </blockquote>
+      </div>
+    </section>
+
+    <section class="st-section" id="selftest">
+      <header class="st-head">
+        <div><p class="st-eyebrow"><span></span> VERIFY IT YOURSELF</p><h2>如何自己实测</h2></div>
+        <p class="st-head-sub">不必相信任何状态页——三步之内，用你自己的密钥和网络环境跑一遍同样的探测。</p>
+      </header>
+      <ol class="st-steps">
+        <li><b>1</b><h3>启动全部服务</h3><pre><code>open-free-router serve</code></pre><p>同时启动本地代理与管理仪表盘。</p></li>
+        <li><b>2</b><h3>打开本地仪表盘</h3><pre><code>http://127.0.0.1:9057</code></pre><p>浏览器访问后切换到 <b>Live Status</b> 标签页。</p></li>
+        <li><b>3</b><h3>探测全部模型</h3><pre><code>Probe All Models</code></pre><p>点击按钮，对每个模型发送真实 1-token 请求并逐行显示结果。</p></li>
+      </ol>
+      <div class="st-code">
+        <div><span>命令行直接读取探测结果（GET /api/probe）</span></div>
+        <pre><code>curl http://127.0.0.1:9057/api/probe</code></pre>
+      </div>
+      <p class="st-fineprint">探测只发送最小请求（max_tokens = 1），密钥全程保存在你的本机，不会上传到本站。</p>
+    </section>
+  </main>
+
+  <footer>
+    <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · 实时可用状态</small></span></div>
+    <p>状态是维护者实例的最近探测快照，不是 SLA；免费额度、模型目录和账户可用性可能随时变化。对自己的部署实测请使用本地仪表盘 Live Status。</p>
+    <div class="footer-links"><a href="/models/">模型雷达</a><a href="/guide/">安装指南</a><a href="/">返回首页</a></div>
+  </footer>
+</body>
+</html>

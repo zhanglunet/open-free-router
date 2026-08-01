@@ -4,6 +4,30 @@
 
 ### Added
 
+- Anthropic Messages API compatibility (`POST /v1/messages` +
+  `/v1/messages/count_tokens`) with typed SSE streaming, tool_use/tool_result
+  translation, dual `Authorization: Bearer` / `x-api-key` auth, and Anthropic
+  error envelopes — Claude Code connects with one sync command.
+- Four new client sync adapters: Claude Code (`~/.claude/settings.json` env
+  block), Kimi CLI (`~/.kimi/config.toml` managed block), OpenClaw
+  (`~/.openclaw/openclaw.json` models.providers), and WorkBuddy
+  (`~/.workbuddy/models.json`) — all dedup-aware, user-config-preserving, and
+  covered by adapter tests; 9 clients total now sync from one registry.
+- Built-in MCP stdio server (`open-free-router mcp`) with six tools
+  (list_models, list_providers, get_status, chat, refresh_models,
+  sync_clients) and `--print-config` host registration snippets.
+- New CLI commands: `status [--json]`, `models [--json]`, and `doctor`
+  (full install diagnosis including all client config files).
+- Live availability probing: dashboard "Live Status" tab runs one real
+  1-token request per model (`POST/GET /api/probe`), persists a redacted
+  snapshot for the public catalog.
+- Website: `/architecture/` system diagram & infographic page, `/status/`
+  auto-refreshing live availability page, `/map/` global provider
+  distribution map (original Natural Earth dot-matrix base), per-client
+  illustrated setup guides, and per-provider API-key acquisition guidance
+  on the model radar.
+- PRD: `docs/PRD-multi-client-mcp.md` covering all of the above.
+
 - “模力自由港 / FreeModel Port” brand identity, generated primary mark,
   favicon, social card, dedicated `/brand/` page, and a complete deep-harbor
   visual redesign across the homepage, free-model radar, guide, and 404 page.

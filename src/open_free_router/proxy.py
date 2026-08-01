@@ -4,6 +4,9 @@ GET  /v1/models           → all free models from registry
 POST /v1/chat/completions → forward to the correct upstream by model ID
 POST /v1/completions      → same routing, legacy completions endpoint
 POST /v1/embeddings       → same routing, embeddings endpoint
+POST /v1/responses        → Codex Responses API over Chat Completions
+POST /v1/messages         → Anthropic Messages API over Chat Completions
+POST /v1/messages/count_tokens → local input-token estimate
 """
 from __future__ import annotations
 
@@ -22,6 +25,14 @@ from urllib.error import URLError
 
 from open_free_router.registry import Registry, codex_model_alias
 from open_free_router.auth import check_auth
+from open_free_router.anthropic import (
+    AnthropicConversionError,
+    AnthropicStreamAdapter,
+    anthropic_error,
+    chat_to_messages,
+    count_tokens_estimate,
+    messages_to_chat,
+)
 from open_free_router.responses import (
     ResponsesConversionError,
     ResponsesStreamAdapter,
@@ -141,6 +152,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                     "models": "/v1/models",
                     "chat": "/v1/chat/completions",
                     "responses": "/v1/responses",
+                    "messages": "/v1/messages",
+                    "count_tokens": "/v1/messages/count_tokens",
                     "completions": "/v1/completions",
                     "embeddings": "/v1/embeddings",
                     "ui": f"http://{self.server.server_address[0]}:9057",
@@ -168,6 +181,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             "/v1/completions": "completions",
             "/v1/embeddings": "embeddings",
             "/v1/responses": "responses",
+            "/v1/messages": "messages",
+            "/v1/messages/count_tokens": "count_tokens",
         }
         upstream_suffix = endpoint_map.get(path)
         if not upstream_suffix:
@@ -181,12 +196,17 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             return
 
         if self.auth_token and not check_auth(self.headers, self.auth_token):
-            self._send_json(401, {
-                "error": {
-                    "message": "Missing or invalid proxy bearer token.",
-                    "type": "authentication_error",
-                }
-            })
+            if upstream_suffix in ("messages", "count_tokens"):
+                self._send_json(
+                    401, anthropic_error(401, "Missing or invalid proxy token.")
+                )
+            else:
+                self._send_json(401, {
+                    "error": {
+                        "message": "Missing or invalid proxy bearer token.",
+                        "type": "authentication_error",
+                    }
+                })
             self.close_connection = True
             return
 
@@ -206,6 +226,10 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         body = self.rfile.read(length).decode("utf-8", errors="replace")
         if upstream_suffix == "responses":
             self._forward_responses(body)
+        elif upstream_suffix == "messages":
+            self._forward_messages(body)
+        elif upstream_suffix == "count_tokens":
+            self._handle_count_tokens(body)
         else:
             self._forward_request(upstream_suffix, body)
 
@@ -448,6 +472,137 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 self._send_json(502, {"error": {"message": str(e), "type": "proxy_error"}})
             else:
                 print(f"  ⚠ Responses stream ended early: {e}", file=sys.stderr)
+        finally:
+            conn.close()
+
+    def _handle_count_tokens(self, body: str):
+        """Local estimate — upstreams have no Anthropic token counter."""
+        try:
+            request = json.loads(body)
+        except json.JSONDecodeError:
+            self._send_json(400, anthropic_error(400, "invalid json"))
+            return
+        self._send_json(200, {"input_tokens": count_tokens_estimate(request)})
+
+    def _forward_messages(self, body: str):
+        """Anthropic Messages API endpoint used by Claude Code."""
+        try:
+            request = json.loads(body)
+        except json.JSONDecodeError:
+            self._send_json(400, anthropic_error(400, "invalid json"))
+            return
+
+        requested_model = request.get("model", "")
+        p, upstream_model = self._resolve_model(requested_model)
+        if not p:
+            self._send_json(404, anthropic_error(
+                404, f"Model '{requested_model}' not in free whitelist."
+            ))
+            return
+        if not (p.upstream_url or p.base_url):
+            self._send_json(502, anthropic_error(502, "provider not configured"))
+            return
+        try:
+            chat_request = messages_to_chat(request)
+        except AnthropicConversionError as e:
+            self._send_json(400, anthropic_error(400, str(e)))
+            return
+        chat_request["model"] = upstream_model
+        streaming = bool(request.get("stream"))
+        chat_request["stream"] = streaming
+        if streaming:
+            chat_request["stream_options"] = {"include_usage": True}
+
+        upstream = (p.upstream_url or p.base_url).rstrip("/")
+        url = f"{upstream}/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {p.effective_key}",
+            "User-Agent": "open-free-router/0.1",
+        }
+        data = json.dumps(chat_request).encode()
+        timeout = getattr(self, "_upstream_timeout", 120)
+        if streaming:
+            self._forward_messages_streaming(url, data, headers, timeout, requested_model)
+            return
+        try:
+            req_out = Request(url, data=data, headers=headers, method="POST")
+            with urlopen(req_out, timeout=timeout) as upstream_response:
+                raw = upstream_response.read()
+                chat_response = json.loads(raw)
+                self._send_json(
+                    upstream_response.status,
+                    chat_to_messages(chat_response, requested_model),
+                )
+        except URLError as e:
+            code = getattr(e, "code", 502)
+            raw = getattr(e, "read", lambda: b"")()
+            retry_after = e.headers.get("Retry-After") if getattr(e, "headers", None) else None
+            message = raw.decode(errors="replace") if raw else str(e)
+            self._send_json(code, anthropic_error(code, message), retry_after=retry_after)
+        except Exception as e:
+            self._send_json(502, anthropic_error(502, str(e)))
+
+    def _forward_messages_streaming(
+        self, url: str, data: bytes, headers: dict, timeout: int, requested_model: str
+    ):
+        """Relay upstream Chat SSE as Anthropic Messages SSE events.
+
+        Unlike the OpenAI-style stream, an Anthropic stream ends after
+        ``message_stop`` — there is no ``data: [DONE]`` sentinel.
+        """
+        parts = urlsplit(url)
+        conn_cls = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
+        conn = conn_cls(parts.hostname, parts.port, timeout=timeout)
+        path = parts.path + (f"?{parts.query}" if parts.query else "")
+        started = False
+        try:
+            conn.connect()
+            conn.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            conn.request("POST", path, body=data, headers=headers)
+            upstream_response = conn.getresponse()
+            if upstream_response.status >= 400:
+                error_body = upstream_response.read()
+                retry_after = upstream_response.getheader("Retry-After")
+                self._send_json(
+                    upstream_response.status,
+                    anthropic_error(
+                        upstream_response.status,
+                        error_body.decode(errors="replace"),
+                    ),
+                    retry_after=retry_after,
+                )
+                return
+
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Transfer-Encoding", "chunked")
+            self.end_headers()
+            started = True
+            adapter = AnthropicStreamAdapter(requested_model)
+
+            def write_event(event: dict):
+                chunk = sse_event(event)
+                self.wfile.write(f"{len(chunk):x}\r\n".encode("ascii"))
+                self.wfile.write(chunk)
+                self.wfile.write(b"\r\n")
+                self.wfile.flush()
+
+            for event in adapter.start():
+                write_event(event)
+            for chat_chunk in parse_chat_sse(iter(upstream_response.readline, b"")):
+                for event in adapter.feed(chat_chunk):
+                    write_event(event)
+            for event in adapter.finish():
+                write_event(event)
+            self.wfile.write(b"0\r\n\r\n")
+            self.wfile.flush()
+        except Exception as e:
+            if not started:
+                self._send_json(502, anthropic_error(502, str(e)))
+            else:
+                print(f"  ⚠ Messages stream ended early: {e}", file=sys.stderr)
         finally:
             conn.close()
 

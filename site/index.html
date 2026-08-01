@@ -30,8 +30,10 @@
       <span><b>模力自由港</b><small>FreeModel Port</small></span>
     </a>
     <nav aria-label="主导航">
-      <a href="#radar">免费模型</a>
-      <a href="#architecture">系统架构</a>
+      <a href="/models/">免费模型</a>
+      <a href="/status/">实时状态</a>
+      <a href="/architecture/">系统架构</a>
+      <a href="/map/">全球分布</a>
       <a href="/guide/">安装指南</a>
       <a href="/brand/">品牌</a>
     </nav>
@@ -115,9 +117,9 @@
         <h2>本地是港口，<br>模型是远方。</h2>
         <p>客户端永远只面对一个本地入口；真实 API Key、上游差异与模型 ID 都留在可审计的控制面。</p>
       </header>
-      <div class="route-map reveal" role="img" aria-label="Codex 和 AI CLI 通过本地自由港路由到免费模型提供商">
-        <div class="route-group clients"><small>YOUR CLIENTS</small><b>Codex</b><b>OpenCode</b><b>Hermes · Pi · OMP</b></div>
-        <div class="route-line"><span>Responses / OpenAI API</span><i></i></div>
+      <div class="route-map reveal" role="img" aria-label="九个 AI 客户端通过本地自由港路由到免费模型提供商">
+        <div class="route-group clients"><small>YOUR CLIENTS</small><b>Codex · Claude Code</b><b>OpenCode · Kimi · OpenClaw</b><b>WorkBuddy · Hermes · Pi/OMP</b></div>
+        <div class="route-line"><span>Responses / Messages / OpenAI / MCP</span><i></i></div>
         <div class="route-core"><img src="/assets/brand/modelport-mark-192.png" alt=""><small>LOCAL CONTROL PLANE</small><b>模力自由港</b><span>AUTH · ADAPT · ROUTE · SYNC</span><em>127.0.0.1:8337</em></div>
         <div class="route-line outbound"><span>TLS / PROVIDER KEY</span><i></i></div>
         <div class="route-group upstreams"><small>FREE UPSTREAMS</small><b>OpenRouter · NVIDIA</b><b>Google · Groq</b><b>+ 7 providers</b></div>
@@ -125,9 +127,10 @@
       <div class="architecture-notes">
         <article><span>01</span><h3>发现层</h3><p>公开目录只产生候选，不自动等同“可用”。</p></article>
         <article><span>02</span><h3>验证层</h3><p>公网 HTTPS、协议识别、专用凭据与真实响应四重校验。</p></article>
-        <article><span>03</span><h3>路由层</h3><p>多种模型 ID 映射到准确的 provider/upstream_id。</p></article>
-        <article><span>04</span><h3>适配层</h3><p>Responses、Chat Completions、工具调用与 SSE 转换。</p></article>
+        <article><span>03</span><h3>路由层</h3><p>五种模型 ID 格式映射到准确的 provider/upstream_id。</p></article>
+        <article><span>04</span><h3>适配层</h3><p>Responses、Messages、Chat Completions、工具调用与 SSE 转换。</p></article>
       </div>
+      <div class="hero-actions"><a class="button secondary" href="/architecture/">查看完整架构图与信息图 →</a></div>
     </section>
 
     <section class="section quickstart" id="quickstart">
@@ -181,7 +184,7 @@
   <footer>
     <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Powered by Open Free Router</small></span></div>
     <p>原始项目来自 <a href="https://github.com/NoelJudeNoel/open-free-router" rel="noreferrer">NoelJudeNoel/open-free-router</a><br>MIT License · 独立维护的增强版本</p>
-    <div class="footer-links"><a href="/models/">免费模型</a><a href="/guide/">安装指南</a><a href="/brand/">品牌页面</a><a href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub</a></div>
+    <div class="footer-links"><a href="/models/">免费模型</a><a href="/status/">实时状态</a><a href="/architecture/">系统架构</a><a href="/map/">全球分布</a><a href="/guide/">安装指南</a><a href="/brand/">品牌页面</a><a href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub</a></div>
   </footer>
 </body>
 </html>

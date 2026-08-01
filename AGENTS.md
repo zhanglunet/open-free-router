@@ -17,8 +17,12 @@
 | `open-free-router discover [--dry-run] [--output PATH]` | Find review-only free-provider candidates from the public directory |
 | `open-free-router discover --test --adopt` | Test candidates with declared credential env vars and adopt only successful models |
 | `open-free-router add NAME --base-url URL [--upstream-url URL] [--model ID] [--auto-refresh]` | Add a provider to registry |
-| `open-free-router sync [--agent omp,opencode,codex] [--diff]` | Sync registry to agent configs; Codex uses an isolated profile |
+| `open-free-router sync [--agent pi,omp,opencode,hermes,codex,claude,kimi,openclaw,workbuddy] [--diff]` | Sync registry to agent configs; Codex/Claude get isolated treatment |
 | `open-free-router token` | Print the local inference proxy bearer token |
+| `open-free-router mcp [--print-config]` | MCP stdio server (line-delimited JSON-RPC 2.0); or print host registration snippets |
+| `open-free-router status [--json]` | One-shot health summary (registry stats, proxy/UI reachability) |
+| `open-free-router models [--json]` | List registry models with capability flags |
+| `open-free-router doctor` | Diagnose install: config, keys, ports, all 9 client config files |
 
 ## Config
 
@@ -42,19 +46,22 @@
 
 ```
 src/open_free_router/
-├── cli.py              # argparser → routes to serve/ui/refresh/add/sync/setup
+├── cli.py              # argparser → serve/ui/refresh/add/sync/setup/mcp/status/models/doctor
 ├── config.py           # Config class: loads config.yaml, resolves paths
 ├── registry.py         # Registry CRUD: ProviderConfig + ModelInfo dataclasses
-├── registry.default.yaml  # Template with 10 upstream sources, no API keys
+├── registry.default.yaml  # Template with 11 upstream sources, no API keys
 ├── proxy.py            # Single-port proxy (8337), auth + model-ID routing
 ├── responses.py        # Codex Responses API compatibility over Chat Completions
+├── anthropic.py        # Anthropic Messages API compatibility (Claude Code): /v1/messages
+├── probe.py            # Live availability probing: 1-token real request per model
+├── mcp_server.py       # MCP stdio server (line-delimited JSON-RPC 2.0, 6 tools)
 ├── discovery.py        # Candidate-only free-provider discovery; never mutates registry
 ├── public_catalog.py   # Credential-free provider/model catalog export
 ├── refresh.py          # Dispatches per-provider refresh from refresh_sources/
 ├── refresh_sources/    # Pluggable: openrouter.py, nvidia_nim.py, groq.py, etc.
 ├── serve.py            # Daemon: proxy + UI + scheduler + Pi models.json writer
-├── sync.py             # Sync registry to Pi/OMP/OpenCode/Hermes configs (dedup-aware)
-├── ui.py               # Web dashboard (9057): status, provider CRUD, refresh, config edit
+├── sync.py             # Sync registry to 9 client configs (dedup-aware)
+├── ui.py               # Web dashboard (9057): status, provider CRUD, refresh, live probe
 ├── templates/          # UI templates (index.html)
 └── web_static/         # UI static assets (CSS, JS)
 ```
@@ -80,8 +87,12 @@ src/open_free_router/
   2. prefix/id     `nv/glm-5.2`
   3. upstream_id   `z-ai/glm-5.2`
   4. provider/upstream_id `nvidia-nim/z-ai/glm-5.2` (OMP format)
-- **Sync** — `open-free-router sync` writes Pi models.json, OMP models.yml, OpenCode opencode.json, and ensures Hermes custom_providers entry from registry
+- **Sync** — `open-free-router sync` writes Pi models.json, OMP models.yml, OpenCode opencode.json, Hermes custom_providers, Codex profile, Claude Code settings.json env block, Kimi config.toml managed block, OpenClaw models.providers, and WorkBuddy models.json
 - **Sync dedup** — before writing, removes all providers pointing to local proxy (baseURL contains 127.0.0.1) to prevent duplicate accumulation; Pi always overwrites entire file
+- **Sync detection** — claude/kimi/workbuddy sync only when their home dir exists (openclaw: config file exists, because sync backups live under ~/.openclaw); explicit `--agent NAME` forces creation
+- **Anthropic Messages** — `/v1/messages` + `/v1/messages/count_tokens`; auth accepts `Authorization: Bearer` AND `x-api-key`; errors use the Anthropic envelope; streams end after `message_stop` with no `[DONE]`
+- **MCP** — `open-free-router mcp` speaks newline-delimited JSON-RPC over stdio; tools: list_models, list_providers, get_status, chat, refresh_models, sync_clients
+- **Probe** — dashboard Live Status tab → POST /api/probe (UI token) runs one 1-token real request per model; snapshot persisted to `<data_dir>/probe-status.json` in provider-status.json shape
 
 ## Scripts
 
@@ -94,7 +105,11 @@ src/open_free_router/
 ## Testing
 
 - `tests/test_responses.py` — auth, Responses conversion, SSE text/function calls, live index rebuild
+- `tests/test_anthropic.py` — Messages conversion, stream event ordering, tool loop, dual auth, error envelope
 - `tests/test_sync_codex.py` — Codex profile and upstream-key isolation
+- `tests/test_sync_clients.py` — Claude/Kimi/OpenClaw/WorkBuddy adapters: schema, idempotency, user-config preservation, key isolation
+- `tests/test_mcp.py` — JSON-RPC handshake, version negotiation, tool calls, stdio line protocol
+- `tests/test_probe.py` — live probe against fake upstreams, aggregation, /api/probe auth
 - `tests/test_config.py` — 4 tests: defaults, custom values, registry path resolution
 - `tests/test_serve.py` — 2 tests: Pi models.json format, skip when no Pi dir
 - `tests/test_discovery.py` — candidate filtering, registry exclusion, and secure persistence

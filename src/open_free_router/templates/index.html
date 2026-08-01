@@ -18,6 +18,7 @@
       <button class="tab" data-tab="providers">Providers</button>
       <button class="tab" data-tab="config">Config</button>
       <button class="tab" data-tab="models">Models</button>
+      <button class="tab" data-tab="live">Live Status</button>
     </nav>
 
     <section id="tab-dashboard" class="tab-content">
@@ -62,6 +63,21 @@
       <div class="card">
         <h2>Free Models by Provider</h2>
         <div id="models">Loading…</div>
+      </div>
+    </section>
+
+    <section id="tab-live" class="tab-content" style="display:none">
+      <div class="card">
+        <h2>Live Availability 实时可用性</h2>
+        <p class="config-note">
+          Runs one minimal 1-token request per model against its real upstream
+          using your configured keys. 每个模型发送一次最小真实请求实测可用性。
+        </p>
+        <div class="actions">
+          <button id="probe-run" class="btn primary">Probe All Models</button>
+          <span id="probe-progress" class="status-msg"></span>
+        </div>
+        <div id="probe-results">No probe run yet — click "Probe All Models".</div>
       </div>
     </section>
   </div>

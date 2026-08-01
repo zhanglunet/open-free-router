@@ -2,13 +2,14 @@
 
 > **全球免费大模型，一站发现、实测、接入。** 由 Open Free Router 提供技术引擎。
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装使用指南](https://oaf.asia/guide/) · [免费模型雷达](https://oaf.asia/models/) · [品牌页面](https://oaf.asia/brand/)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装指南](https://oaf.asia/guide/) · [模型雷达](https://oaf.asia/models/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
 > 继续开发，遵循 MIT License。当前版本由 `zhanglunet` 独立维护，新增
-> Codex Responses API、安全鉴权、第三方模型目录、Gemini 工具调用兼容、
-> 扩展测试与项目文档网站。详见 [`NOTICE.md`](NOTICE.md)。
+> Codex Responses API、Anthropic Messages API（Claude Code）、九客户端
+> 同步、MCP 服务器、实时可用性探测、安全鉴权、第三方模型目录、
+> Gemini 工具调用兼容、扩展测试与项目文档网站。详见 [`NOTICE.md`](NOTICE.md)。
 
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
@@ -18,7 +19,35 @@ less /tmp/open-free-router-install.sh
 bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
-追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，Codex、Hermes、OpenCode、PI、OMP 共享模型。
+追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，**9 个客户端**共享模型：Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy、Pi、OMP；另有内置 MCP 服务器供任意 MCP 宿主调用。
+
+## 网站预览
+
+| 首页 | 系统架构 |
+|---|---|
+| ![模力自由港首页](docs/screenshots/home.png) | ![系统架构页](docs/screenshots/architecture.png) |
+
+| 实时状态 | 全球分布 |
+|---|---|
+| ![实时可用状态页](docs/screenshots/status.png) | ![全球分布地图页](docs/screenshots/map.png) |
+
+## 客户端支持矩阵
+
+| 客户端 | 协议 | 一条命令 | 写入位置 |
+|---|---|---|---|
+| **Codex CLI** | Responses API | `sync --agent codex` | `~/.codex/open-free-router.config.toml`（独立 profile） |
+| **Claude Code** | Anthropic Messages | `sync --agent claude` | `~/.claude/settings.json` `env` 块（合并写入） |
+| **OpenCode** | Chat Completions | `sync --agent opencode` | `~/.config/opencode/opencode.jsonc` |
+| **Hermes** | Chat Completions | `sync --agent hermes` | `~/.hermes/config.yaml`（模型运行时自动发现） |
+| **Kimi CLI**（kimi code） | Chat Completions | `sync --agent kimi` | `~/.kimi/config.toml`（托管标记块） |
+| **OpenClaw** | Chat Completions | `sync --agent openclaw` | `~/.openclaw/openclaw.json`（静态模型目录） |
+| **WorkBuddy** | Chat Completions | `sync --agent workbuddy` | `~/.workbuddy/models.json`（重启生效） |
+| **Pi / OMP** | Chat Completions | serve 自动维护 | `~/.pi/agent/models.json` / `~/.omp/agent/models.yml` |
+| **MCP 宿主** | MCP (stdio) | `claude mcp add … -- open-free-router mcp` | 任意 `mcpServers` 配置 |
+
+所有客户端只拿到**本地代理 token**，上游 API Key 永远留在本机 `registry.yaml`。
+默认 `sync` 只写检测到已安装的客户端；显式 `--agent NAME` 可强制创建配置。
+详细图文步骤见 [安装指南](https://oaf.asia/guide/#clients)。
 
 ## 安装
 
@@ -51,7 +80,11 @@ pip install -e .
 | `open-free-router discover [--dry-run]` | 从公开目录发现待人工验证的候选免费提供商 |
 | `open-free-router discover --test --adopt` | 用声明的环境变量实测候选，只接入真实成功模型 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
-| `open-free-router sync --agent codex [--codex-model ID]` | 生成独立的 Codex Responses API profile |
+| `open-free-router sync --agent codex,claude,kimi,…` | 同步 9 个客户端配置；`--codex-model` / `--claude-model` 指定默认模型 |
+| `open-free-router mcp [--print-config]` | 内置 MCP stdio 服务器；`--print-config` 打印宿主注册片段 |
+| `open-free-router status [--json]` | 一屏健康摘要（注册表 / 密钥 / 端口可达性） |
+| `open-free-router models [--json]` | 列出全部模型与能力标记（T=工具 R=推理） |
+| `open-free-router doctor` | 安装体检：配置、密钥、端口与 9 个客户端配置状态 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
 
@@ -116,11 +149,15 @@ discovery:
 
 | 模块 | 职责 |
 |---|---|
-| `proxy.py` | 单端口代理(8337)，按模型 ID 路由到对应 upstream；支持 Chat Completions 与 Codex Responses API |
+| `proxy.py` | 单端口代理(8337)，按模型 ID 路由到对应 upstream；支持 Chat Completions、Codex Responses API 与 Anthropic Messages API |
 | `responses.py` | Responses ↔ Chat Completions 消息、function tool 与 SSE 事件转换 |
+| `anthropic.py` | Messages ↔ Chat Completions 转换（Claude Code）：content blocks、tool_use/tool_result、类型化 SSE 事件流 |
+| `probe.py` | 实时可用性探测：每模型一次真实 1-token 请求，输出延迟与状态快照 |
+| `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，6 个工具，零第三方依赖） |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
-| `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑 |
+| `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |
 | `refresh.py` | 轮询提供商 API 获取免费模型变化，支持 pluggable sources |
+| `sync.py` | 9 客户端配置同步（去重、保留用户手工配置、只下发本地 token） |
 | `registry.py` | 注册中心（ProviderConfig / ModelInfo 数据模型 + YAML 持久化） |
 | `config.py` | 配置加载（config.yaml + 默认值 + 路径解析） |
 | `cli.py` | CLI 入口（argparse 路由到各子命令） |
@@ -140,14 +177,52 @@ discovery:
 
 | 路径 | 方法 | 说明 |
 |---|---|---|
-| `/v1/models` | GET | 获取所有免费模型列表（OpenAI 兼容格式） |
+| `/v1/models` | GET | 获取所有免费模型列表（Codex / Claude Code 启动时自动发现） |
 | `/v1/chat/completions` | POST | 按模型 ID 路由到上游（OpenAI 兼容格式） |
 | `/v1/responses` | POST | Codex 使用的 Responses API 兼容端点，支持 SSE 与 function tools |
+| `/v1/messages` | POST | Claude Code 使用的 Anthropic Messages 兼容端点，支持 SSE 与 tool_use |
+| `/v1/messages/count_tokens` | POST | 输入 token 数本地估算 |
+| `/v1/completions` · `/v1/embeddings` | POST | 传统补全 / 向量接口透传 |
 | `/api/status` | GET | 仪表盘状态 |
 | `/api/providers` | GET / POST | Provider 列表 / 增删改 |
 | `/api/models` | GET | 按 provider 分组的模型详情 |
 | `/api/config` | GET / POST | 配置文件的读取和写入 |
 | `/api/refresh` | POST | 手动触发刷新（可指定 --source） |
+| `/api/probe` | GET / POST | 实时可用性探测：POST 启动（需仪表盘 token），GET 轮询进度与结果 |
+
+## Claude Code 集成
+
+```bash
+open-free-router sync --agent claude          # 写入 ~/.claude/settings.json env 块
+claude                                        # 免费模型自动出现在 /model 选择器
+```
+
+代理在 `/v1/messages` 实现 Anthropic Messages API（含流式事件与工具调用），
+`ANTHROPIC_BASE_URL` 指向 `http://127.0.0.1:8337`，`ANTHROPIC_AUTH_TOKEN`
+只携带本地代理 token。合并写入保留 settings.json 其他设置；删除 env 块中
+`ANTHROPIC_*` 键即可恢复官方模型。`--claude-model` 或 config.yaml
+`claude.model` 指定主模型，默认取首个 `tool_calling: true` 模型。
+
+## MCP 接口
+
+```bash
+claude mcp add --scope user open-free-router -- open-free-router mcp
+open-free-router mcp --print-config           # 打印通用 mcpServers 片段
+```
+
+内置 MCP stdio 服务器（按行 JSON-RPC 2.0，协议 2024-11-05 ~ 2025-06-18），
+提供 6 个工具：`list_models`、`list_providers`、`get_status`、`chat`
+（经本地代理真实推理）、`refresh_models`、`sync_clients`。任何 MCP 宿主
+（Claude Code、Codex、Kimi CLI 等）都可以让 Agent 查询、实测并调用免费模型。
+
+## 实时可用性
+
+仪表盘（9057）**Live Status** 标签页对每个模型发起一次真实 1-token 请求，
+显示可用状态、延迟与失败原因；结果聚合写入 `probe-status.json`，
+经脱敏导出后驱动公开状态页 [oaf.asia/status](https://oaf.asia/status/)（60 秒自动刷新）。
+各提供商的 **API Key 获取步骤与控制台链接**见
+[模型雷达](https://oaf.asia/models/#providers) 每张提供商卡片的
+「🔑 如何获取 API Key」折叠区。
 
 ## 测试
 
@@ -156,7 +231,10 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖：registry/config、刷新源、同步、代理鉴权、Responses 文本和工具流、真实流式转发及 Codex profile。
+当前测试覆盖（144 例）：registry/config、刷新源、九客户端同步（含
+Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
+Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
+MCP 握手与工具调用及 Codex profile。
 
 ## Codex 集成
 
