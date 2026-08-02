@@ -113,6 +113,9 @@ for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", 
     throw new Error(`Generated benchmarks page is missing required content: ${marker}`);
   }
 }
+if (!benchmarksJs.includes("/data/benchmarks.json?v=")) {
+  throw new Error("Benchmarks static snapshot request must be versioned to avoid stale edge 404s");
+}
 if (!benchmarksJs.includes("function html(value)") || !benchmarksJs.includes("&lt;")) {
   throw new Error("Benchmarks page must HTML-escape public catalog and benchmark fields");
 }
