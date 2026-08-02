@@ -216,6 +216,11 @@ def chat_to_response(chat_response: dict, requested_model: str) -> dict:
     message = choices[0].get("message", {}) if choices else {}
     output: list[dict] = []
     content = message.get("content")
+    if content is None:
+        # Some OpenAI-compatible reasoning models place their only visible
+        # output in this extension field.  Match the Chat/Messages adapters so
+        # Codex does not receive an empty completed response.
+        content = message.get("reasoning_content")
     if content is not None:
         output.append({
             "type": "message",
@@ -300,6 +305,8 @@ class ResponsesStreamAdapter:
             return events
         delta = choices[0].get("delta", {}) or {}
         content = delta.get("content")
+        if not content:
+            content = delta.get("reasoning_content")
         if content:
             events.extend(self._start_text())
             self.text += str(content)

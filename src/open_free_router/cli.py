@@ -446,6 +446,35 @@ def cmd_metrics(args):
     print(f"  说明: {payload.get('quota_estimate_notice_zh', '')}")
 
 
+def cmd_protocols(args):
+    """Print the declared provider × client-protocol capability matrix."""
+    import json as _json
+    from open_free_router.protocol_matrix import protocol_matrix
+
+    cfg = Config()
+    _bootstrap_registry(cfg)
+    matrix = protocol_matrix(Registry.load(cfg.registry_path))
+    if args.json:
+        print(_json.dumps(matrix, ensure_ascii=False, indent=2))
+        return
+    print(
+        f"协议兼容矩阵：{matrix['provider_count']} 个提供商 × "
+        f"{matrix['protocol_count']} 个客户端协议"
+    )
+    for row in matrix["rows"]:
+        state = "已配置" if row["configured"] else "需修复"
+        key = "凭据就绪" if row["credential_ready"] else "缺少凭据"
+        tools = row["tool_calling_models"]
+        print(
+            f"  {row['provider']:24s} {row['protocol']:20s} "
+            f"{state:6s} {key:8s} 模型={row['model_count']} 工具模型={tools}"
+        )
+    for issue in matrix["issues"]:
+        print(f"  ✗ {issue['provider']}: {issue['message']}")
+        print(f"      fix: {issue['fix']}")
+    print(f"\n说明：{matrix['notice_zh']}")
+
+
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     import json as _json
@@ -485,6 +514,21 @@ def cmd_doctor(args):
     check(payload["ui_reachable"], "dashboard reachable", payload["ui_url"], warn_only=True)
 
     registry = Registry.load(cfg.registry_path) if cfg.registry_path.exists() else Registry({})
+    from open_free_router.protocol_matrix import protocol_matrix
+    compatibility = protocol_matrix(registry)
+    failures += sum(issue["severity"] == "error" for issue in compatibility["issues"])
+    if not json_mode:
+        print("\nprotocol compatibility:")
+        print(
+            f"  · {compatibility['provider_count']} providers × "
+            f"{compatibility['protocol_count']} client protocols"
+        )
+        if not compatibility["issues"]:
+            print("  ✓ declared upstream protocol configuration is valid")
+        for issue in compatibility["issues"]:
+            mark = "✗" if issue["severity"] == "error" else "⚠"
+            print(f"  {mark} {issue['provider']}: {issue['message']}")
+            print(f"      fix: {issue['fix']}")
     routing_issues = diagnose_routing_config(cfg._raw.get("routing"), registry)
     failures += sum(issue.severity == "error" for issue in routing_issues)
     if not json_mode:
@@ -562,6 +606,7 @@ def cmd_doctor(args):
         "checks": checks,
         "routing": [issue.to_dict() for issue in routing_issues],
         "free_tier": {"summary": evidence_summary, "issues": evidence_issues},
+        "protocol_matrix": compatibility,
         "clients": [
             {"name": label, "configured": path.exists(), "path": str(path)}
             for label, path in clients
@@ -689,6 +734,10 @@ def main():
     p_metrics.add_argument("--export", choices=("json", "csv"))
     p_metrics.add_argument("--output", help="write export to a local file")
     p_metrics.set_defaults(func=cmd_metrics)
+
+    p_protocols = sub.add_parser("protocols", help="show provider × client-protocol compatibility")
+    p_protocols.add_argument("--json", action="store_true")
+    p_protocols.set_defaults(func=cmd_protocols)
 
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
     p_doctor.add_argument("--json", action="store_true", help="print structured diagnostics")

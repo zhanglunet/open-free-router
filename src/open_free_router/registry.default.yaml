@@ -8,7 +8,7 @@ deepseek:
   - id: deepseek-reasoner
   prefix: ds
 google-ai-studio:
-  upstream_url: https://generativelanguage.googleapis.com/v1beta
+  upstream_url: https://generativelanguage.googleapis.com/v1beta/openai
   auto_refresh: false
   refresh_method: manual
   api_key: ''
