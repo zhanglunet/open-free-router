@@ -289,13 +289,20 @@ class ResilienceManager:
     ) -> None:
         now = time.time() if now is None else now
         with self._lock:
+            changed = False
             if decision.provider_failure:
                 state = self._providers.setdefault(provider, ProviderState())
-                state.failures += 1
+                before = asdict(state)
+                was_open = state.state == "open" and now < state.open_until
+                state.failures = min(self.provider_threshold, state.failures + 1)
                 state.probe_in_flight = False
-                if state.state == "half_open" or state.failures >= self.provider_threshold:
+                if state.state == "half_open":
                     state.state = "open"
                     state.open_until = now + self.provider_cooldown
+                elif not was_open and state.failures >= self.provider_threshold:
+                    state.state = "open"
+                    state.open_until = now + self.provider_cooldown
+                changed = before != asdict(state)
             else:
                 # A half-open probe that reached an upstream and received a
                 # credential/model/client error proves the provider transport
@@ -307,24 +314,39 @@ class ResilienceManager:
                     state.failures = 0
                     state.open_until = 0.0
                     state.probe_in_flight = False
+                    changed = True
 
             if decision.credential_terminal:
-                self._credentials[(provider, credential_slot)] = CredentialState(
+                key = (provider, credential_slot)
+                new_state = CredentialState(
                     state="terminal", reason=decision.kind
                 )
+                if self._credentials.get(key) != new_state:
+                    self._credentials[key] = new_state
+                    changed = True
             elif decision.credential_cooldown:
                 delay = retry_after if retry_after > 0 else self.credential_cooldown
-                self._credentials[(provider, credential_slot)] = CredentialState(
-                    state="cooldown", cooldown_until=now + delay, reason=decision.kind
-                )
+                key = (provider, credential_slot)
+                current = self._credentials.get(key)
+                if not (current and current.state == "terminal") and (
+                    not current or current.state != "cooldown" or current.cooldown_until <= now
+                ):
+                    self._credentials[key] = CredentialState(
+                        state="cooldown", cooldown_until=now + delay, reason=decision.kind
+                    )
+                    changed = True
 
             if decision.model_lockout:
-                state = self._models.setdefault((provider, model), ModelState())
-                state.failures += 1
-                state.reason = decision.kind
-                multiplier = min(8, 2 ** max(0, state.failures - 1))
-                state.lockout_until = now + self.model_cooldown * multiplier
-            self._persist_locked()
+                key = (provider, model)
+                state = self._models.setdefault(key, ModelState())
+                if state.lockout_until <= now:
+                    state.failures = min(4, state.failures + 1)
+                    state.reason = decision.kind
+                    multiplier = min(8, 2 ** max(0, state.failures - 1))
+                    state.lockout_until = now + self.model_cooldown * multiplier
+                    changed = True
+            if changed:
+                self._persist_locked()
 
     def record_success(self, provider: str, model: str, credential_slot: int = 0) -> None:
         with self._lock:

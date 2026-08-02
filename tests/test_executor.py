@@ -74,6 +74,8 @@ def test_virtual_route_falls_back_before_returning_response():
         try:
             assert result.target.provider_name == "healthy"
             assert result.attempts == 2
+            assert limited_handler.seen_auth == ["Bearer placeholder-a"]
+            assert healthy_handler.seen_auth == ["Bearer placeholder-b"]
             decision = decisions.get(result.request_id)
             assert decision["provider"] == "healthy"
             assert decision["fallback_attempts"] == 1
@@ -170,4 +172,32 @@ def test_invalid_request_never_falls_back():
         assert healthy_handler.seen_auth == []
     finally:
         invalid.shutdown()
+        healthy.shutdown()
+
+
+def test_virtual_route_skips_provider_without_credentials_before_network():
+    unused_handler = _handler(200)
+    healthy_handler = _handler(200)
+    unused = _start(unused_handler)
+    healthy = _start(healthy_handler)
+    try:
+        missing = _provider(unused.server_address[1], "a")
+        missing["api_key"] = ""
+        registry = Registry({
+            "missing": missing,
+            "healthy": _provider(healthy.server_address[1], "b"),
+        })
+        result = UpstreamExecutor(
+            RoutePlanner(registry), ResilienceManager(), timeout=5
+        ).execute("auto", "chat/completions", {"messages": []})
+        assert isinstance(result, OpenedRoute)
+        try:
+            assert result.target.provider_name == "healthy"
+            assert result.attempts == 1
+            assert unused_handler.seen_auth == []
+            result.response.read()
+        finally:
+            result.close()
+    finally:
+        unused.shutdown()
         healthy.shutdown()

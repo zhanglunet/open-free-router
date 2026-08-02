@@ -1,4 +1,5 @@
 import json
+import threading
 
 from open_free_router.resilience import (
     ResilienceManager,
@@ -21,6 +22,15 @@ def test_rate_limit_and_quota_have_different_recovery():
     exhausted = classify_failure(429, "quota exhausted")
     assert limited.credential_cooldown is True and limited.retryable is True
     assert exhausted.credential_terminal is True and exhausted.retryable is False
+
+
+def test_terminal_credential_is_not_downgraded_by_late_rate_limit():
+    manager = ResilienceManager(credential_cooldown=60)
+    manager.record_failure("p", "m", classify_failure(401), now=100)
+    manager.record_failure("p", "m", classify_failure(429), now=101)
+    state = manager.snapshot()["credentials"]["p:slot-0"]
+    assert state["state"] == "terminal"
+    assert state["reason"] == "credential_invalid"
 
 
 def test_provider_circuit_opens_and_allows_one_half_open_probe():
@@ -68,3 +78,70 @@ def test_retry_after_is_bounded():
     assert parse_retry_after("17", now=0) == 17
     assert parse_retry_after("99999", now=0, cap_seconds=30) == 30
     assert parse_retry_after("not-a-date", now=0) == 0
+
+
+def test_concurrent_failures_do_not_extend_active_penalties_or_grow_state():
+    manager = ResilienceManager(
+        provider_threshold=1, provider_cooldown=30,
+        credential_cooldown=60, model_cooldown=120,
+    )
+    manager.record_failure("provider", "model", classify_failure(503), now=100)
+    manager.record_failure("provider", "model", classify_failure(429), now=100)
+    manager.record_failure("provider", "missing", classify_failure(404), now=100)
+    baseline = manager.snapshot()
+    persist_calls = 0
+
+    def count_persist():
+        nonlocal persist_calls
+        persist_calls += 1
+
+    manager._persist_locked = count_persist
+
+    threads = []
+    for index in range(100):
+        observed_at = 101 + index / 1000
+        threads.extend([
+            threading.Thread(
+                target=manager.record_failure,
+                args=("provider", "model", classify_failure(503)), kwargs={"now": observed_at},
+            ),
+            threading.Thread(
+                target=manager.record_failure,
+                args=("provider", "model", classify_failure(429)), kwargs={"now": observed_at},
+            ),
+            threading.Thread(
+                target=manager.record_failure,
+                args=("provider", "missing", classify_failure(404)), kwargs={"now": observed_at},
+            ),
+        ])
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+
+    snapshot = manager.snapshot()
+    assert snapshot["providers"]["provider"]["open_until"] == baseline["providers"]["provider"]["open_until"]
+    assert snapshot["credentials"]["provider:slot-0"]["cooldown_until"] == baseline["credentials"]["provider:slot-0"]["cooldown_until"]
+    assert snapshot["models"]["provider/missing"]["lockout_until"] == baseline["models"]["provider/missing"]["lockout_until"]
+    assert len(snapshot["providers"]) == len(snapshot["credentials"]) == len(snapshot["models"]) == 1
+    assert persist_calls == 0
+
+
+def test_half_open_allows_only_one_probe_under_concurrency():
+    manager = ResilienceManager(provider_threshold=1, provider_cooldown=10)
+    manager.record_failure("provider", "model", classify_failure(503), now=100)
+    results = []
+    lock = threading.Lock()
+
+    def attempt():
+        result = manager.can_attempt("provider", "model", now=111)
+        with lock:
+            results.append(result)
+
+    threads = [threading.Thread(target=attempt) for _ in range(100)]
+    for thread in threads:
+        thread.start()
+    for thread in threads:
+        thread.join()
+    assert sum(allowed for allowed, _ in results) == 1
+    assert {reason for allowed, reason in results if not allowed} == {"provider_half_open_busy"}
