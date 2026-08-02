@@ -191,6 +191,14 @@ class RoutePlanner:
             if require_tools and not target.model.tool_calling:
                 rejected.append({"model": target.canonical_id, "reason": "tool_calling_required"})
                 continue
+            if requested_model == "auto/free":
+                evidence_status = target.provider.free_tier_for(target.model).status()
+                if evidence_status != "verified":
+                    rejected.append({
+                        "model": target.canonical_id,
+                        "reason": f"free_evidence_{evidence_status}",
+                    })
+                    continue
             identity = (target.provider_name, target.upstream_model_id)
             if identity in seen:
                 continue

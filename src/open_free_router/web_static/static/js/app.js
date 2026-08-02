@@ -259,12 +259,13 @@ function renderModels() {
     return textMatch && providerMatch && capabilityMatch;
   });
   byId('model-count').textContent = `显示 ${formatNumber(filtered.length)} / ${formatNumber(state.models.length)} 个模型`;
+  const freeLabels = { verified: '免费证据有效', expired: '免费证据过期', unverified: '免费待核验', unknown: '免费条件未知', invalid: '免费证据错误' };
   byId('models').innerHTML = filtered.length ? filtered.map((model) => `
     <article class="model-card">
       <div class="model-provider">${esc(model.provider)}</div><div class="model-id">${esc(model.id)}</div>
       <div class="model-name">${esc(model.name || model.upstream_id || '免费模型')}</div>
       <div class="model-specs"><div class="model-spec"><span>上下文窗口</span><strong>${formatNumber(model.context_window || 131072)}</strong></div><div class="model-spec"><span>最大输出</span><strong>${formatNumber(model.max_tokens || 8192)}</strong></div></div>
-      <div class="capabilities">${model.reasoning ? '<span class="cap-chip reasoning">推理增强</span>' : ''}${model.tool_calling ? '<span class="cap-chip tools">工具调用</span>' : ''}${!model.reasoning && !model.tool_calling ? '<span class="cap-chip">基础对话</span>' : ''}</div>
+      <div class="capabilities">${model.reasoning ? '<span class="cap-chip reasoning">推理增强</span>' : ''}${model.tool_calling ? '<span class="cap-chip tools">工具调用</span>' : ''}${!model.reasoning && !model.tool_calling ? '<span class="cap-chip">基础对话</span>' : ''}<span class="cap-chip ${model.free_tier_effective?.status === 'verified' ? 'free' : 'review'}">${esc(freeLabels[model.free_tier_effective?.status] || '免费条件未知')}</span>${model.free_tier_effective?.requires_payment_method ? '<span class="cap-chip review">需付款方式</span>' : ''}</div>
     </article>`).join('') : '<div class="empty">没有符合条件的模型</div>';
 }
 ['model-search', 'model-provider-filter', 'model-capability-filter'].forEach((id) => byId(id).addEventListener(id === 'model-search' ? 'input' : 'change', renderModels));

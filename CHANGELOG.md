@@ -4,6 +4,17 @@
 
 ### Added
 
+- P1 free-tier evidence model at provider/model scope with typed quota claims,
+  public HTTPS sources, verification/expiry timestamps, region/payment warnings,
+  strict validation and backward-compatible registry serialization.
+- `auto/free` now accepts only candidates with currently verified evidence;
+  expired, invalid, incomplete and unknown claims remain visible with explicit
+  review states but cannot be advertised or routed as verified-free.
+- Free-tier evidence flows through `models --json`, `doctor --json`, the local
+  Chinese dashboard and public catalog schema v2 with evidence status filters.
+- Public export blocks credential fields, credential-bearing evidence URLs and
+  common Bearer/API-key value patterns before writing catalog data.
+
 - P0 routing foundation: deterministic `auto`, `auto/coding`, `auto/fast`, and
   `auto/free` virtual models, custom alias configuration, bounded route plans,
   `/v1/models` exposure, and `route explain` CLI output.

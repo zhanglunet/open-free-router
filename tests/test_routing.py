@@ -70,3 +70,35 @@ def test_routing_config_clamps_attempts_and_ignores_bad_aliases():
 
 def test_routing_config_ignores_non_mapping_aliases():
     assert RoutingConfig.from_dict({"aliases": ["bad"]}).aliases == {}
+
+
+def test_auto_free_requires_unexpired_evidence():
+    registry = Registry({
+        "verified": {
+            "prefix": "v", "api_key": "placeholder",
+            "free_tier": {
+                "type": "recurring_quota", "limit": 1000, "unit": "requests",
+                "evidence_url": "https://example.com/free-tier",
+                "verified_at": "2026-08-01T00:00:00Z",
+                "expires_at": "2099-08-01T00:00:00Z",
+            },
+            "models": [{"id": "free"}],
+        },
+        "expired": {
+            "prefix": "x", "api_key": "placeholder",
+            "free_tier": {
+                "type": "trial", "evidence_url": "https://example.com/trial",
+                "verified_at": "2020-01-01T00:00:00Z",
+                "expires_at": "2020-02-01T00:00:00Z",
+            },
+            "models": [{"id": "old"}],
+        },
+        "unknown": {
+            "prefix": "u", "api_key": "placeholder", "models": [{"id": "unknown"}],
+        },
+    })
+    plan = RoutePlanner(registry).plan("auto/free")
+    assert [target.canonical_id for target in plan.candidates] == ["v/free"]
+    assert {item["reason"] for item in plan.rejected} == {
+        "free_evidence_expired", "free_evidence_unknown",
+    }

@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: P0 implemented and verified independently
+Status: P1 in progress — FR-P1-1 free-tier evidence implemented
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -25,7 +25,9 @@ Implementation record (2026-08-02):
   candidates, credential readiness and exact YAML repair paths;
 - completed: 100-way duplicate-failure and HALF_OPEN concurrency validation,
   provider-specific credential isolation and route-plan p95 performance gate;
-- next: P1 quota evidence, optional explainable scoring and local usage analysis.
+- completed: P1 provider/model free-tier evidence schema, expiry enforcement,
+  `auto/free` gating, Doctor/CLI/UI/public catalog propagation and export guards;
+- next: P1 rate-limit header normalization and per-credential quota/reset state.
 
 ## 1. 结论
 

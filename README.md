@@ -166,6 +166,30 @@ routing:
 可先运行 `open-free-router route explain auto/coding --json` 检查候选，不会
 消耗免费额度。
 
+P1 开始使用注册表中的结构化免费证据。证据可配置在 provider 上供模型继承，
+也可在单个 model 上覆盖：
+
+```yaml
+groq:
+  free_tier:
+    type: recurring_quota
+    limit: 1000
+    unit: requests/day
+    reset_period: daily
+    regions: [global]
+    evidence_url: https://example.com/official-free-tier
+    verified_at: 2026-08-02T00:00:00Z
+    expires_at: 2026-09-02T00:00:00Z
+    terms_warning_zh: 免费额度可能随官方政策调整
+    requires_payment_method: false
+  models:
+    - id: example-model
+```
+
+`auto/free` 只选择状态为 `verified` 的未过期证据。证据过期、字段无效或缺少
+来源时仍会显示在目录中，但标记为“待复核/条件未知”，不会继续宣称已核验免费。
+运行 `open-free-router doctor --json` 可查看证据问题的精确注册表路径。
+
 成功或最终失败的代理响应会携带 `X-OFR-Request-Id`、`X-OFR-Provider`、
 `X-OFR-Model`、`X-OFR-Fallback-Attempts`。运行时三层状态只通过带本地代理
 Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Key 槽位
@@ -267,7 +291,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖（206 例）：registry/config、刷新源、九客户端同步（含
+当前测试覆盖（216 例）：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
 MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、

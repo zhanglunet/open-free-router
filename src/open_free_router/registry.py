@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+from open_free_router.evidence import FreeTierEvidence
+
 # How many timestamped `*.bak-YYYYMMDD-HHMMSS` backups to keep per file.
 # Without this, a long-running `serve` process doing a save on every
 # refresh cycle accumulates one backup per cycle forever.
@@ -47,6 +49,7 @@ class ModelInfo:
     max_tokens: int = 8192
     reasoning: bool = False
     tool_calling: bool = False
+    free_tier: FreeTierEvidence = field(default_factory=FreeTierEvidence)
 
     @property
     def effective_upstream_id(self) -> str:
@@ -63,9 +66,10 @@ class ModelInfo:
             max_tokens=d.get("max_tokens", 8192),
             reasoning=d.get("reasoning", False),
             tool_calling=d.get("tool_calling", False),
+            free_tier=FreeTierEvidence.from_dict(d.get("free_tier")),
         )
 
-    def to_dict(self) -> dict:
+    def to_dict(self, preserve_invalid_evidence: bool = False) -> dict:
         d = {"id": self.id}
         if self.upstream_id:
             d["upstream_id"] = self.upstream_id
@@ -79,6 +83,10 @@ class ModelInfo:
             d["reasoning"] = True
         if self.tool_calling:
             d["tool_calling"] = True
+        if self.free_tier.configured:
+            d["free_tier"] = self.free_tier.to_dict(
+                preserve_invalid=preserve_invalid_evidence
+            )
         return d
 
 
@@ -94,6 +102,7 @@ class ProviderConfig:
     auto_refresh: bool = False
     refresh_method: str = "manual"
     prefix: str = ""  # Short prefix for model IDs (e.g. "nv" for nvidia-nim)
+    free_tier: FreeTierEvidence = field(default_factory=FreeTierEvidence)
 
     @property
     def effective_key(self) -> str:
@@ -110,6 +119,10 @@ class ProviderConfig:
 
     def free_model_ids(self) -> set[str]:
         return {m.id for m in self.models}
+
+    def free_tier_for(self, model: ModelInfo) -> FreeTierEvidence:
+        """Return the model override or the provider-level evidence fallback."""
+        return model.free_tier if model.free_tier.configured else self.free_tier
 
 
 class Registry:
@@ -136,6 +149,7 @@ class Registry:
                 auto_refresh=cfg.get("auto_refresh", False),
                 refresh_method=cfg.get("refresh_method", "manual"),
                 prefix=cfg.get("prefix", ""),
+                free_tier=FreeTierEvidence.from_dict(cfg.get("free_tier")),
             )
 
     def to_dict(self) -> dict:
@@ -156,8 +170,12 @@ class Registry:
                 d["api_keys"] = p.api_keys
             if p.prefix:
                 d["prefix"] = p.prefix
+            if p.free_tier.configured:
+                d["free_tier"] = p.free_tier.to_dict(preserve_invalid=True)
             if p.models:
-                d["models"] = [m.to_dict() for m in p.models]
+                d["models"] = [
+                    m.to_dict(preserve_invalid_evidence=True) for m in p.models
+                ]
             out[name] = d
         return out
 
@@ -168,6 +186,11 @@ class Registry:
         p = self.providers.get(name)
         if not p:
             return False
+        previous = {model.id: model for model in p.models}
+        for model in models:
+            old = previous.get(model.id)
+            if old and not model.free_tier.configured:
+                model.free_tier = old.free_tier
         p.models = models
         return True
 
