@@ -153,7 +153,7 @@ for (const marker of [".x-100", ".y-100", ".score-100"]) {
 for (const marker of [".scatter-viewport", ".jitter-7", 'font-family:"PingFang SC"', ".point.labelled span"]) {
   if (!benchmarksCss.includes(marker)) throw new Error(`Benchmarks responsive visual fix is missing: ${marker}`);
 }
-for (const marker of ["labelledBins", "return 86 -", "jitter-${index % 8}"]) {
+for (const marker of ["labelledBins", "return 86 -", "jitter-${index % 8}", "viewport.scrollLeft = viewport.scrollWidth - viewport.clientWidth"]) {
   if (!benchmarksJs.includes(marker)) throw new Error(`Benchmarks chart collision guard is missing: ${marker}`);
 }
 if (!benchmarksJs.includes("/data/benchmarks.json?v=")) {

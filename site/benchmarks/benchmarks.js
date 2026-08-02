@@ -73,6 +73,10 @@ function renderScatter() {
     if (labelled) labelledBins.add(labelBin);
     return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""} ${labelled ? "labelled" : ""} jitter-${index % 8} ${positionClass("x", x)} ${positionClass("y", yPosition(row.readiness))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
   }).join("");
+  const viewport = document.querySelector(".scatter-viewport");
+  if (viewport && window.matchMedia("(max-width: 900px)").matches) {
+    requestAnimationFrame(() => { viewport.scrollLeft = viewport.scrollWidth - viewport.clientWidth; });
+  }
 }
 
 function filteredRows() {
