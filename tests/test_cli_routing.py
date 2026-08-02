@@ -64,3 +64,19 @@ def test_resilience_cli_reads_and_resets_running_proxy(tmp_path, monkeypatch, ca
         assert manager.snapshot()["models"] == {}
     finally:
         server.shutdown()
+
+
+def test_route_explain_json_includes_score_factors(tmp_path, monkeypatch, capsys):
+    (tmp_path / "registry.yaml").write_text(
+        "provider:\n  prefix: p\n  models:\n    - id: model\n      tool_calling: true\n"
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "registry: registry.yaml\nrouting:\n  scoring:\n    enabled: true\n"
+    )
+    monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
+    cmd_route_explain(SimpleNamespace(model="auto", json=True))
+    result = json.loads(capsys.readouterr().out)
+    assert result["strategy"] == "scored"
+    assert result["scoring"]["enabled"] is True
+    assert "latency" in result["scoring"]["candidates"][0]["factors"]

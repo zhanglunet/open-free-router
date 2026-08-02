@@ -312,6 +312,14 @@ def cmd_route_explain(args):
     print("candidates:")
     for index, model_id in enumerate(explanation["candidates"], 1):
         print(f"  {index}. {model_id}")
+    if explanation.get("scoring", {}).get("enabled"):
+        print("scores:")
+        for candidate in explanation["scoring"]["candidates"]:
+            factors = ", ".join(
+                f"{name}={item['value']:.2f}×{item['weight']:.2f}"
+                for name, item in candidate["factors"].items()
+            )
+            print(f"  {candidate['model']}: {candidate['total']:.3f} ({factors})")
     if explanation["rejected"]:
         print("rejected:")
         for item in explanation["rejected"]:

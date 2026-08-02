@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: P1 in progress — FR-P1-1 and FR-P1-2 implemented
+Status: P1 in progress — FR-P1-1 through FR-P1-3 implemented
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -30,7 +30,10 @@ Implementation record (2026-08-02):
 - completed: P1 common rate-limit header normalization, per-credential
   request/token quota state, restart recovery, reset-aware cooldown, safe
   multi-Key ordering and CLI/API/Chinese dashboard visibility;
-- next: P1 explainable scoring with normalized factors and deterministic opt-out.
+- completed: P1 optional explainable scoring with normalized health, success,
+  p95 latency, quota, capability and free-evidence factors, stable tie-breaking,
+  explicit missing defaults and CLI/API/Chinese dashboard explanations;
+- next: P1 privacy-minimized local SQLite usage analytics.
 
 ## 1. 结论
 
@@ -278,6 +281,11 @@ HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字�
 
 所有因子归一化到 `[0,1]`，权重总和归一化，NaN/缺失使用明确默认值。UI 必须展示
 因子和权重。关闭智能评分后回到确定性 priority 策略。
+
+实现结果（2026-08-02）：评分默认关闭；启用后只重排虚拟路由候选，显式模型不受
+影响。运行时从脱敏韧性状态和有界路由历史生成健康、额度、成功率与 p95 首字节/
+总延迟信号，注册表提供能力与免费证据。解释输出包含取值、归一化权重、贡献和来源，
+同分保持注册表顺序，关闭后恢复原有 priority 顺序。
 
 #### FR-P1-4 本地使用分析
 

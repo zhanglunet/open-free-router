@@ -4,6 +4,13 @@
 
 ### Added
 
+- Optional P1 explainable scoring for virtual routes with normalized health,
+  recent success, p95 latency, quota, capability and free-evidence factors.
+- `route explain --json`, redacted route history and the Chinese dashboard now
+  show each candidate's total, factor value, normalized weight, contribution
+  and source; missing metrics use a configured explicit default.
+- Successful and failed routes record bounded first-byte/total latency metadata
+  in memory. Disabling scoring restores the exact deterministic priority order.
 - P1 quota awareness normalizes common `RateLimit-*`, `X-RateLimit-*` and
   `Retry-After` response headers into redacted per-credential request/token
   limits, remaining values and reset timestamps.

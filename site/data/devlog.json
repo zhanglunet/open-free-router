@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T05:55:31.000Z",
+  "updated_at": "2026-08-02T06:15:51.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-可解释智能评分",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P1 开发版",
+      "title": "P1 可解释智能评分",
+      "summary": "虚拟模型可按本机真实健康、成功率、延迟、额度、能力与免费证据评分，并完整说明每个选择原因。",
+      "items": [
+        "六项因子统一归一化，权重自动归一且缺失值口径明确",
+        "记录有界脱敏的首字节和总耗时，不保存请求或响应正文",
+        "CLI 与中文仪表盘展示总分、因子值、权重、贡献和来源",
+        "评分默认关闭，关闭后完整恢复确定性 priority 顺序"
+      ]
+    },
     {
       "id": "2026-08-02-p1-额度与限流状态",
       "date": "2026-08-02",
