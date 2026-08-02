@@ -15,6 +15,7 @@ from open_free_router.resilience import (
     parse_retry_after,
 )
 from open_free_router.routing import RoutePlanner, RouteTarget
+from open_free_router.telemetry import RouteDecisionStore
 
 
 MAX_ERROR_BODY = 64 * 1024
@@ -76,10 +77,34 @@ class UpstreamExecutor:
         planner: RoutePlanner,
         resilience: ResilienceManager,
         timeout: int = 120,
+        decisions: RouteDecisionStore | None = None,
     ):
         self.planner = planner
         self.resilience = resilience
         self.timeout = timeout
+        self.decisions = decisions
+
+    def _record(
+        self,
+        result: OpenedRoute | RouteFailure,
+        requested_model: str,
+        strategy: str,
+        rejected: list[dict[str, str]],
+    ) -> None:
+        if not self.decisions:
+            return
+        target = result.target if isinstance(result, OpenedRoute) else result.last_target
+        self.decisions.record(
+            request_id=result.request_id,
+            requested_model=requested_model,
+            strategy=strategy,
+            status="success" if isinstance(result, OpenedRoute) else "failed",
+            status_code=result.response.status if isinstance(result, OpenedRoute) else result.status,
+            provider=target.provider_name if target else "",
+            model=target.canonical_id if target else "",
+            attempts=result.attempts,
+            rejected=rejected,
+        )
 
     @staticmethod
     def _open(
@@ -122,7 +147,7 @@ class UpstreamExecutor:
         rejected = list(plan.rejected)
         if not plan.candidates:
             status = 403 if plan.strategy == "explicit" else 503
-            return RouteFailure(
+            result = RouteFailure(
                 request_id,
                 status,
                 _error_body(f"No eligible route for model '{requested_model}'."),
@@ -131,6 +156,8 @@ class UpstreamExecutor:
                 0,
                 tuple(rejected),
             )
+            self._record(result, requested_model, plan.strategy, rejected)
+            return result
 
         config = self.planner.config
         allow_model_fallback = (
@@ -189,7 +216,7 @@ class UpstreamExecutor:
                     self.resilience.record_success(
                         target.provider_name, target.upstream_model_id, credential_slot
                     )
-                    return OpenedRoute(
+                    result = OpenedRoute(
                         request_id,
                         target,
                         credential_slot,
@@ -197,6 +224,8 @@ class UpstreamExecutor:
                         conn,
                         response,
                     )
+                    self._record(result, requested_model, plan.strategy, rejected)
+                    return result
 
                 body = response.read(MAX_ERROR_BODY)
                 content_type = response.getheader("Content-Type", "application/json")
@@ -242,7 +271,7 @@ class UpstreamExecutor:
                 break
 
         if last_failure:
-            return RouteFailure(
+            result = RouteFailure(
                 request_id,
                 last_failure.status,
                 last_failure.body,
@@ -252,7 +281,9 @@ class UpstreamExecutor:
                 tuple(rejected),
                 last_failure.last_target,
             )
-        return RouteFailure(
+            self._record(result, requested_model, plan.strategy, rejected)
+            return result
+        result = RouteFailure(
             request_id,
             503,
             _error_body(f"All routes for model '{requested_model}' are temporarily unavailable."),
@@ -261,3 +292,5 @@ class UpstreamExecutor:
             attempts,
             tuple(rejected),
         )
+        self._record(result, requested_model, plan.strategy, rejected)
+        return result

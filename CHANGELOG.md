@@ -15,6 +15,12 @@
   start, explicit-model isolation, bounded attempts and `X-OFR-*` decision
   headers.
 - Token-protected resilience status/reset API and matching `resilience` CLI.
+- Owner-only atomic `runtime-state.json` persistence with expired-state pruning,
+  corrupt-file quarantine, and inference-safe I/O failure handling.
+- Bounded redacted request-ID route-decision history, authenticated lookup API,
+  and a Chinese dashboard panel for routes, fallback and three-layer isolation.
+- Restart recovery, concurrent-write, credential-redaction, history-bound and
+  dashboard proxy-auth regression coverage.
 
 ## 0.2.0 - 2026-08-02
 

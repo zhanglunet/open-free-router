@@ -6,6 +6,7 @@ from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecuto
 from open_free_router.registry import Registry
 from open_free_router.resilience import ResilienceManager
 from open_free_router.routing import RoutePlanner
+from open_free_router.telemetry import RouteDecisionStore
 
 
 class _ConfiguredHandler(BaseHTTPRequestHandler):
@@ -65,13 +66,18 @@ def test_virtual_route_falls_back_before_returning_response():
             "limited": _provider(limited.server_address[1], "a"),
             "healthy": _provider(healthy.server_address[1], "b"),
         })
+        decisions = RouteDecisionStore()
         result = UpstreamExecutor(
-            RoutePlanner(registry), ResilienceManager(), timeout=5
+            RoutePlanner(registry), ResilienceManager(), timeout=5, decisions=decisions
         ).execute("auto", "chat/completions", {"messages": []})
         assert isinstance(result, OpenedRoute)
         try:
             assert result.target.provider_name == "healthy"
             assert result.attempts == 2
+            decision = decisions.get(result.request_id)
+            assert decision["provider"] == "healthy"
+            assert decision["fallback_attempts"] == 1
+            assert decision["requested_model"] == "auto"
             assert json.loads(result.response.read())["model"] == "model"
         finally:
             result.close()

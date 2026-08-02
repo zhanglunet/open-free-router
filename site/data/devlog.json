@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T04:05:56.985Z",
+  "updated_at": "2026-08-02T04:35:53.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-路由状态持久化与中文运维面板",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "路由状态持久化与中文运维面板",
+      "summary": "完成运行时保护状态的安全重启恢复、请求级路由决策历史，以及本地控制台的路由与韧性页面。",
+      "items": [
+        "runtime-state.json 使用 0600 权限和原子替换，损坏文件自动隔离",
+        "只保留有界脱敏决策，不记录提示词、响应或密钥",
+        "仪表盘可查看熔断、凭据槽冷却、模型隔离和最近 fallback",
+        "新增重启恢复、并发写入、鉴权转发与敏感信息回归测试"
+      ]
+    },
     {
       "id": "2026-08-02-完成首字节前安全-fallback",
       "date": "2026-08-02",

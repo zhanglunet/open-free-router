@@ -7,6 +7,10 @@ be tested before retry execution is wired into every protocol adapter.
 from __future__ import annotations
 
 import email.utils
+import json
+import os
+from pathlib import Path
+import tempfile
 import threading
 import time
 from dataclasses import asdict, dataclass
@@ -108,6 +112,7 @@ class ResilienceManager:
         provider_cooldown: float = 30.0,
         credential_cooldown: float = 60.0,
         model_cooldown: float = 120.0,
+        state_path: str | Path | None = None,
     ):
         self.provider_threshold = max(1, int(provider_threshold))
         self.provider_cooldown = max(0.0, float(provider_cooldown))
@@ -117,6 +122,123 @@ class ResilienceManager:
         self._credentials: dict[tuple[str, int], CredentialState] = {}
         self._models: dict[tuple[str, str], ModelState] = {}
         self._lock = threading.RLock()
+        self.state_path = Path(state_path).expanduser() if state_path else None
+        self.last_persist_error = ""
+        if self.state_path:
+            self._load_state()
+
+    def _state_document(self) -> dict:
+        """Build the owner-local persistence shape without credentials or payloads."""
+        return {
+            "schema_version": 1,
+            "updated_at": time.time(),
+            "providers": {
+                name: asdict(state)
+                for name, state in self._providers.items()
+                if state.state != "closed" or state.failures
+            },
+            "credentials": [
+                {"provider": provider, "slot": slot, **asdict(state)}
+                for (provider, slot), state in self._credentials.items()
+                if state.state != "ready"
+            ],
+            "models": [
+                {"provider": provider, "model": model, **asdict(state)}
+                for (provider, model), state in self._models.items()
+            ],
+        }
+
+    def _persist_locked(self) -> None:
+        """Atomically persist request-level state; inference never fails on I/O errors."""
+        if not self.state_path:
+            return
+        path = self.state_path
+        temporary = None
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+            fd, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
+            try:
+                os.fchmod(fd, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    json.dump(self._state_document(), handle, ensure_ascii=False, sort_keys=True)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                os.replace(temporary, path)
+                temporary = None
+                os.chmod(path, 0o600)
+            finally:
+                if temporary:
+                    try:
+                        os.unlink(temporary)
+                    except FileNotFoundError:
+                        pass
+            self.last_persist_error = ""
+        except (OSError, TypeError, ValueError) as exc:
+            self.last_persist_error = exc.__class__.__name__
+
+    def _quarantine_corrupt_state(self) -> None:
+        if not self.state_path or not self.state_path.exists():
+            return
+        suffix = time.strftime("%Y%m%d-%H%M%S")
+        target = self.state_path.with_name(f"{self.state_path.name}.corrupt-{suffix}")
+        counter = 1
+        while target.exists():
+            target = self.state_path.with_name(
+                f"{self.state_path.name}.corrupt-{suffix}-{counter}"
+            )
+            counter += 1
+        try:
+            os.replace(self.state_path, target)
+            os.chmod(target, 0o600)
+        except OSError as exc:
+            self.last_persist_error = exc.__class__.__name__
+
+    def _load_state(self) -> None:
+        path = self.state_path
+        if not path or not path.exists():
+            return
+        try:
+            raw = json.loads(path.read_text(encoding="utf-8"))
+            if raw.get("schema_version") != 1:
+                raise ValueError("unsupported runtime-state schema")
+            now = time.time()
+            providers: dict[str, ProviderState] = {}
+            for name, item in raw.get("providers", {}).items():
+                state = ProviderState(
+                    state=str(item.get("state", "closed")),
+                    failures=max(0, int(item.get("failures", 0))),
+                    open_until=float(item.get("open_until", 0.0)),
+                    probe_in_flight=False,
+                )
+                if state.state in ("open", "half_open") and state.open_until > now:
+                    state.state = "open"
+                    providers[str(name)] = state
+            credentials: dict[tuple[str, int], CredentialState] = {}
+            for item in raw.get("credentials", []):
+                state = str(item.get("state", "ready"))
+                until = float(item.get("cooldown_until", 0.0))
+                if state == "terminal" or (state == "cooldown" and until > now):
+                    credentials[(str(item["provider"]), int(item.get("slot", 0)))] = (
+                        CredentialState(state, until, str(item.get("reason", "")))
+                    )
+            models: dict[tuple[str, str], ModelState] = {}
+            for item in raw.get("models", []):
+                until = float(item.get("lockout_until", 0.0))
+                if until > now:
+                    models[(str(item["provider"]), str(item["model"]))] = ModelState(
+                        max(0, int(item.get("failures", 0))),
+                        until,
+                        str(item.get("reason", "")),
+                    )
+            self._providers = providers
+            self._credentials = credentials
+            self._models = models
+            os.chmod(path, 0o600)
+        except (AttributeError, OSError, OverflowError, KeyError, TypeError, ValueError):
+            self._providers = {}
+            self._credentials = {}
+            self._models = {}
+            self._quarantine_corrupt_state()
 
     def can_attempt(
         self, provider: str, model: str, credential_slot: int = 0, now: float | None = None
@@ -132,10 +254,15 @@ class ResilienceManager:
                 if credential.state == "cooldown":
                     credential.state = "ready"
                     credential.reason = ""
+                    credential.cooldown_until = 0.0
+                    self._persist_locked()
 
             model_state = self._models.get((provider, model))
             if model_state and now < model_state.lockout_until:
                 return False, "model_lockout"
+            if model_state:
+                self._models.pop((provider, model), None)
+                self._persist_locked()
 
             # Reserve a half-open probe only after the credential and model
             # have passed their own gates. Otherwise an ineligible candidate
@@ -197,20 +324,31 @@ class ResilienceManager:
                 state.reason = decision.kind
                 multiplier = min(8, 2 ** max(0, state.failures - 1))
                 state.lockout_until = now + self.model_cooldown * multiplier
+            self._persist_locked()
 
     def record_success(self, provider: str, model: str, credential_slot: int = 0) -> None:
         with self._lock:
-            provider_state = self._providers.setdefault(provider, ProviderState())
-            provider_state.state = "closed"
-            provider_state.failures = 0
-            provider_state.open_until = 0.0
-            provider_state.probe_in_flight = False
+            changed = False
+            provider_state = self._providers.get(provider)
+            if provider_state and (
+                provider_state.state != "closed" or provider_state.failures
+                or provider_state.open_until or provider_state.probe_in_flight
+            ):
+                provider_state.state = "closed"
+                provider_state.failures = 0
+                provider_state.open_until = 0.0
+                provider_state.probe_in_flight = False
+                changed = True
             credential = self._credentials.get((provider, credential_slot))
             if credential and credential.state != "terminal":
                 credential.state = "ready"
                 credential.cooldown_until = 0.0
                 credential.reason = ""
-            self._models.pop((provider, model), None)
+                changed = True
+            if self._models.pop((provider, model), None) is not None:
+                changed = True
+            if changed:
+                self._persist_locked()
 
     def reset(self, provider: str, model: str | None = None) -> None:
         with self._lock:
@@ -222,6 +360,7 @@ class ResilienceManager:
                     self._models.pop(key, None)
             else:
                 self._models.pop((provider, model), None)
+            self._persist_locked()
 
     def snapshot(self) -> dict:
         """Return redacted state; credential identity is only a numeric slot."""
@@ -235,5 +374,10 @@ class ResilienceManager:
                 "models": {
                     f"{provider}/{model}": asdict(state)
                     for (provider, model), state in self._models.items()
+                },
+                "persistence": {
+                    "enabled": self.state_path is not None,
+                    "healthy": not self.last_persist_error,
+                    "error": self.last_persist_error,
                 },
             }

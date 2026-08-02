@@ -267,10 +267,11 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖（144 例）：registry/config、刷新源、九客户端同步（含
+当前测试覆盖（198 例）：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
-MCP 握手与工具调用及 Codex profile。
+MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、
+三层故障隔离、原子状态恢复和有界路由决策历史。
 
 ## Codex 集成
 

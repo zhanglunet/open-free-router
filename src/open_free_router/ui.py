@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import urllib.error
+import urllib.request
 from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
 
@@ -68,6 +70,8 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_probe_get()
         elif self.path == "/api/discovery":
             self._api_discovery_get()
+        elif self.path == "/api/routing":
+            self._api_routing_get()
         else:
             self.send_error(404)
 
@@ -75,6 +79,7 @@ class _UIHandler(BaseHTTPRequestHandler):
         if self.path not in (
             "/api/config", "/api/refresh", "/api/providers", "/api/probe",
             "/api/discovery", "/api/sync",
+            "/api/routing/reset",
         ):
             self.send_error(404)
             return
@@ -92,6 +97,60 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._api_discovery_post()
         elif self.path == "/api/sync":
             self._api_sync_post()
+        elif self.path == "/api/routing/reset":
+            self._api_routing_reset()
+
+    def _proxy_request(self, path: str, method: str = "GET", payload: dict | None = None):
+        if not self.cfg:
+            raise RuntimeError("server not initialized")
+        host = self.cfg.proxy_host
+        if host in ("0.0.0.0", "::"):
+            host = "127.0.0.1"
+        token = get_or_create_proxy_token(self.cfg.config_dir)
+        data = json.dumps(payload).encode() if payload is not None else None
+        request = urllib.request.Request(
+            f"http://{host}:{self.cfg.proxy_port}{path}",
+            data=data,
+            method=method,
+            headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(request, timeout=3) as response:
+            return json.loads(response.read())
+
+    def _api_routing_get(self):
+        """Read redacted runtime routing data through the authenticated proxy API."""
+        try:
+            resilience = self._proxy_request("/api/resilience")
+            routes = self._proxy_request("/api/routes")
+        except (OSError, ValueError, urllib.error.URLError, RuntimeError) as exc:
+            self._send_json(503, {"error": f"本地代理运行状态不可读取：{exc.__class__.__name__}"})
+            return
+        self._send_json(200, {"resilience": resilience, "routes": routes})
+
+    def _api_routing_reset(self):
+        length = int(self.headers.get("Content-Length", 0))
+        try:
+            payload = json.loads(self.rfile.read(length) if length else b"{}")
+        except ValueError:
+            self._send_json(400, {"error": "请求不是有效 JSON"})
+            return
+        provider = str(payload.get("provider", "")).strip() if isinstance(payload, dict) else ""
+        model = str(payload.get("model", "")).strip() if isinstance(payload, dict) else ""
+        if not provider:
+            self._send_json(400, {"error": "必须指定提供商"})
+            return
+        clean = {"provider": provider}
+        if model:
+            clean["model"] = model
+        try:
+            result = self._proxy_request("/api/resilience/reset", "POST", clean)
+        except urllib.error.HTTPError as exc:
+            self._send_json(exc.code, {"error": "代理拒绝重置请求"})
+            return
+        except (OSError, ValueError, urllib.error.URLError, RuntimeError) as exc:
+            self._send_json(503, {"error": f"本地代理不可用：{exc.__class__.__name__}"})
+            return
+        self._send_json(200, result)
 
     def _serve_file(self, rel: str, content_type: str):
         base = Path(__file__).parent

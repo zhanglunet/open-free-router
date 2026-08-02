@@ -22,6 +22,7 @@ from open_free_router.registry import Registry, codex_model_alias
 from open_free_router.routing import RoutePlanner, RoutingConfig
 from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecutor
 from open_free_router.resilience import ResilienceManager
+from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.auth import check_auth
 from open_free_router.anthropic import (
     AnthropicConversionError,
@@ -91,6 +92,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     routing_config: ClassVar[RoutingConfig] = RoutingConfig()
     route_planner: ClassVar[RoutePlanner | None] = None
     resilience_manager: ClassVar[ResilienceManager] = ResilienceManager()
+    decision_store: ClassVar[RouteDecisionStore] = RouteDecisionStore()
 
     def handle(self):
         """Ignore normal client disconnects without hiding server failures."""
@@ -178,7 +180,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             )
         timeout = getattr(self, "_upstream_timeout", 120)
         return UpstreamExecutor(
-            planner, self.resilience_manager, timeout=timeout
+            planner, self.resilience_manager, timeout=timeout, decisions=self.decision_store
         ).execute(model_id, endpoint_suffix, payload)
 
     def _send_route_failure(self, failure: RouteFailure, anthropic: bool = False):
@@ -245,6 +247,19 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 self._send_json(401, {"error": "unauthorized"})
                 return
             self._send_json(200, self.resilience_manager.snapshot())
+            return
+        if path == "/api/routes":
+            if not self.auth_token or not check_auth(self.headers, self.auth_token):
+                self._send_json(401, {"error": "unauthorized"})
+                return
+            self._send_json(200, self.decision_store.snapshot())
+            return
+        if path.startswith("/api/routes/"):
+            if not self.auth_token or not check_auth(self.headers, self.auth_token):
+                self._send_json(401, {"error": "unauthorized"})
+                return
+            item = self.decision_store.get(path.removeprefix("/api/routes/"))
+            self._send_json(200, item) if item else self._send_json(404, {"error": "not found"})
             return
         if path in ("/", "/health"):
             self._send_json(200, {
@@ -689,6 +704,7 @@ def run_proxy(
     auth_token: str = "",
     routing: RoutingConfig | dict | None = None,
     resilience: ResilienceManager | None = None,
+    decisions: RouteDecisionStore | None = None,
 ):
     handler = type("Handler", (_ProxyHandler,), {
         "registry": registry,
@@ -696,6 +712,7 @@ def run_proxy(
         "auth_token": auth_token,
         "routing_config": routing if isinstance(routing, RoutingConfig) else RoutingConfig.from_dict(routing),
         "resilience_manager": resilience or ResilienceManager(),
+        "decision_store": decisions or RouteDecisionStore(),
     })
     handler.rebuild_index()
     with _ACTIVE_HANDLERS_LOCK:

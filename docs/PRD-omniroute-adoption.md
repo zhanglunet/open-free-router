@@ -15,8 +15,13 @@ Implementation record (2026-08-02):
   including multi-Key rotation, bounded cross-model fallback, explicit-model
   isolation, no replay after stream start and `X-OFR-*` routing headers;
 - completed: token-protected runtime resilience status/reset API and CLI;
-- next: owner-only atomic runtime-state persistence, dashboard routing panel,
-  bounded route-decision history and concurrency/chaos validation.
+- completed: owner-only atomic runtime-state persistence with corrupt-file
+  quarantine and expired-state pruning;
+- completed: bounded redacted request-ID decision history plus an authenticated
+  proxy API and Chinese dashboard routing/resilience panel;
+- completed: restart recovery, concurrent atomic-write, redaction, API and UI
+  regression tests;
+- next: broader failure-matrix chaos validation and `doctor` repair guidance.
 
 ## 1. 结论
 
