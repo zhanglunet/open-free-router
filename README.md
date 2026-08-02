@@ -249,6 +249,11 @@ MCP 握手与工具调用及 Codex profile。
 
 Codex 配置写入独立 profile `~/.codex/open-free-router.config.toml`，并生成 `~/.codex/open-free-router.models.json` 供 `/model` 选择器读取第三方模型与能力元数据；不会覆盖现有 `~/.codex/config.toml`。为避免第三方模型会话被 ChatGPT Apps、OpenAI Docs MCP、插件或记忆加载影响，该独立 profile 默认关闭这些非必要功能；同时关闭全量 Skill 描述注入。全局 Codex 配置与正常 profile 不受影响。Codex 目录使用仅含安全字符的 `ofr-...` 本地别名（例如 `ofr-or-gpt-oss-20b-free`），代理仍接受 `or/gpt-oss-20b:free` 等原始模型 ID。只有标记了 `tool_calling: true` 的模型会被自动选为 Codex 默认模型；也可以通过 `--codex-model` 显式指定注册表模型。目录在 Codex 启动时加载，同步后需重新进入 profile。详细需求与边界见 [`docs/PRD-codex-integration.md`](docs/PRD-codex-integration.md)。
 
+智能路由、确定性 fallback、三层故障隔离、额度感知与路由解释的后续演进，见
+[`docs/PRD-omniroute-adoption.md`](docs/PRD-omniroute-adoption.md)。该方案基于
+OmniRoute 的公开架构与 MIT 源码对照形成，但保持本项目轻量 Python 架构，P0
+不整包引入 Node/Next.js 运行时。
+
 ## License
 
 MIT

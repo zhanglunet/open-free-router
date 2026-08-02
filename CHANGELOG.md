@@ -2,7 +2,14 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-08-02
+
 ### Added
+
+- OmniRoute comparative architecture review and an executable Chinese PRD for
+  deterministic auto routing, safe fallback, provider/credential/model
+  resilience isolation, route explanation, quota awareness, observability,
+  security boundaries, and phased acceptance criteria.
 
 - Public `/logs/` development history with search and type filters, a structured
   append-only log workflow, and a dedicated recommendation article at

@@ -1,9 +1,22 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T02:08:06.860Z",
+  "updated_at": "2026-08-02T02:44:08.284Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-完成-omniroute-对标需求评审",
+      "date": "2026-08-02",
+      "type": "improvement",
+      "version": "v0.2.0",
+      "title": "完成 OmniRoute 对标需求评审",
+      "summary": "基于 OmniRoute release/v3.8.50 的公开网站、架构文档与 MIT 源码，对模力自由港形成分阶段演进 PRD。",
+      "items": [
+        "确定 P0：虚拟模型、确定性 fallback、三层故障隔离与路由解释",
+        "确定 P1：额度证据、可解释评分、本地使用分析与 MCP 只读扩展",
+        "明确许可证、安全、免费宣传口径和暂不采纳范围"
+      ]
+    },
     {
       "id": "2026-08-02-公开状态切换为-cloudflare-服务端实测",
       "date": "2026-08-02",
