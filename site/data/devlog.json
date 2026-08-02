@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T02:44:08.284Z",
+  "updated_at": "2026-08-02T03:25:01.591Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-启动-omniroute-借鉴专项-p0-开发",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "启动 OmniRoute 借鉴专项 P0 开发",
+      "summary": "完成虚拟模型路由计划、路由解释 CLI 和三层故障隔离基础模块，保持显式模型兼容。",
+      "items": [
+        "新增 auto、auto/coding、auto/fast、auto/free 虚拟模型",
+        "新增 RoutePlanner 与自定义候选配置",
+        "新增 provider、credential、model 三层状态和错误分类",
+        "下一步接入跨候选真实请求 fallback"
+      ]
+    },
     {
       "id": "2026-08-02-完成-omniroute-对标需求评审",
       "date": "2026-08-02",

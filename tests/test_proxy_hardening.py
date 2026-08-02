@@ -93,6 +93,48 @@ def _proxy_for(upstream_port: int, models=("m1",)):
 
 
 class TestNewEndpoints:
+    def test_models_lists_virtual_routes(self):
+        upstream = _start(_EchoUpstreamHandler)
+        proxy_srv, _ = _proxy_for(upstream.server_address[1])
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
+            conn.request("GET", "/v1/models")
+            resp = conn.getresponse()
+            ids = {item["id"] for item in json.loads(resp.read())["data"]}
+            assert resp.status == 200
+            assert {"auto", "auto/coding", "auto/fast", "auto/free"} <= ids
+        finally:
+            proxy_srv.shutdown()
+            upstream.shutdown()
+
+    def test_auto_coding_resolves_first_tool_capable_model(self):
+        upstream = _start(_BodyEchoUpstreamHandler)
+        reg = Registry({
+            "fake": {
+                "upstream_url": f"http://127.0.0.1:{upstream.server_address[1]}/v1",
+                "api_key": "test-placeholder",
+                "models": [
+                    {"id": "plain"},
+                    {"id": "coder", "upstream_id": "org/coder", "tool_calling": True},
+                ],
+            },
+        })
+        proxy_srv, _ = run_proxy(reg, host="127.0.0.1", port=0)
+        try:
+            conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
+            conn.request(
+                "POST", "/v1/chat/completions",
+                body=json.dumps({"model": "auto/coding", "messages": []}),
+                headers={"Content-Type": "application/json"},
+            )
+            resp = conn.getresponse()
+            data = json.loads(resp.read())
+            assert resp.status == 200
+            assert data["model"] == "org/coder"
+        finally:
+            proxy_srv.shutdown()
+            upstream.shutdown()
+
     def test_completions_forwards_to_completions_path(self):
         upstream = _start(_EchoUpstreamHandler)
         proxy_srv, _ = _proxy_for(upstream.server_address[1])

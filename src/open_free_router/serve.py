@@ -89,7 +89,8 @@ class Daemon:
         # Start proxy
         srv, _ = run_proxy(self.reg, host=self.cfg.proxy_host, port=self.cfg.proxy_port,
                            upstream_timeout=self.cfg.upstream_timeout,
-                           auth_token=self.proxy_token)
+                           auth_token=self.proxy_token,
+                           routing=self.cfg.routing)
         self._proxy_server = srv
 
         # Write Pi models on startup

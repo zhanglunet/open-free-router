@@ -24,6 +24,7 @@ from urllib.request import Request, urlopen
 from urllib.error import URLError
 
 from open_free_router.registry import Registry, codex_model_alias
+from open_free_router.routing import RoutePlanner, RoutingConfig
 from open_free_router.auth import check_auth
 from open_free_router.anthropic import (
     AnthropicConversionError,
@@ -85,6 +86,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     auth_token: str = ""
     _model_index: ClassVar[dict[str, str]] = {}  # model_id → provider_name
     _index_lock: ClassVar[threading.Lock] = threading.Lock()
+    routing_config: ClassVar[RoutingConfig] = RoutingConfig()
+    route_planner: ClassVar[RoutePlanner | None] = None
 
     def handle(self):
         """Ignore normal client disconnects without hiding server failures."""
@@ -126,6 +129,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                     idx[codex_model_alias(prefix, m.id)] = name
         with cls._index_lock:
             cls._model_index = idx
+            cls.route_planner = RoutePlanner(cls.registry, cls.routing_config) if cls.registry else None
 
     def _find_provider(self, model_id: str) -> str | None:
         with self._index_lock:
@@ -256,12 +260,23 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                     "created": 0,
                     "owned_by": name,
                 })
+        if self.route_planner:
+            items.extend({
+                "id": model_id,
+                "object": "model",
+                "created": 0,
+                "owned_by": "open-free-router",
+            } for model_id in self.route_planner.virtual_model_ids())
         # Codex probes the same endpoint and expects a top-level `models`
         # field. It can safely use fallback metadata for custom model IDs.
         self._send_json(200, {"object": "list", "data": items, "models": []})
 
     def _resolve_model(self, model_id: str):
         provider_name = self._find_provider(model_id)
+        if not provider_name and self.route_planner:
+            selected = self.route_planner.plan(model_id).selected
+            if selected:
+                return selected.provider, selected.upstream_model_id
         if not provider_name:
             return None, None
         p = self.registry.get(provider_name) if self.registry else None
@@ -725,11 +740,13 @@ def run_proxy(
     port: int = 8337,
     upstream_timeout: int = 120,
     auth_token: str = "",
+    routing: RoutingConfig | dict | None = None,
 ):
     handler = type("Handler", (_ProxyHandler,), {
         "registry": registry,
         "_upstream_timeout": upstream_timeout,
         "auth_token": auth_token,
+        "routing_config": routing if isinstance(routing, RoutingConfig) else RoutingConfig.from_dict(routing),
     })
     handler.rebuild_index()
     with _ACTIVE_HANDLERS_LOCK:

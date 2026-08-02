@@ -18,6 +18,8 @@ def test_config_defaults(tmp_path):
     assert cfg.discovery_auto_adopt is False
     assert cfg.discovery_max_providers == 5
     assert cfg.discovery_max_models == 3
+    assert cfg.routing.max_attempts == 3
+    assert cfg.routing.explicit_model_fallback is False
 
 
 def test_config_custom_values(tmp_path):
@@ -29,6 +31,7 @@ def test_config_custom_values(tmp_path):
         "discovery:\n  enabled: false\n  interval_hours: 8\n"
         "  auto_test: true\n  auto_adopt: true\n"
         "  max_providers_per_cycle: 2\n  max_models_per_provider: 1\n"
+        "routing:\n  fallback:\n    max_attempts: 5\n    explicit_model: true\n"
     )
     cfg = Config(config_path=cfg_path)
     assert cfg.proxy_host == "0.0.0.0"
@@ -42,6 +45,8 @@ def test_config_custom_values(tmp_path):
     assert cfg.discovery_auto_adopt is True
     assert cfg.discovery_max_providers == 2
     assert cfg.discovery_max_models == 1
+    assert cfg.routing.max_attempts == 5
+    assert cfg.routing.explicit_model_fallback is True
 
 
 def test_config_registry_relative_path(tmp_path):

@@ -92,6 +92,7 @@ pip install -e .
 | `open-free-router mcp [--print-config]` | 内置 MCP stdio 服务器；`--print-config` 打印宿主注册片段 |
 | `open-free-router status [--json]` | 一屏健康摘要（注册表 / 密钥 / 端口可达性） |
 | `open-free-router models [--json]` | 列出全部模型与能力标记（T=工具 R=推理） |
+| `open-free-router route explain MODEL [--json]` | 离线解释虚拟/显式模型的候选顺序，不发起推理 |
 | `open-free-router doctor` | 安装体检：配置、密钥、端口与 9 个客户端配置状态 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
@@ -142,7 +143,24 @@ discovery:
   auto_adopt: false      # 只接入真实请求成功的模型
   max_providers_per_cycle: 5
   max_models_per_provider: 3
+
+routing:
+  aliases:
+    auto/coding:
+      require:
+        tool_calling: true
+      # 可选：省略 candidates 时按注册表顺序选择全部符合能力的模型
+      candidates: [gq/gpt-oss-120b, gq/gpt-oss-20b]
+  fallback:
+    enabled: true
+    max_attempts: 3
+    explicit_model: false  # 显式模型默认不静默换模
 ```
+
+内置虚拟模型为 `auto`、`auto/coding`、`auto/fast`、`auto/free`。当前开发
+版本已完成确定性候选计划和首选模型解析；跨候选真实请求 fallback 将在 P0
+后续切片接入。可先运行 `open-free-router route explain auto/coding --json`
+检查实际候选，不会消耗免费额度。
 
 首次运行 `serve` 自动创建配置文件和注册表，无需手动初始化。
 
