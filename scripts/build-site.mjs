@@ -63,7 +63,7 @@ for (const marker of ["系统架构", "8337", "Claude Code", "/v1/messages", "MC
     throw new Error(`Generated architecture page is missing required content: ${marker}`);
   }
 }
-for (const marker of ["实时", "/api/catalog"]) {
+for (const marker of ["服务器端", "Cloudflare", "每 15 分钟", "完全不访问你的本机", "/api/catalog"]) {
   if (!statusHtml.includes(marker) && !statusJs.includes(marker)) {
     throw new Error(`Generated status page is missing required content: ${marker}`);
   }

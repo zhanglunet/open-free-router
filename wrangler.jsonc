@@ -23,9 +23,24 @@
     }
   ],
   "triggers": {
-    "crons": ["17 */6 * * *"]
+    "crons": ["*/15 * * * *", "17 */6 * * *"]
+  },
+  "secrets": {
+    "required": [
+      "OFR_PROBE_DEEPSEEK_API_KEY",
+      "OFR_PROBE_GOOGLE_AI_STUDIO_API_KEY",
+      "OFR_PROBE_GROQ_API_KEY",
+      "OFR_PROBE_NVIDIA_NIM_API_KEY",
+      "OFR_PROBE_NOUS_API_KEY",
+      "OFR_PROBE_POOLSIDE_API_KEY",
+      "OFR_PROBE_OPENROUTER_API_KEY",
+      "OFR_PROBE_SENSENOVA_API_KEY",
+      "OFR_PROBE_STEPFUN_API_KEY",
+      "OFR_PROBE_GITEE_AI_API_KEY"
+    ]
   },
   "observability": {
-    "enabled": true
+    "enabled": true,
+    "head_sampling_rate": 1
   }
 }

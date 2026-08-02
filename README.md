@@ -225,9 +225,10 @@ open-free-router mcp --print-config           # 打印通用 mcpServers 片段
 
 ## 实时可用性
 
-仪表盘（9057）**Live Status** 标签页对每个模型发起一次真实 1-token 请求，
-显示可用状态、延迟与失败原因；结果聚合写入 `probe-status.json`，
-经脱敏导出后驱动公开状态页 [oaf.asia/status](https://oaf.asia/status/)（60 秒自动刷新）。
+仪表盘（9057）**Live Status** 标签页仍可用本机密钥和网络对每个模型发起一次
+最小请求。公开状态页 [oaf.asia/status](https://oaf.asia/status/) 与本机完全分离：
+Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录，结果写入 KV；
+网页每 60 秒读取服务端快照。服务端 API Key 只保存在 Cloudflare Secrets。
 各提供商的 **API Key 获取步骤与控制台链接**见
 [模型雷达](https://oaf.asia/models/#providers) 每张提供商卡片的
 「🔑 如何获取 API Key」折叠区。

@@ -1,4 +1,5 @@
 import { fetchDiscovery } from "./discovery.js";
+import { STATUS_KEY, STATUS_REFRESH_LOCK_KEY, buildServerSnapshot, mergeServerStatus, statusIsStale } from "./probe.js";
 
 const DISCOVERY_KEY = "catalog";
 const JSON_HEADERS = {
@@ -18,6 +19,37 @@ async function refreshDiscovery(env) {
   const snapshot = await fetchDiscovery(registry.providers);
   await env.DISCOVERY.put(DISCOVERY_KEY, JSON.stringify(snapshot));
   return snapshot;
+}
+
+async function loadProviderStatus(env) {
+  return env.DISCOVERY.get(STATUS_KEY, { type: "json" });
+}
+
+async function refreshProviderStatus(env) {
+  const catalog = await loadRegistry(env);
+  const existing = await loadProviderStatus(env);
+  const snapshot = await buildServerSnapshot(catalog, env, existing);
+  await env.DISCOVERY.put(STATUS_KEY, JSON.stringify(snapshot));
+  await env.DISCOVERY.delete(STATUS_REFRESH_LOCK_KEY);
+  console.log(JSON.stringify({
+    event: "provider_probe_complete",
+    batch: snapshot.batch,
+    checked_models: snapshot.checked_models,
+    total_models: snapshot.total_models,
+    as_of: snapshot.as_of,
+  }));
+  return snapshot;
+}
+
+async function refreshProviderStatusIfNeeded(env, ctx, snapshot) {
+  if (!statusIsStale(snapshot)) return;
+  const lock = await env.DISCOVERY.get(STATUS_REFRESH_LOCK_KEY);
+  if (lock) return;
+  await env.DISCOVERY.put(STATUS_REFRESH_LOCK_KEY, new Date().toISOString(), { expirationTtl: 60 });
+  ctx.waitUntil(refreshProviderStatus(env).catch(async (error) => {
+    await env.DISCOVERY.delete(STATUS_REFRESH_LOCK_KEY);
+    console.error(JSON.stringify({ event: "provider_probe_failed", message: String(error?.message || error) }));
+  }));
 }
 
 async function getDiscovery(env, ctx) {
@@ -58,7 +90,15 @@ export default {
       return json({ error: "method_not_allowed" }, 405);
     }
     if (url.pathname === "/api/health") {
-      return json({ ok: true, discovery_schedule: "every 6 hours", source: "models.dev" });
+      const status = await loadProviderStatus(env);
+      return json({
+        ok: true,
+        discovery_schedule: "every 6 hours",
+        provider_probe_schedule: "every 15 minutes",
+        provider_probe_source: "cloudflare-server-probe",
+        provider_probe_as_of: status?.as_of || null,
+        source: "models.dev",
+      });
     }
     if (url.pathname === "/api/install") {
       return json(installManifest());
@@ -69,16 +109,33 @@ export default {
     }
     if (url.pathname === "/api/catalog") {
       try {
-        const [catalog, discovery] = await Promise.all([loadRegistry(env), getDiscovery(env, ctx)]);
-        return json({ ...catalog, discovery });
+        const [catalog, discovery, status] = await Promise.all([
+          loadRegistry(env), getDiscovery(env, ctx), loadProviderStatus(env),
+        ]);
+        await refreshProviderStatusIfNeeded(env, ctx, status);
+        return json({ ...mergeServerStatus(catalog, status), discovery });
       } catch (error) {
         return json({ error: "catalog_unavailable", message: error.message }, 503);
       }
     }
+    if (url.pathname === "/api/status") {
+      const status = await loadProviderStatus(env);
+      if (!status) return json({ error: "server_probe_pending" }, 503);
+      return json(status);
+    }
     return env.ASSETS.fetch(request);
   },
 
-  async scheduled(_controller, env, ctx) {
-    ctx.waitUntil(refreshDiscovery(env));
+  async scheduled(controller, env, ctx) {
+    const tasks = [];
+    if (controller.cron === "17 */6 * * *") tasks.push(refreshDiscovery(env));
+    if (controller.cron === "*/15 * * * *") tasks.push(refreshProviderStatus(env));
+    ctx.waitUntil(Promise.allSettled(tasks).then((outcomes) => {
+      for (const outcome of outcomes) {
+        if (outcome.status === "rejected") {
+          console.error(JSON.stringify({ event: "scheduled_task_failed", message: String(outcome.reason?.message || outcome.reason) }));
+        }
+      }
+    }));
   },
 };

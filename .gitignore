@@ -7,6 +7,8 @@ build/
 node_modules/
 .wrangler/
 web/
+worker-configuration.d.ts
+*.cpuprofile
 .venv/
 venv/
 

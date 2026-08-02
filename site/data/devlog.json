@@ -1,9 +1,24 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T01:49:31.760Z",
+  "updated_at": "2026-08-02T02:08:06.860Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-公开状态切换为-cloudflare-服务端实测",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "服务端状态 P0",
+      "title": "公开状态切换为 Cloudflare 服务端实测",
+      "summary": "公开状态页不再使用维护者本地导出快照，改由 Cloudflare Cron 使用专用 Secrets 分批探测全部模型并将结果写入 KV。",
+      "items": [
+        "每 15 分钟轮换探测一批模型，两轮覆盖完整目录",
+        "状态接口合并 Cloudflare KV 实测证据",
+        "本机与公开服务器状态完全隔离",
+        "区分未配置、未授权、限流、余额和超时",
+        "静态回退只展示目录，不再误报可用性"
+      ]
+    },
     {
       "id": "2026-08-02-修复实时状态页错误提示误显示",
       "date": "2026-08-02",

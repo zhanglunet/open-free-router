@@ -1,4 +1,4 @@
-/* 实时可用状态页：拉取 /api/catalog，60 秒自动刷新，失败保留旧数据 */
+/* 服务端可用状态页：拉取 Cloudflare 探测快照，60 秒刷新展示 */
 (() => {
   "use strict";
 
@@ -115,6 +115,28 @@
     $("#st-generated").textContent = `快照生成于 ${relativeTime(catalog.generated_at)} · 探测于 ${relativeTime(catalog.status_as_of)}`;
   }
 
+  function metadataOnly(catalog) {
+    return {
+      ...catalog,
+      status_as_of: "",
+      status_source: "static-metadata-fallback",
+      providers: (catalog.providers || []).map((provider) => ({
+        ...provider,
+        availability: "unverified",
+        reason: "Cloudflare 服务器探测接口暂不可用",
+        latency_ms: null,
+        checked_at: "",
+        models: (provider.models || []).map((model) => ({
+          ...model,
+          availability: "unverified",
+          reason: "等待服务器探测恢复",
+          latency_ms: null,
+          checked_at: "",
+        })),
+      })),
+    };
+  }
+
   function showError(message) {
     $("#st-error-text").textContent = message;
     const hasData = Boolean(state.catalog);
@@ -136,18 +158,21 @@
     try {
       /* 本地仪表盘提供 /api/catalog；公开静态站回退到 /data/catalog.json */
       let response;
+      let fallback = false;
       try {
         response = await fetch("/api/catalog", { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
       } catch {
         response = await fetch("/data/catalog.json", { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        fallback = true;
       }
-      const catalog = await response.json();
+      const catalog = fallback ? metadataOnly(await response.json()) : await response.json();
       if (!Array.isArray(catalog.providers)) throw new Error("目录数据格式异常");
       state.catalog = catalog;
-      hideError();
       renderAll(catalog);
+      if (fallback) showError("服务器状态接口暂不可用；当前只展示静态模型目录，不判断可用性。");
+      else hideError();
     } catch (error) {
       showError(`无法获取 /api/catalog（${error.message || error}）`);
       if (state.catalog) renderAll(state.catalog); /* 刷新旧数据的相对时间 */

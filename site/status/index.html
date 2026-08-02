@@ -5,9 +5,9 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#061120">
-  <meta name="description" content="模力自由港实时可用状态：每个免费大模型提供商的状态灯、实测延迟、原因与最近探测时间，每 60 秒自动刷新。">
+  <meta name="description" content="模力自由港服务器端可用状态：Cloudflare 定时实测免费大模型提供商与模型，展示延迟、原因和最近探测时间。">
   <meta property="og:title" content="实时可用状态 · 模力自由港">
-  <meta property="og:description" content="免费大模型提供商与模型的实时可用性快照：绿灯可用、红灯不可用、黄灯候选未验证。">
+  <meta property="og:description" content="Cloudflare 服务器端定时实测免费大模型：绿灯可用、红灯不可用、黄灯未验证，与访问者本机无关。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
   <title>实时可用状态 · 模力自由港</title>
@@ -43,7 +43,7 @@
       <div>
         <p class="st-eyebrow"><span></span> LIVE STATUS</p>
         <h1>每个免费模型，<br><em>实时验证在线。</em></h1>
-        <p class="st-lede">不靠营销宣称，只看真实探测。这里汇总每个提供商、每个模型最近一次真实请求的结果：绿灯可用、红灯不可用、黄灯候选未验证。页面每 60 秒自动重新拉取快照。</p>
+        <p class="st-lede">不靠营销宣称，只看服务器实测。Cloudflare 每 15 分钟轮换一批模型并发送最小请求，两轮覆盖全部模型；绿灯可用、红灯不可用、黄灯未验证。页面每 60 秒读取最新服务端快照，完全不访问你的本机。</p>
       </div>
       <div class="st-stats" aria-live="polite">
         <article><b id="st-stat-providers">—</b><span>可用提供商 / 总数</span></article>
@@ -75,12 +75,12 @@
       </header>
       <div class="st-honest">
         <div>
-          <p>本页每个状态灯都来自<b>维护者实例</b>对该模型发起的<b>真实 1-token 探测</b>的最近一次快照：请求真的发出去、真的等到了响应或错误，才写入这里。它反映的是“刚才那一刻这条航线通不通”，不构成任何可用性承诺。</p>
-          <p>免费额度、区域限制和账户状态因人而异——你的部署结果可能与这里不同。本地仪表盘的 <b>Live Status</b> 标签页可以用同样的探测方式对<b>你自己的部署</b>逐个模型实测。</p>
+          <p>本页每个状态灯来自 <b>Cloudflare 服务器</b>使用专用服务端凭据发起的<b>最小真实请求</b>。探测结果和延迟写入服务器 KV，再由公开接口只读提供；访问页面不会连接你的本机，也不会读取你的本机 API Key。</p>
+          <p>状态反映服务器探测节点与专用账户在最近一次请求时的结果，不构成 SLA。免费额度、区域和个人账户状态因人而异；如需确认自己的环境，仍可在本地仪表盘单独实测。</p>
         </div>
         <blockquote class="st-note">
           <span>status_note · 来自 /api/catalog</span>
-          <p id="st-note-text">Availability is the latest safe smoke-test snapshot, not an SLA.</p>
+          <p id="st-note-text">可用性来自 Cloudflare 服务器端最小请求实测，与访问者本机无关；它是最近快照，不构成 SLA。</p>
         </blockquote>
       </div>
     </section>

@@ -104,10 +104,10 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
 17. 仪表盘（9057）新增 **Live Status** 标签页：`POST /api/probe`
     （需本地 token）后台并发探测，`GET /api/probe` 轮询进度与结果，
     按 provider 分组显示状态徽章与延迟；运行中 2s 轮询、空闲 60s。
-18. 探测完成后聚合写入 `<data_dir>/probe-status.json`（与
-    `docs/provider-status.json` 同构且含模型级明细），供
-    `scripts/export-public-catalog.py` 发布到公开目录。
-19. 公开站点新增 `/status/` 状态页：读取 `/api/catalog` 快照渲染
+18. 本地探测完成后聚合写入 `<data_dir>/probe-status.json`，仅用于用户自己的
+    本地仪表盘，不再作为公开站点的状态来源。
+19. 公开站点 `/status/` 读取 `/api/catalog`：Cloudflare Cron 使用 Secrets 中的
+    专用服务端凭据分批探测全部模型并把快照写入 KV；该链路不访问用户本机。
     provider/模型可用性、延迟与 `checked_at`，每 60 秒自动刷新；
     明确标注"快照来自维护者实例的真实探测，非 SLA"。
 
