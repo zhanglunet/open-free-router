@@ -34,6 +34,9 @@ const benchmarksHtml = await readFile(resolve(output, "benchmarks", "index.html"
 const benchmarksJs = await readFile(resolve(output, "benchmarks", "benchmarks.js"), "utf8");
 const benchmarksCss = await readFile(resolve(output, "benchmarks", "benchmarks.css"), "utf8");
 const benchmarksData = JSON.parse(await readFile(resolve(output, "data", "benchmarks.json"), "utf8"));
+const internalBenchmarksHtml = await readFile(resolve(output, "internal", "benchmarks", "index.html"), "utf8");
+const internalBenchmarksJs = await readFile(resolve(output, "internal", "benchmarks", "internal.js"), "utf8");
+const internalBenchmarksCss = await readFile(resolve(output, "internal", "benchmarks", "internal.css"), "utf8");
 const devlog = JSON.parse(await readFile(resolve(output, "data", "devlog.json"), "utf8"));
 const navJs = await readFile(resolve(output, "nav.js"), "utf8");
 const required = [
@@ -167,6 +170,23 @@ if (!benchmarksJs.includes("function html(value)") || !benchmarksJs.includes("&l
 }
 if (!Array.isArray(benchmarksData.sources) || !benchmarksData.sources.some((source) => source.id === "artificial-analysis" && source.attribution_required)) {
   throw new Error("Benchmark snapshot must preserve Artificial Analysis attribution requirements");
+}
+for (const marker of ["noindex,nofollow,noarchive", "内部访问令牌", "仅供内部使用", "/api/internal/benchmarks"]) {
+  if (!internalBenchmarksHtml.includes(marker) && !internalBenchmarksJs.includes(marker)) {
+    throw new Error(`Internal benchmarks page is missing its access boundary: ${marker}`);
+  }
+}
+for (const marker of ["sessionStorage", "Authorization: `Bearer ${state.token}`", "/api/internal/benchmarks/refresh", "function html(value)"]) {
+  if (!internalBenchmarksJs.includes(marker)) throw new Error(`Internal benchmarks client security is missing: ${marker}`);
+}
+if (!internalBenchmarksCss.includes(".access-panel") || /localStorage/.test(internalBenchmarksJs)) {
+  throw new Error("Internal benchmarks must use a dedicated access panel and tab-scoped credentials");
+}
+if (sitemapHtml.includes("/internal/benchmarks/") || sitemapXml.includes("/internal/benchmarks/")) {
+  throw new Error("Internal benchmarks must never be included in public sitemaps");
+}
+if (/<script(?![^>]*src=)[^>]*>[^<]/.test(internalBenchmarksHtml)) {
+  throw new Error("Internal benchmarks must not contain inline scripts");
 }
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));

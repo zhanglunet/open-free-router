@@ -408,6 +408,8 @@ npm run benchmarks:import -- --input snapshot.json
 
 导入器只发布展示需要的评分、价格、中位性能、来源版本和保守模型匹配，不保存 API Key 或完整原始响应。展示和再分发须遵守 Artificial Analysis 条款并清晰署名。详细边界见 [`docs/PRD-comparison-benchmarks-npm.md`](docs/PRD-comparison-benchmarks-npm.md)。
 
+Free API 数据可通过 `/internal/benchmarks/` 进行内部查看：`ARTIFICIAL_ANALYSIS_API_KEY` 与 `INTERNAL_BENCHMARKS_TOKEN` 均只保存在 Cloudflare Secret，清洗后的快照存入 KV，`/api/internal/benchmarks` 和刷新接口必须使用 Bearer 令牌且响应禁止缓存。该内部页面设置 `noindex`，不会出现在公共导航或站点地图中；没有相应再分发授权时不得把数据同步到公开 `/benchmarks/` 页面。
+
 ## 测试
 
 ```bash

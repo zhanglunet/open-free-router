@@ -1,9 +1,24 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-03T03:30:00.000Z",
+  "updated_at": "2026-08-03T04:00:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-03-artificial-analysis-内部评测",
+      "date": "2026-08-03",
+      "type": "security",
+      "version": "v0.3.0",
+      "title": "Artificial Analysis 内部评测与双 Secret 隔离",
+      "summary": "新增不进入公开索引的内部评测页面，官方 Key 只在 Worker 端使用，数据接口以独立访问令牌保护。",
+      "items": [
+        "Cloudflare Worker 分页读取官方 Free API，清洗后把内部快照存入 KV",
+        "内部读取与手动刷新接口强制 Bearer 鉴权，并返回 private no-store",
+        "浏览器访问令牌只保存于当前标签 sessionStorage，不进入 URL、Cookie 或日志",
+        "内部页面设置 noindex 且排除在公共导航、站点地图和公开评测页之外"
+      ],
+      "links": []
+    },
     {
       "id": "2026-08-03-模型评测图与中文字体修复",
       "date": "2026-08-03",

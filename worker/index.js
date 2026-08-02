@@ -1,4 +1,9 @@
 import { fetchDiscovery } from "./discovery.js";
+import {
+  isInternalBenchmarkAuthorized,
+  loadInternalBenchmarks,
+  refreshInternalBenchmarks,
+} from "./benchmarks.js";
 import { STATUS_KEY, STATUS_REFRESH_LOCK_KEY, buildServerSnapshot, mergeServerStatus, statusIsStale } from "./probe.js";
 
 const DISCOVERY_KEY = "catalog";
@@ -6,6 +11,12 @@ const JSON_HEADERS = {
   "Content-Type": "application/json; charset=utf-8",
   "Cache-Control": "public, max-age=300",
   "X-Content-Type-Options": "nosniff",
+};
+const PRIVATE_JSON_HEADERS = {
+  "Content-Type": "application/json; charset=utf-8",
+  "Cache-Control": "private, no-store, max-age=0",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "no-referrer",
 };
 
 async function loadRegistry(env) {
@@ -66,6 +77,32 @@ function json(data, status = 200) {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
+function privateJson(data, status = 200, extraHeaders = {}) {
+  return new Response(JSON.stringify(data), { status, headers: { ...PRIVATE_JSON_HEADERS, ...extraHeaders } });
+}
+
+async function handleInternalBenchmarks(request, env) {
+  if (!isInternalBenchmarkAuthorized(request, env)) {
+    return privateJson({ error: "unauthorized" }, 401, { "WWW-Authenticate": "Bearer" });
+  }
+  const url = new URL(request.url);
+  if (url.pathname === "/api/internal/benchmarks" && request.method === "GET") {
+    const snapshot = await loadInternalBenchmarks(env);
+    if (!snapshot) return privateJson({ error: "snapshot_pending" }, 503);
+    return privateJson(snapshot);
+  }
+  if (url.pathname === "/api/internal/benchmarks/refresh" && request.method === "POST") {
+    try {
+      const catalog = await loadRegistry(env);
+      return privateJson(await refreshInternalBenchmarks(env, catalog));
+    } catch (error) {
+      console.error(JSON.stringify({ event: "internal_benchmarks_refresh_failed", message: String(error?.message || error) }));
+      return privateJson({ error: "refresh_failed", message: String(error?.message || error) }, 502);
+    }
+  }
+  return privateJson({ error: "method_not_allowed" }, 405, { Allow: url.pathname.endsWith("/refresh") ? "POST" : "GET" });
+}
+
 export function installManifest() {
   return {
     name: "open-free-router",
@@ -86,6 +123,9 @@ export function installManifest() {
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
+    if (url.pathname === "/api/internal/benchmarks" || url.pathname === "/api/internal/benchmarks/refresh") {
+      return handleInternalBenchmarks(request, env);
+    }
     if (request.method !== "GET" && request.method !== "HEAD") {
       return json({ error: "method_not_allowed" }, 405);
     }
@@ -128,7 +168,12 @@ export default {
 
   async scheduled(controller, env, ctx) {
     const tasks = [];
-    if (controller.cron === "17 */6 * * *") tasks.push(refreshDiscovery(env));
+    if (controller.cron === "17 */6 * * *") {
+      tasks.push(refreshDiscovery(env));
+      if (env.ARTIFICIAL_ANALYSIS_API_KEY) {
+        tasks.push(loadRegistry(env).then((catalog) => refreshInternalBenchmarks(env, catalog)));
+      }
+    }
     if (controller.cron === "*/15 * * * *") tasks.push(refreshProviderStatus(env));
     ctx.waitUntil(Promise.allSettled(tasks).then((outcomes) => {
       for (const outcome of outcomes) {

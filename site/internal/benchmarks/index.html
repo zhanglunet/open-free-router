@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'">
+  <title>内部模型评测 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/internal/benchmarks/internal.css?v=20260803a">
+  <script src="/internal/benchmarks/internal.js?v=20260803a" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <header class="internal-topbar">
+    <a class="brand" href="/"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>Internal Benchmarks</small></span></a>
+    <span class="private-badge">内部访问 · 不公开索引</span>
+  </header>
+  <main class="internal-main">
+    <section class="access-panel" id="access-panel">
+      <p class="internal-eyebrow">PRIVATE DATA VIEW</p>
+      <h1>内部模型评测</h1>
+      <p>Artificial Analysis Free API 数据仅用于内部分析。访问令牌只保存在当前浏览器标签的 sessionStorage 中，不写入 URL、Cookie 或服务器日志。</p>
+      <form id="access-form">
+        <label for="access-token">内部访问令牌</label>
+        <div><input id="access-token" name="access-token" type="password" autocomplete="off" required><button type="submit">进入评测</button></div>
+      </form>
+      <p class="access-error" id="access-error" hidden></p>
+    </section>
+
+    <section class="dashboard" id="dashboard" hidden>
+      <header class="dashboard-head">
+        <div><p class="internal-eyebrow">ARTIFICIAL ANALYSIS · INTERNAL ONLY</p><h1>模型质量、成本与速度</h1><p>官方数据与自由港模型目录做保守匹配；未匹配不等于模型不存在。</p></div>
+        <div class="dashboard-actions"><button id="refresh-button" type="button">从官方 API 刷新</button><button id="lock-button" type="button">退出并清除令牌</button></div>
+      </header>
+      <div class="license-note"><b>授权边界</b><span>当前账号为内部使用层级。本页和接口均要求访问令牌，不得将数据复制到公开页面或公开 API。</span></div>
+      <div class="summary-grid">
+        <article><b id="model-count">—</b><span>官方模型记录</span></article>
+        <article><b id="matched-count">—</b><span>自由港匹配记录</span></article>
+        <article><b id="index-version">—</b><span>Intelligence Index</span></article>
+        <article><b id="generated-at">—</b><span>快照更新时间</span></article>
+      </div>
+      <div class="controls"><label>搜索<input id="model-search" type="search" placeholder="模型、厂商、slug"></label><label>排序<select id="model-sort"><option value="intelligence">Intelligence</option><option value="coding">Coding</option><option value="agentic">Agentic</option><option value="cost">任务成本</option><option value="speed">输出速度</option></select></label><span id="result-count">—</span></div>
+      <div class="table-wrap" role="region" aria-label="内部 Artificial Analysis 模型评测表" tabindex="0">
+        <table><thead><tr><th>模型</th><th>厂商</th><th>Intelligence</th><th>Coding</th><th>Agentic</th><th>任务成本</th><th>输入 / 输出价格</th><th>输出速度</th><th>首 Token</th><th>自由港匹配</th></tr></thead><tbody id="model-rows"><tr><td colspan="10">正在读取内部快照…</td></tr></tbody></table>
+      </div>
+      <footer class="internal-source">数据来源：<a href="https://artificialanalysis.ai/" rel="noreferrer">Artificial Analysis</a> · 仅供内部使用 · 空值表示未测量，不表示 0。</footer>
+    </section>
+  </main>
+</body>
+</html>
