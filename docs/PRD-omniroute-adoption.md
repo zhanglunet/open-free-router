@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: P1 in progress — FR-P1-1 through FR-P1-3 implemented
+Status: P1 in progress — FR-P1-1 through FR-P1-4 implemented
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -33,7 +33,10 @@ Implementation record (2026-08-02):
 - completed: P1 optional explainable scoring with normalized health, success,
   p95 latency, quota, capability and free-evidence factors, stable tie-breaking,
   explicit missing defaults and CLI/API/Chinese dashboard explanations;
-- next: P1 privacy-minimized local SQLite usage analytics.
+- completed: P1 owner-only SQLite usage analytics, configurable retention,
+  buffered/streaming Token capture, provider/model rates and p50/p95, fallback
+  recovery, circuit blocks, estimated quota use and guarded JSON/CSV export;
+- next: P1 read-only MCP diagnostics and quota/metrics tools.
 
 ## 1. 结论
 
@@ -299,6 +302,12 @@ HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字�
 - fallback 率、断路器次数和节省的失败请求；
 - token 用量与免费额度的估算，并明确“估算”口径；
 - JSON/CSV 导出前再次做敏感字段拒绝检查。
+
+实现结果（2026-08-02）：`usage.db` 默认保留 30 天，配置为 0 时不创建数据库。
+数据库使用内部 SHA-256 事件键完成异步回写，既不保存也不导出原始 request_id；
+所有协议的非流式和流式 usage 都归一化为输入/输出 Token。统计 API、CLI 和中文
+仪表盘提供成功率、p50/p95、Fallback 挽回、断路器拦截、Token 覆盖率与基于有效
+免费证据的额度估算。JSON/CSV 仅允许固定字段，导出前拒绝敏感模式并防护 CSV 公式。
 
 #### FR-P1-5 MCP 与诊断
 

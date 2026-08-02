@@ -19,6 +19,7 @@ from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.resilience import ResilienceManager
 from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
+from open_free_router.analytics import AnalyticsStore
 
 
 class Daemon:
@@ -30,6 +31,10 @@ class Daemon:
         self.proxy_token = get_or_create_proxy_token(cfg.config_dir)
         self.resilience = ResilienceManager(state_path=cfg.data_dir / "runtime-state.json")
         self.decisions = RouteDecisionStore()
+        self.analytics = AnalyticsStore(
+            cfg.analytics_path, retention_days=cfg.analytics_retention_days
+        )
+        self.decisions.analytics = self.analytics
         self._proxy_server = None
         self._stop = threading.Event()
 
@@ -88,6 +93,10 @@ class Daemon:
         )
         print(f"  Timeout: {self.cfg.upstream_timeout}s")
         print(f"  Auth   : {self.cfg.config_dir / 'proxy.token'}")
+        print(
+            "  Analytics: "
+            + (f"local {self.cfg.analytics_retention_days}d" if self.analytics.enabled else "disabled")
+        )
         print()
 
         # Start proxy
@@ -96,7 +105,8 @@ class Daemon:
                            auth_token=self.proxy_token,
                            routing=self.cfg.routing,
                            resilience=self.resilience,
-                           decisions=self.decisions)
+                           decisions=self.decisions,
+                           analytics=self.analytics)
         self._proxy_server = srv
 
         # Write Pi models on startup
@@ -122,6 +132,7 @@ class Daemon:
         print("\nShutting down...")
         if self._proxy_server:
             self._proxy_server.shutdown()
+        self.analytics.close()
         for t in threads:
             t.join(timeout=5)
         print("Done.")

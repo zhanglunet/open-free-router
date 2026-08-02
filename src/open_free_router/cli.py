@@ -393,6 +393,59 @@ def cmd_resilience_reset(args):
     print(f"✔ reset {payload['provider']}" + (f"/{payload['model']}" if payload.get("model") else ""))
 
 
+def _metrics_request(cfg: Config, days: int, export_format: str = "") -> tuple[bytes, str]:
+    from urllib.request import Request, urlopen
+
+    host = "127.0.0.1" if cfg.proxy_host in ("0.0.0.0", "::") else cfg.proxy_host
+    path = "/api/metrics"
+    if export_format:
+        path += "/export"
+    query = f"?days={max(1, int(days))}"
+    if export_format:
+        query += f"&format={export_format}"
+    request = Request(
+        f"http://{host}:{cfg.proxy_port}{path}{query}",
+        headers={"Authorization": f"Bearer {get_or_create_proxy_token(cfg.config_dir)}"},
+    )
+    with urlopen(request, timeout=10) as response:
+        return response.read(), response.getheader("Content-Type", "application/json")
+
+
+def cmd_metrics(args):
+    """Read or export privacy-minimized local usage analytics."""
+    cfg = Config()
+    try:
+        raw, _ = _metrics_request(cfg, args.days, args.export or "")
+    except Exception as exc:
+        print(f"✗ cannot read local usage analytics: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if args.export:
+        text = raw.decode("utf-8")
+        if args.output:
+            output_path = Path(args.output).expanduser()
+            output_path.write_text(text, encoding="utf-8")
+            output_path.chmod(0o600)
+            print(f"✔ exported redacted analytics to {args.output}")
+        else:
+            print(text, end="" if text.endswith("\n") else "\n")
+        return
+    import json as _json
+    payload = _json.loads(raw)
+    if args.json:
+        print(_json.dumps(payload, ensure_ascii=False, indent=2))
+        return
+    if not payload.get("enabled"):
+        print("本地使用分析已关闭（analytics.retention_days: 0）")
+        return
+    overall = payload.get("overall", {})
+    print(f"近 {payload.get('period_days', args.days)} 天本机使用分析")
+    print(f"  请求: {overall.get('requests', 0)}  成功率: {overall.get('success_rate', 0) * 100:.1f}%")
+    print(f"  Fallback: {overall.get('fallback_rate', 0) * 100:.1f}%  挽回前序失败: {overall.get('saved_failed_requests', 0)}")
+    print(f"  p50/p95 总耗时: {overall.get('total_p50_ms')} / {overall.get('total_p95_ms')} ms")
+    print(f"  Token: 输入 {overall.get('input_tokens', 0)} / 输出 {overall.get('output_tokens', 0)}")
+    print(f"  说明: {payload.get('quota_estimate_notice_zh', '')}")
+
+
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     import json as _json
@@ -629,6 +682,13 @@ def main():
     p_resilience_reset.add_argument("--provider", required=True)
     p_resilience_reset.add_argument("--model")
     p_resilience_reset.set_defaults(func=cmd_resilience_reset)
+
+    p_metrics = sub.add_parser("metrics", help="inspect or export local privacy-minimized analytics")
+    p_metrics.add_argument("--days", type=int, default=30)
+    p_metrics.add_argument("--json", action="store_true")
+    p_metrics.add_argument("--export", choices=("json", "csv"))
+    p_metrics.add_argument("--output", help="write export to a local file")
+    p_metrics.set_defaults(func=cmd_metrics)
 
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
     p_doctor.add_argument("--json", action="store_true", help="print structured diagnostics")

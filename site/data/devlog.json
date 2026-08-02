@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T06:15:51.000Z",
+  "updated_at": "2026-08-02T06:41:19.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-本机使用分析",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P1 开发版",
+      "title": "P1 本机使用分析",
+      "summary": "用本机最小化 SQLite 统计成功率、延迟、Fallback 与 Token，并以明确估算口径比较免费额度。",
+      "items": [
+        "默认保留 30 天，配置为 0 后完全关闭且不创建数据库",
+        "Chat、Responses、Messages 的流式与非流式用量统一归集",
+        "中文仪表盘和 CLI 展示成功率、p50/p95、Fallback 与 Token 覆盖率",
+        "JSON/CSV 导出使用字段白名单、敏感值拒绝和 CSV 公式防护"
+      ]
+    },
     {
       "id": "2026-08-02-p1-可解释智能评分",
       "date": "2026-08-02",

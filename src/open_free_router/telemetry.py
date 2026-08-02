@@ -10,8 +10,9 @@ from collections import deque
 class RouteDecisionStore:
     """Keep recent request routing facts without prompts, outputs or secrets."""
 
-    def __init__(self, max_entries: int = 200):
+    def __init__(self, max_entries: int = 200, analytics=None):
         self.max_entries = max(1, int(max_entries))
+        self.analytics = analytics
         self._items: deque[dict] = deque(maxlen=self.max_entries)
         self._lock = threading.RLock()
 
@@ -31,6 +32,7 @@ class RouteDecisionStore:
         total_latency_ms: float | None = None,
         scores=(),
         attempt_results=(),
+        error_kind: str = "",
     ) -> dict:
         def safe(value, limit=256):
             return str(value)[:limit]
@@ -54,10 +56,27 @@ class RouteDecisionStore:
             "total_latency_ms": self._safe_latency(total_latency_ms),
             "scores": [self._safe_score(score) for score in scores],
             "attempt_results": [self._safe_attempt(row) for row in attempt_results],
+            "input_tokens": None,
+            "output_tokens": None,
+            "error_kind": safe(error_kind, 64),
+            "circuit_breaker_events": sum(
+                row.get("reason") == "provider_circuit_open" for row in rejected
+            ),
         }
         with self._lock:
             self._items.append(item)
+        if item["status"] != "success":
+            self._persist_analytics(item)
         return dict(item)
+
+    def _persist_analytics(self, item: dict) -> None:
+        if not self.analytics:
+            return
+        try:
+            self.analytics.record(dict(item))
+        except Exception:
+            # Analytics is never allowed to break inference.
+            pass
 
     @staticmethod
     def _safe_latency(value):
@@ -108,6 +127,41 @@ class RouteDecisionStore:
                     for attempt in reversed(item.get("attempt_results", [])):
                         if attempt.get("status") == "success":
                             attempt["total_latency_ms"] = value
+                            break
+                    self._persist_analytics(item)
+                    return
+
+    def set_usage(self, request_id: str, usage: dict | None) -> None:
+        """Attach normalized token counts; ignore all other upstream usage fields."""
+        usage = usage if isinstance(usage, dict) else {}
+        input_value = usage.get("prompt_tokens", usage.get("input_tokens"))
+        output_value = usage.get("completion_tokens", usage.get("output_tokens"))
+
+        def safe_token(value):
+            try:
+                return max(0, int(value)) if value is not None else None
+            except (TypeError, ValueError, OverflowError):
+                return None
+
+        with self._lock:
+            for item in reversed(self._items):
+                if item["request_id"] == request_id:
+                    item["input_tokens"] = safe_token(input_value)
+                    item["output_tokens"] = safe_token(output_value)
+                    return
+
+    def mark_failure(self, request_id: str, status_code: int, error_kind: str) -> None:
+        """Correct an accepted route when its upstream payload is unusable."""
+        with self._lock:
+            for item in reversed(self._items):
+                if item["request_id"] == request_id:
+                    item["status"] = "failed"
+                    item["status_code"] = int(status_code)
+                    item["error_kind"] = str(error_kind)[:64]
+                    for attempt in reversed(item.get("attempt_results", [])):
+                        if attempt.get("status") == "success":
+                            attempt["status"] = "failed"
+                            attempt["status_code"] = int(status_code)
                             break
                     return
 
