@@ -2,8 +2,19 @@
 
 ## Unreleased
 
+## 0.3.0 - 2026-08-02
+
 ### Added
 
+- Executable 11-provider × 3-client-protocol compatibility matrix covering
+  buffered/streaming text, reasoning-only output, tool calls, usage, finish
+  semantics, Retry-After, safe fallback and cross-envelope field isolation.
+- New `protocols [--json]` command and Doctor report section distinguish
+  declared adapter readiness from live provider availability.
+- The bundled Google AI Studio base URL now uses its OpenAI-compatible
+  `/v1beta/openai` path; Doctor gives an exact repair for older registries.
+- Responses and Messages streaming now preserve reasoning-only model output;
+  cross-protocol errors retain only standard allowlisted fields.
 - Four read-only MCP diagnostics: offline route explanation, resilience state,
   quota claims/runtime availability and privacy-minimized usage metrics.
 - MCP write tools are now hidden by default and require the explicit

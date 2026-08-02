@@ -10,4 +10,4 @@ Quick start:
     open-free-router mcp     # MCP stdio server for agent hosts
 """
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"

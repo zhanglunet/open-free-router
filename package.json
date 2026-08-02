@@ -2,7 +2,7 @@
   "name": "open-free-router-docs",
   "private": true,
   "type": "module",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Documentation website and Cloudflare deployment for open-free-router",
   "scripts": {
     "build": "node scripts/build-site.mjs",

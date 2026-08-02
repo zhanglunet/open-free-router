@@ -136,7 +136,17 @@ def test_buffered_protocols_share_pre_byte_fallback(path, payload, expected_type
         healthy.shutdown()
 
 
-def test_streaming_falls_back_only_before_downstream_headers():
+@pytest.mark.parametrize(
+    ("path", "payload", "expected"),
+    [
+        ("/v1/chat/completions", {"model": "auto", "messages": [], "stream": True}, '"content":"ok"'),
+        ("/v1/responses", {"model": "auto", "input": "hi", "stream": True}, "response.completed"),
+        ("/v1/messages", {"model": "auto", "max_tokens": 8,
+                           "messages": [{"role": "user", "content": "hi"}],
+                           "stream": True}, "message_stop"),
+    ],
+)
+def test_streaming_protocols_fall_back_only_before_downstream_headers(path, payload, expected):
     failure_handler = _fresh_handler(_FailureHandler)
     success_handler = _fresh_handler(_SuccessHandler)
     failing = _start(failure_handler)
@@ -144,15 +154,11 @@ def test_streaming_falls_back_only_before_downstream_headers():
     proxy, _ = _proxy(failing.server_address[1], healthy.server_address[1])
     try:
         conn = http.client.HTTPConnection("127.0.0.1", proxy.server_address[1], timeout=5)
-        conn.request(
-            "POST", "/v1/chat/completions",
-            json.dumps({"model": "auto", "messages": [], "stream": True}),
-            {"Content-Type": "application/json"},
-        )
+        conn.request("POST", path, json.dumps(payload), {"Content-Type": "application/json"})
         response = conn.getresponse()
         body = response.read().decode()
         assert response.status == 200
-        assert '"content":"ok"' in body
+        assert expected in body
         assert response.getheader("X-OFR-Provider") == "healthy"
         assert response.getheader("X-OFR-Fallback-Attempts") == "1"
         assert failure_handler.hits == 1
@@ -163,7 +169,17 @@ def test_streaming_falls_back_only_before_downstream_headers():
         healthy.shutdown()
 
 
-def test_successful_stream_is_never_replayed_after_headers():
+@pytest.mark.parametrize(
+    ("path", "payload"),
+    [
+        ("/v1/chat/completions", {"model": "auto", "messages": [], "stream": True}),
+        ("/v1/responses", {"model": "auto", "input": "hi", "stream": True}),
+        ("/v1/messages", {"model": "auto", "max_tokens": 8,
+                           "messages": [{"role": "user", "content": "hi"}],
+                           "stream": True}),
+    ],
+)
+def test_successful_stream_is_never_replayed_after_headers(path, payload):
     partial_handler = _fresh_handler(_SuccessHandler)
     unused_handler = _fresh_handler(_SuccessHandler)
     partial = _start(partial_handler)
@@ -171,11 +187,7 @@ def test_successful_stream_is_never_replayed_after_headers():
     proxy, _ = _proxy(partial.server_address[1], unused.server_address[1])
     try:
         conn = http.client.HTTPConnection("127.0.0.1", proxy.server_address[1], timeout=5)
-        conn.request(
-            "POST", "/v1/chat/completions",
-            json.dumps({"model": "auto", "messages": [], "stream": True}),
-            {"Content-Type": "application/json"},
-        )
+        conn.request("POST", path, json.dumps(payload), {"Content-Type": "application/json"})
         response = conn.getresponse()
         response.read()
         assert response.status == 200

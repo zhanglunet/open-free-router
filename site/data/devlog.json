@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T07:15:00.000Z",
+  "updated_at": "2026-08-02T07:42:53.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-协议兼容矩阵",
+      "date": "2026-08-02",
+      "type": "milestone",
+      "version": "v0.3.0 发布候选",
+      "title": "P1 协议兼容矩阵与发布准备",
+      "summary": "建立 11 个提供商与三种客户端协议的可执行矩阵，补齐推理输出、错误隔离和 Google 兼容地址。",
+      "items": [
+        "Chat、Responses、Messages 统一验证文本、流式、工具、Usage 与结束语义",
+        "三协议覆盖首字节前 Fallback、首字节后禁止重放和 Retry-After",
+        "仅返回 reasoning_content 的模型不再在 Codex 或 Claude Code 中丢失输出",
+        "Doctor 可识别旧 Google AI Studio 地址并给出精确修复值"
+      ]
+    },
     {
       "id": "2026-08-02-p1-mcp只读诊断",
       "date": "2026-08-02",

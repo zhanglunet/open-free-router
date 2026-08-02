@@ -38,7 +38,9 @@ Implementation record (2026-08-02):
   recovery, circuit blocks, estimated quota use and guarded JSON/CSV export;
 - completed: P1 read-only MCP route, resilience, quota and metrics diagnostics;
   mutating tools are hidden unless the owner explicitly opts in;
-- next: P1 protocol × capability matrix, release regression and P1 release.
+- completed: P1 provider × protocol × capability 可执行矩阵、跨协议兼容修复与
+  v0.3.0 发布准备；
+- next: 合并发布候选后创建并验证 v0.3.0 Release。
 
 ## 1. 结论
 
@@ -337,6 +339,13 @@ HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字�
 - fallback 前无输出、首字节后禁止 fallback；
 - provider 特有字段不泄漏到不兼容客户端。
 
+实现结果（2026-08-02）：新增 `protocols [--json]`，输出 11 个提供商 × Chat
+Completions、Responses、Anthropic Messages 共 33 行声明兼容矩阵，并明确它不等于
+实时可用状态。真实 socket 回归覆盖非流式/流式文本、仅 `reasoning_content` 输出、
+工具调用、usage、finish reason、三类错误 envelope、`Retry-After`、首字节前 fallback
+和首字节后禁止重放。厂商私有错误字段不会跨协议泄漏；Google AI Studio 默认地址
+修正为 `/v1beta/openai`，Doctor 能给旧注册表提供精确修复。版本已准备为 v0.3.0。
+
 ### 6.3 P2 — 可选扩展
 
 - 官方 Docker 镜像、健康检查和非 root 运行；
@@ -433,7 +442,7 @@ src/open_free_router/
 4. **P0-D 运维面**：CLI、UI、精确 reset、doctor；
 5. **P0-E 回归与安全**：协议矩阵、并发、canary secret、构建与真实本地 smoke test；
 6. **P1-A**：额度证据、SQLite 指标、可解释评分、MCP 只读扩展（已完成）；
-7. **P1-B**：协议 × capability 矩阵、全量回归、安全扫描与 P1 发布。
+7. **P1-B**：协议 × capability 矩阵、全量回归、安全扫描与 P1 发布准备（已完成）。
 
 每个阶段都应保持现有显式模型路径可用，不能等全部智能路由完成后一次性替换核心
 代理。P0 发布应有配置开关，可立即退回当前单模型直连行为。

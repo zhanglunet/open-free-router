@@ -366,6 +366,8 @@ class AnthropicStreamAdapter:
         delta = choice.get("delta", {}) or {}
 
         content = delta.get("content")
+        if not content:
+            content = delta.get("reasoning_content")
         if content:
             if self.open_kind != "text":
                 # A block emits exactly one start and one stop; once text was

@@ -97,6 +97,7 @@ pip install -e .
 | `open-free-router resilience reset --provider NAME [--model ID]` | 精确重置 Provider 或单模型运行时状态 |
 | `open-free-router metrics [--days 30] [--json]` | 查看本机最小化使用分析：成功率、p50/p95、Fallback 与 Token |
 | `open-free-router metrics --export json\|csv [--output PATH]` | 导出经过字段白名单与敏感值检查的本机统计 |
+| `open-free-router protocols [--json]` | 输出 provider × Chat/Responses/Messages 的声明兼容矩阵与修复建议 |
 | `open-free-router doctor [--json]` | 安装与路由体检：定位 YAML 路径并给出修复命令；支持结构化输出 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
@@ -253,6 +254,7 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 | `quota.py` | 额度与限流响应头归一化：请求/Token 余量、重置时间和安全分类 |
 | `analytics.py` | 本机 SQLite 最小化统计、保留清理、聚合与安全 JSON/CSV 导出 |
 | `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，默认 8 个工具，写工具需显式启用） |
+| `protocol_matrix.py` | 生成 11 个提供商 × 3 个客户端协议的声明能力矩阵与配置诊断 |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |
 | `refresh.py` | 轮询提供商 API 获取免费模型变化，支持 pluggable sources |
@@ -335,6 +337,12 @@ Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录
 各提供商的 **API Key 获取步骤与控制台链接**见
 [模型雷达](https://oaf.asia/models/#providers) 每张提供商卡片的
 「🔑 如何获取 API Key」折叠区。
+
+协议支持与服务器在线状态是两个维度：`open-free-router protocols` 检查当前注册表
+能否通过 Chat Completions、Responses 与 Anthropic Messages 适配层，并展示文本、
+流式、工具、usage、finish reason、Retry-After 与 fallback 能力；它不会把“配置正确”
+冒充“服务器可用”。完整矩阵与验收口径见
+[`docs/protocol-capability-matrix.md`](docs/protocol-capability-matrix.md)。
 
 ## 测试
 

@@ -79,6 +79,32 @@ def _normalise_reasoning_content(body: bytes) -> bytes:
     return json.dumps(obj).encode() if changed else body
 
 
+def _normalise_error(body: bytes) -> tuple[dict, str]:
+    """Return a standard OpenAI error and a plain message for other envelopes.
+
+    Vendor trace IDs, account fields and arbitrary nested extensions must not
+    cross protocol boundaries.  Only the four standard OpenAI error members
+    are retained.
+    """
+    text = body.decode("utf-8", errors="replace")[:2048]
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError:
+        parsed = None
+    error = parsed.get("error") if isinstance(parsed, dict) else None
+    if isinstance(error, dict):
+        message = str(error.get("message") or "upstream request failed")[:2048]
+        normalized = {"message": message}
+        for key in ("type", "param", "code"):
+            value = error.get(key)
+            if isinstance(value, (str, int, float, bool)) or value is None:
+                if key in error:
+                    normalized[key] = value
+        return {"error": normalized}, message
+    message = text or "upstream request failed"
+    return {"error": {"message": message, "type": "upstream_error"}}, message
+
+
 class _ProxyHandler(BaseHTTPRequestHandler):
     # Nagle's algorithm + delayed ACK otherwise coalesces the small
     # writes _forward_streaming does per SSE chunk, adding tens of ms of
@@ -239,16 +265,11 @@ class _ProxyHandler(BaseHTTPRequestHandler):
 
     def _send_route_failure(self, failure: RouteFailure, anthropic: bool = False):
         code = failure.status
-        text = failure.body.decode("utf-8", errors="replace")
+        payload, message = _normalise_error(failure.body)
         if anthropic:
             if failure.last_target is None and code == 403:
                 code = 404
-            payload = anthropic_error(code, text)
-        else:
-            try:
-                payload = json.loads(failure.body)
-            except (json.JSONDecodeError, UnicodeDecodeError):
-                payload = {"error": {"message": text, "type": "upstream_error"}}
+            payload = anthropic_error(code, message)
         self._send_json(
             code,
             payload,

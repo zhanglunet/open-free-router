@@ -22,6 +22,7 @@
 | `open-free-router mcp [--print-config]` | MCP stdio server (line-delimited JSON-RPC 2.0); or print host registration snippets |
 | `open-free-router status [--json]` | One-shot health summary (registry stats, proxy/UI reachability) |
 | `open-free-router models [--json]` | List registry models with capability flags |
+| `open-free-router protocols [--json]` | Show the declared provider × Chat/Responses/Messages compatibility matrix |
 | `open-free-router doctor` | Diagnose install: config, keys, ports, all 9 client config files |
 
 ## Config
@@ -57,6 +58,7 @@ src/open_free_router/
 ├── mcp_server.py       # MCP stdio server (line-delimited JSON-RPC 2.0, 6 tools)
 ├── discovery.py        # Candidate-only free-provider discovery; never mutates registry
 ├── public_catalog.py   # Credential-free provider/model catalog export
+├── protocol_matrix.py  # Declared provider × client-protocol matrix + config diagnostics
 ├── refresh.py          # Dispatches per-provider refresh from refresh_sources/
 ├── refresh_sources/    # Pluggable: openrouter.py, nvidia_nim.py, groq.py, etc.
 ├── serve.py            # Daemon: proxy + UI + scheduler + Pi models.json writer
@@ -121,6 +123,7 @@ src/open_free_router/
 - `tests/test_serve.py` — 2 tests: Pi models.json format, skip when no Pi dir
 - `tests/test_discovery.py` — candidate filtering, registry exclusion, and secure persistence
 - `tests/test_public_catalog.py` — redacted public catalog and credential-field rejection
+- `tests/test_protocol_matrix.py` — 11×3 matrix, text/reasoning/tools/usage/errors and field isolation
 - Run: `pip install -e ".[dev]" && python3 -m pytest tests/ -v`
 - No CI/CD configured yet
 
