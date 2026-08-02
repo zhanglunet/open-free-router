@@ -4,6 +4,8 @@ if (header) {
   const globalLinks = [
     ["首页", "/"],
     ["免费模型", "/models/"],
+    ["模型评测", "/benchmarks/"],
+    ["工具比较", "/compare/"],
     ["实时状态", "/status/"],
     ["系统架构", "/architecture/"],
     ["全球分布", "/map/"],

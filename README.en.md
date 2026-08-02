@@ -1,6 +1,6 @@
 # open-free-router
 
-🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Install guide](https://oaf.asia/guide/) · [Free Model Radar](https://oaf.asia/models/) · [Live Status](https://oaf.asia/status/) · [Architecture](https://oaf.asia/architecture/) · [World Map](https://oaf.asia/map/)
+🌐 **Project website:** [oaf.asia](https://oaf.asia) · [Install guide](https://oaf.asia/guide/) · [Free Model Radar](https://oaf.asia/models/) · [Model Benchmarks](https://oaf.asia/benchmarks/) · [Tool Comparison](https://oaf.asia/compare/) · [Live Status](https://oaf.asia/status/) · [Architecture](https://oaf.asia/architecture/) · [World Map](https://oaf.asia/map/)
 
 > **Attribution:** This repository is derived from
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -12,7 +12,7 @@
 > explainable scoring, local analytics, a protocol matrix, expanded tests, and the project
 > documentation site. See [`NOTICE.md`](NOTICE.md).
 
-**Current stable release: v0.3.0** · Python 3.11+ · MIT · 275 Python tests + 10 web tests
+**Current stable release: v0.3.0** · Python 3.11+ · MIT · 275 Python tests + 14 web tests + 4 npm tests
 
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
@@ -82,6 +82,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
+
+**Option 3: npm (pack-ready, not published)**
+
+`npm/open-free-router/` is a thin bootstrapper that checks for Python 3.11+, creates a versioned virtual environment in the user cache, and installs the bundled Python source. Publishing would make that source public through npm, so this path remains disabled until the owner confirms the boundary and authenticates to npm. Do not treat `npm install -g open-free-router` as live yet.
 
 ## Commands
 
@@ -230,7 +234,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-275 Python tests plus 10 web tests cover registry/config, refresh sources, nine-client sync, proxy authentication, all three client protocols, streaming/tool behavior, virtual routing, safe fallback, three-level resilience, quota, explainable scoring, analytics/export guards, MCP permissions, protocol diagnostics, live probing, and the Cloudflare catalog/status site.
+275 Python tests, 14 web tests, and 4 npm tests cover registry/config, refresh sources, nine-client sync, proxy authentication, all three client protocols, streaming/tool behavior, virtual routing, safe fallback, three-level resilience, quota, explainable scoring, analytics/export guards, MCP permissions, protocol diagnostics, live probing, benchmark importing, npm bootstrap packaging, and the Cloudflare catalog/status site.
 
 ## Claude Code integration
 
@@ -253,6 +257,8 @@ Eight tools are exposed by default over stdio JSON-RPC: `list_models`, `list_pro
 ## Live availability
 
 The dashboard's **Live Status** tab fires one real 1-token request per model using your local keys and network. The public [status page](https://oaf.asia/status/) is fully separate: Cloudflare Cron probes a rotating server-side batch every 15 minutes using dedicated Secrets and stores the snapshot in KV. It never reads your machine. Per-provider **API-key acquisition steps** live on each provider card of the [model radar](https://oaf.asia/models/#providers).
+
+The public [Model Benchmarks](https://oaf.asia/benchmarks/) page separates server-side availability and latency, registry-declared capability density, and optional Artificial Analysis quality indices. Its local readiness score is not an intelligence score. External data is imported only from the official API, with attribution and version metadata; missing values are never guessed from an image. See [`docs/PRD-comparison-benchmarks-npm.md`](docs/PRD-comparison-benchmarks-npm.md).
 
 ## Codex integration
 

@@ -6,9 +6,12 @@
   "description": "Documentation website and Cloudflare deployment for open-free-router",
   "scripts": {
     "build": "node scripts/build-site.mjs",
+    "benchmarks:import": "node scripts/import-artificial-analysis.mjs",
     "log:add": "node scripts/append-devlog.mjs",
     "discover": "node scripts/discover-models.mjs",
     "test:web": "node --test web-tests/*.test.mjs",
+    "test:npm": "npm --prefix npm/open-free-router test",
+    "pack:npm": "npm pack ./npm/open-free-router",
     "dev": "npm run build && wrangler dev",
     "deploy": "npm run build && wrangler deploy",
     "deploy:dry-run": "npm run build && wrangler deploy --dry-run"

@@ -24,6 +24,10 @@ const logsHtml = await readFile(resolve(output, "logs", "index.html"), "utf8");
 const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
 const storyHtml = await readFile(resolve(output, "stories", "free-model-port", "index.html"), "utf8");
 const storyJs = await readFile(resolve(output, "stories", "free-model-port", "article.js"), "utf8");
+const compareHtml = await readFile(resolve(output, "compare", "index.html"), "utf8");
+const benchmarksHtml = await readFile(resolve(output, "benchmarks", "index.html"), "utf8");
+const benchmarksJs = await readFile(resolve(output, "benchmarks", "benchmarks.js"), "utf8");
+const benchmarksData = JSON.parse(await readFile(resolve(output, "data", "benchmarks.json"), "utf8"));
 const devlog = JSON.parse(await readFile(resolve(output, "data", "devlog.json"), "utf8"));
 const navJs = await readFile(resolve(output, "nav.js"), "utf8");
 const required = [
@@ -101,9 +105,23 @@ for (const marker of ["免费大模型", "真实实测", "本地优先", "复制
     throw new Error(`Generated recommendation story is missing required content: ${marker}`);
   }
 }
+for (const marker of ["OmniRoute", "9Router", "LiteLLM", "Free Router", "比较依据", "2026-08-02"]) {
+  if (!compareHtml.includes(marker)) throw new Error(`Generated comparison page is missing required content: ${marker}`);
+}
+for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", "不从图片猜分", "35%", "25%", "30%", "10%"]) {
+  if (!benchmarksHtml.includes(marker) && !benchmarksJs.includes(marker)) {
+    throw new Error(`Generated benchmarks page is missing required content: ${marker}`);
+  }
+}
+if (!benchmarksJs.includes("function html(value)") || !benchmarksJs.includes("&lt;")) {
+  throw new Error("Benchmarks page must HTML-escape public catalog and benchmark fields");
+}
+if (!Array.isArray(benchmarksData.sources) || !benchmarksData.sources.some((source) => source.id === "artificial-analysis" && source.attribution_required)) {
+  throw new Error("Benchmark snapshot must preserve Artificial Analysis attribution requirements");
+}
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));
-for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml]) {
+for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml, compareHtml, benchmarksHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }

@@ -1,0 +1,28 @@
+{
+  "name": "open-free-router",
+  "version": "0.3.0",
+  "description": "模力自由港：免费大模型发现、验证与多客户端路由",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://oaf.asia/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zhanglunet/open-free-router.git"
+  },
+  "bugs": {
+    "url": "https://github.com/zhanglunet/open-free-router/issues"
+  },
+  "keywords": ["llm", "free-models", "router", "codex", "openai-compatible", "ai"],
+  "bin": {
+    "open-free-router": "bin/open-free-router.mjs",
+    "ofr": "bin/open-free-router.mjs"
+  },
+  "files": ["bin", "scripts", "vendor", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "prepack": "node scripts/prepare-python-bundle.mjs",
+    "test": "node --test test/*.test.mjs",
+    "verify": "node scripts/prepare-python-bundle.mjs && node scripts/verify-package.mjs"
+  },
+  "publishConfig": { "access": "public" }
+}

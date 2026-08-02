@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "generated_at": null,
+  "methodology": {
+    "local_score_version": "ofr-readiness-v1",
+    "local_score_note_zh": "自由港任务适配分由服务端可用性 35%、免费证据 25%、声明功能密度 30% 和最近延迟 10% 组成；它不是模型智力或回答质量排名。",
+    "external_match_note_zh": "第三方基准按模型族与配置匹配；同名模型的推理档位、量化和提供商实现可能不同。"
+  },
+  "sources": [
+    {
+      "id": "artificial-analysis",
+      "name": "Artificial Analysis",
+      "url": "https://artificialanalysis.ai/",
+      "api_url": "https://artificialanalysis.ai/api/v2/language/models/free",
+      "status": "not_imported",
+      "index_version": null,
+      "attribution_required": true,
+      "license_note_zh": "展示或分享 API 数据必须清晰署名，并受 Artificial Analysis Terms of Use 约束；大规模再分发需另行确认。",
+      "last_imported_at": null,
+      "models": []
+    }
+  ]
+}

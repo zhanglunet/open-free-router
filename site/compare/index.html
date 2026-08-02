@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港与 OmniRoute、9Router、LiteLLM、Free Router 的透明能力比较：免费模型、路由、协议、韧性、评测、隐私和安装方式。">
+  <meta property="og:title" content="工具比较 · 模力自由港">
+  <meta property="og:description" content="不只列勾叉：按定位、能力、边界和适用人群比较五种 AI 模型路由工具。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>工具比较 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/compare/compare.css">
+  <script src="/nav.js?v=20260802c" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <a class="skip-link" href="#matrix">跳到比较表</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="比较页导航"><a href="/models/">模型雷达</a><a href="/benchmarks/">模型评测</a><a href="/architecture/">系统架构</a><a href="/guide/">安装指南</a></nav>
+    <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
+  </header>
+
+  <main>
+    <section class="compare-hero">
+      <p class="compare-eyebrow"><span></span> HONEST COMPARISON · 2026.08.02</p>
+      <h1>不是谁都要赢，<br><em>而是谁更适合你。</em></h1>
+      <p>模力自由港专注“免费模型的发现、证据、实测与本地接入”；其他工具可能在提供商规模、企业治理、多模态或订阅账号整合上更强。下面按公开资料逐项比较，未核实的能力不会写成“没有”。</p>
+      <div class="compare-principles"><span>公开来源</span><span>同一时间快照</span><span>未知明确标注</span><span>不把数量当质量</span></div>
+    </section>
+
+    <section class="compare-section" id="matrix">
+      <header><p class="compare-eyebrow"><span></span> CAPABILITY MATRIX</p><h2>五种工具，<em>一张表看清。</em></h2><p>表格较宽，手机端可横向滑动。所有数字只代表 2026-08-02 核对到的官方资料快照，项目更新后可能变化。</p></header>
+      <div class="compare-table-wrap" role="region" aria-label="AI 路由工具比较表，可横向滚动" tabindex="0">
+        <table class="compare-table">
+          <thead><tr><th>比较维度</th><th class="ours">模力自由港<small>FreeModel Port</small></th><th>OmniRoute</th><th>9Router</th><th>LiteLLM</th><th>Free Router</th></tr></thead>
+          <tbody>
+            <tr class="group"><th colspan="6">定位与规模</th></tr>
+            <tr><th>核心定位</th><td class="ours"><b>免费模型发现、实测与本地路由</b></td><td>全功能多提供商 AI 网关</td><td>订阅账号、低价与免费模型的三层路由</td><td>生产级 LLM Gateway + Python SDK</td><td>面向 OpenCode / OpenClaw 的免费模型 TUI</td></tr>
+            <tr><th>官方资料中的提供商规模</th><td class="ours"><b>11 家登记提供商</b><small>只纳入当前维护与验证范围</small></td><td>268 家</td><td>60+ 家</td><td>100+ LLM API</td><td>2 家主提供商<small>NVIDIA NIM / OpenRouter</small></td></tr>
+            <tr><th>免费资源口径</th><td class="ours"><b>结构化证据 + 有效期 + 待复核状态</b></td><td>免费层 / free forever 分类</td><td>FREE 路由层</td><td>价格表与预算治理，不以免费发现为核心</td><td>免费 Key + 在线 ping</td></tr>
+
+            <tr class="group"><th colspan="6">接入、路由与韧性</th></tr>
+            <tr><th>本地统一端点</th><td class="ours"><b>有 · 127.0.0.1:8337</b></td><td>有 · :20128</td><td>有 · :20128</td><td>有 · 默认 :4000</td><td>以 TUI 选择和客户端配置交接为主</td></tr>
+            <tr><th>客户端协议</th><td class="ours"><b>Chat + Responses + Messages</b><small>另有 Completions / Embeddings 透传</small></td><td>OpenAI / Claude / Gemini / Responses 等</td><td>OpenAI 兼容，多服务类型</td><td>OpenAI 输入输出统一层，多端点</td><td>主要写入 OpenCode / OpenClaw 配置</td></tr>
+            <tr><th>路由策略</th><td class="ours"><b>4 个虚拟模型 + 六因子可解释评分</b><small>评分默认关闭</small></td><td>17 种策略 + 九因子评分</td><td>三层 smart fallback</td><td>重试、fallback、负载均衡与成本路由</td><td>可用性、能力层级、延迟和 uptime 排序</td></tr>
+            <tr><th>故障隔离</th><td class="ours"><b>Provider / 匿名 Key 槽 / Model 三层</b><small>首字节后禁止重放</small></td><td>Provider / connection / model 三层</td><td>账号与模型组合 fallback</td><td>部署级重试、fallback 和 cooldown</td><td>会话内健康状态与失败判定</td></tr>
+            <tr><th>自动发现与真实接入</th><td class="ours"><b>候选隔离；专用凭据实测成功后才可收录</b></td><td>大规模目录与连接管理</td><td>内置提供商与账号连接</td><td>广泛 provider registry；接入由管理员配置</td><td>在线 ping 已配置模型</td></tr>
+
+            <tr class="group"><th colspan="6">运维、评测与数据边界</th></tr>
+            <tr><th>内置 MCP</th><td class="ours"><b>Server · 默认 8 个工具</b><small>2 个写工具显式开启</small></td><td>Server · 官方资料称 104 个工具</td><td>所核对资料未说明内置 MCP Server</td><td>MCP Gateway / Hub，定位与本项目不同</td><td>所核对资料未说明</td></tr>
+            <tr><th>模型评测</th><td class="ours"><b>本站实测 + 功能密度 + 可选第三方基准</b><small>来源、版本和匹配置信度分开显示</small></td><td>内置 eval framework</td><td>所核对资料未说明独立评测框架</td><td>通过 callbacks / observability 接第三方评测体系</td><td>AA / SWE-bench 元数据 + 实时延迟</td></tr>
+            <tr><th>本地使用分析</th><td class="ours"><b>SQLite 最小化元数据，可完全关闭</b><small>不保存 Prompt / 响应 / 工具参数</small></td><td>本地数据库与完整网关能力</td><td>SQLite 使用与成本跟踪</td><td>成本、预算、日志与可观测平台集成</td><td>本地配置与会话滚动指标</td></tr>
+            <tr><th>公开实时状态</th><td class="ours"><b>Cloudflare 服务器端轮换实测</b><small>与用户本机完全分离</small></td><td>以本地网关健康与目录为主</td><td>以本地仪表盘为主</td><td>由部署者的网关监控体系决定</td><td>本机会话内 ping</td></tr>
+            <tr><th>默认数据边界</th><td class="ours"><b>本地优先；公开站只读脱敏目录与服务端快照</b></td><td>本地 / 自托管网关</td><td>本地 SQLite，可选云同步</td><td>面向团队的集中式网关，可配置外部日志回调</td><td>本地 0600 配置</td></tr>
+
+            <tr class="group"><th colspan="6">安装与适用场景</th></tr>
+            <tr><th>主要运行栈</th><td class="ours"><b>Python 3.11+ · stdlib HTTP Server</b></td><td>TypeScript / Next.js / Electron</td><td>Node.js / Next.js / SQLite</td><td>Python SDK / Gateway</td><td>TypeScript / Node.js TUI</td></tr>
+            <tr><th>npm 安装</th><td class="ours"><b>包已完成打包准备，尚未公开发布</b><small>发布会公开包内 Python 源码</small></td><td><code>npm i -g omniroute</code></td><td><code>npm i -g 9router</code></td><td>主要使用 uv / pip / Docker</td><td><code>npm i -g @bytonylee/free-router</code></td></tr>
+            <tr><th>更适合谁</th><td class="ours"><b>想低成本使用免费 API、重视证据与本机隐私的个人开发者</b></td><td>需要大目录、多协议和完整网关功能的高级用户</td><td>希望统一消耗多种 AI 订阅与免费账号的用户</td><td>需要企业级多租户、预算、审计和广泛模型接入的团队</td><td>只需要快速挑选 NVIDIA / OpenRouter 免费模型的用户</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="compare-note">“所核对资料未说明”只表示本次未找到明确官方声明，不等于该项目一定没有。涉及数量、策略和工具数的声明均来自对应项目官方页面或 README，不是模力自由港的独立审计结果。</p>
+    </section>
+
+    <section class="compare-section decision">
+      <header><p class="compare-eyebrow"><span></span> CHOOSE BY NEED</p><h2>按需求选，<em>比按数量选更可靠。</em></h2></header>
+      <div class="decision-grid">
+        <article><b>选择模力自由港，如果你更看重</b><p>免费证据、真实可用性、九客户端轻量接入、可解释 fallback、本机隐私和中文模型说明。</p></article>
+        <article><b>选择 OmniRoute / 9Router，如果你更看重</b><p>大量提供商、订阅账号整合、更多路由策略、多模态服务或完整桌面网关体验。</p></article>
+        <article><b>选择 LiteLLM，如果你更看重</b><p>团队级虚拟 Key、预算、审计、多租户、生产部署和与现有可观测平台集成。</p></article>
+        <article><b>选择 Free Router，如果你更看重</b><p>非常轻的终端交互，只需 NVIDIA NIM / OpenRouter，并直接交接给 OpenCode 或 OpenClaw。</p></article>
+      </div>
+    </section>
+
+    <section class="compare-section sources">
+      <header><p class="compare-eyebrow"><span></span> SOURCES &amp; SNAPSHOT</p><h2>比较依据，<em>全部可追溯。</em></h2></header>
+      <div class="source-list">
+        <a href="https://omniroute.online/#compare" rel="noreferrer"><b>OmniRoute 官网 Compare</b><span>提供商、路由、MCP、韧性、npm 与运行栈</span></a>
+        <a href="https://9router.com/" rel="noreferrer"><b>9Router 官网与架构文档</b><span>提供商、三层路由、协议、SQLite 与 npm</span></a>
+        <a href="https://docs.litellm.ai/" rel="noreferrer"><b>LiteLLM 官方文档</b><span>100+ LLM API、Proxy、SDK、预算、fallback 与可观测</span></a>
+        <a href="https://www.npmjs.com/package/@bytonylee/free-router" rel="noreferrer"><b>@bytonylee/free-router npm README</b><span>提供商、TUI、排序、配置位置与安装命令</span></a>
+      </div>
+      <p class="compare-note">最后核对：2026-08-02。欢迎通过 GitHub Issue 提交来源明确的更正；我们会保留快照日期，不把动态项目事实写成永久结论。</p>
+    </section>
+  </main>
+
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Honest Comparison</small></span></div><p>比较的目的不是制造输赢，而是帮助用户理解定位、能力与代价。</p><div class="footer-links"><a href="/benchmarks/">模型评测</a><a href="/guide/">安装指南</a><a href="/logs/">开发日志</a><a href="/">返回首页</a></div></footer>
+</body>
+</html>
