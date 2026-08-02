@@ -70,6 +70,11 @@ class Config:
         except (TypeError, ValueError):
             self.analytics_retention_days = 30
 
+        mcp = self._raw.get("mcp", {})
+        if not isinstance(mcp, dict):
+            mcp = {}
+        self.mcp_allow_write_tools = mcp.get("allow_write_tools") is True
+
         # ui
         self.ui_host = self._raw.get("ui", {}).get("host", "127.0.0.1")
         self.ui_port = int(self._raw.get("ui", {}).get("port", 9057))

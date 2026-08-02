@@ -4,6 +4,11 @@
 
 ### Added
 
+- Four read-only MCP diagnostics: offline route explanation, resilience state,
+  quota claims/runtime availability and privacy-minimized usage metrics.
+- MCP write tools are now hidden by default and require the explicit
+  `mcp.allow_write_tools: true` opt-in; provider endpoints and runtime errors are
+  sanitized before entering tool results.
 - P1 privacy-minimized SQLite analytics with owner-only files, configurable
   30-day retention (`0` disables storage), safe upserts and inference-isolated
   database failures.

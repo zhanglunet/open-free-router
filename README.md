@@ -252,7 +252,7 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 | `probe.py` | 实时可用性探测：每模型一次真实 1-token 请求，输出延迟与状态快照 |
 | `quota.py` | 额度与限流响应头归一化：请求/Token 余量、重置时间和安全分类 |
 | `analytics.py` | 本机 SQLite 最小化统计、保留清理、聚合与安全 JSON/CSV 导出 |
-| `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，6 个工具，零第三方依赖） |
+| `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，默认 8 个工具，写工具需显式启用） |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |
 | `refresh.py` | 轮询提供商 API 获取免费模型变化，支持 pluggable sources |
@@ -310,9 +310,21 @@ open-free-router mcp --print-config           # 打印通用 mcpServers 片段
 ```
 
 内置 MCP stdio 服务器（按行 JSON-RPC 2.0，协议 2024-11-05 ~ 2025-06-18），
-提供 6 个工具：`list_models`、`list_providers`、`get_status`、`chat`
-（经本地代理真实推理）、`refresh_models`、`sync_clients`。任何 MCP 宿主
-（Claude Code、Codex、Kimi CLI 等）都可以让 Agent 查询、实测并调用免费模型。
+默认提供 8 个工具：`list_models`、`list_providers`、`get_status`、`chat`
+（经本地代理真实推理），以及只读诊断工具 `explain_route`、
+`get_resilience`、`check_quota`、`get_metrics`。任何 MCP 宿主（Claude Code、
+Codex、Kimi CLI 等）都可以查询模型、解释路由，并读取本机代理的脱敏运行状态。
+
+会刷新注册表或改写客户端配置的 `refresh_models`、`sync_clients` 默认不暴露。
+确需让 MCP Agent 执行写操作时，在 `config.yaml` 中显式启用：
+
+```yaml
+mcp:
+  allow_write_tools: true
+```
+
+启用后共 10 个工具。诊断输出仅返回聚合状态与安全端点，不返回 API Key、代理
+token、原始请求 ID、Prompt、响应正文或工具参数。
 
 ## 实时可用性
 

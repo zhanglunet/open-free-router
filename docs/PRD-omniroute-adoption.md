@@ -36,7 +36,9 @@ Implementation record (2026-08-02):
 - completed: P1 owner-only SQLite usage analytics, configurable retention,
   buffered/streaming Token capture, provider/model rates and p50/p95, fallback
   recovery, circuit blocks, estimated quota use and guarded JSON/CSV export;
-- next: P1 read-only MCP diagnostics and quota/metrics tools.
+- completed: P1 read-only MCP route, resilience, quota and metrics diagnostics;
+  mutating tools are hidden unless the owner explicitly opts in;
+- next: P1 protocol × capability matrix, release regression and P1 release.
 
 ## 1. 结论
 
@@ -88,7 +90,7 @@ OmniRoute 使用 MIT License。产品思想、交互模式和通用架构可独�
 | 故障隔离 | 有探测快照，无请求路径断路器 | provider / credential / model 分层 | P0 |
 | 额度管理 | 仅展示上游错误，无统一状态 | Retry-After、重置时间、额度预检 | P1 |
 | 可观测性 | 状态页与探测延迟 | 路由原因、p50/p95、fallback 次数 | P0/P1 |
-| MCP | 已有 6 个 stdio tools | route explain、quota、health | P1，小规模扩展 |
+| MCP | 默认 8 个 stdio tools，另有 2 个写工具需显式启用 | route explain、quota、health | P1，小规模扩展已完成 |
 | 安装与体检 | 已有 `sync`、`status`、`doctor` | 更完整的可恢复诊断 | P1 |
 | 本地优先 | 密钥保留在本机，Cloudflare 仅用专用 Secrets | 加密、管理面鉴权 | 保持边界并加固 |
 
@@ -318,6 +320,13 @@ HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字�
 写操作不默认暴露给 MCP。若未来增加，必须有独立 scope、明确确认和审计记录，避免
 复制 OmniRoute 的大规模工具面导致上下文膨胀。
 
+实现结果（2026-08-02）：新增 `explain_route`、`get_resilience`、`check_quota`、
+`get_metrics` 四个只读工具。路由解释直接读取本机配置，后三者使用本地代理 token
+调用经过鉴权的运行时 API；代理未启动时额度工具仍返回注册表声明并明确标记运行时
+不可用。工具结果会移除端点凭据、查询参数、原始请求 ID、错误正文、Prompt、响应
+正文和工具参数。已有 `refresh_models`、`sync_clients` 默认从工具目录隐藏，只有所有者
+设置 `mcp.allow_write_tools: true` 后才暴露。
+
 #### FR-P1-6 协议一致性测试
 
 建立 provider × protocol × capability 矩阵，至少验证：
@@ -423,7 +432,8 @@ src/open_free_router/
 3. **P0-C 共同执行器**：先覆盖 buffered，再覆盖 streaming 首字节安全；
 4. **P0-D 运维面**：CLI、UI、精确 reset、doctor；
 5. **P0-E 回归与安全**：协议矩阵、并发、canary secret、构建与真实本地 smoke test；
-6. **P1**：额度证据、SQLite 指标、可解释评分、MCP 只读扩展。
+6. **P1-A**：额度证据、SQLite 指标、可解释评分、MCP 只读扩展（已完成）；
+7. **P1-B**：协议 × capability 矩阵、全量回归、安全扫描与 P1 发布。
 
 每个阶段都应保持现有显式模型路径可用，不能等全部智能路由完成后一次性替换核心
 代理。P0 发布应有配置开关，可立即退回当前单模型直连行为。

@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T06:41:19.000Z",
+  "updated_at": "2026-08-02T07:15:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-mcp只读诊断",
+      "date": "2026-08-02",
+      "type": "security",
+      "version": "P1 开发版",
+      "title": "P1 MCP 只读诊断与最小权限",
+      "summary": "MCP 新增路由、韧性、额度和指标诊断，写工具默认隐藏并由所有者显式启用。",
+      "items": [
+        "离线路由解释不触发上游请求，运行时诊断仅访问鉴权后的本机代理",
+        "提供商端点、错误和统计输出移除凭据、查询参数及原始请求标识",
+        "刷新模型和同步客户端配置默认不进入 MCP 工具目录",
+        "真实代理集成测试覆盖额度、韧性、指标和敏感信息隔离"
+      ]
+    },
     {
       "id": "2026-08-02-p1-本机使用分析",
       "date": "2026-08-02",
