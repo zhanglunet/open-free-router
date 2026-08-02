@@ -62,7 +62,7 @@ async function authFetch(path, options = {}) {
 function switchTab(name) {
   document.querySelectorAll('.tab').forEach((button) => button.classList.toggle('active', button.dataset.tab === name));
   document.querySelectorAll('.tab-content').forEach((section) => { section.hidden = section.id !== `tab-${name}`; });
-  const loaders = { providers: loadProviders, models: loadModels, live: loadProbe, radar: loadDiscovery, config: loadConfig };
+  const loaders = { providers: loadProviders, models: loadModels, live: loadProbe, routing: loadRouting, radar: loadDiscovery, config: loadConfig };
   if (loaders[name]) loaders[name]();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
@@ -368,6 +368,65 @@ function renderClients() {
   byId('client-grid').innerHTML = CLIENTS.map((client) => `<label class="client-card"><input type="checkbox" value="${client.id}"><div class="client-card-head"><span class="client-name">${esc(client.name)}</span><span class="client-check">✓</span></div><div class="client-description">${esc(client.desc)}</div><div class="client-path">${esc(client.path)}</div></label>`).join('');
   document.querySelectorAll('.client-card input').forEach((input) => input.addEventListener('change', () => input.closest('.client-card').classList.toggle('selected', input.checked)));
 }
+
+function runtimeStateLabel(kind, item) {
+  if (kind === 'provider') return item.state === 'open' ? '熔断中' : (item.state === 'half_open' ? '恢复探测' : '正常');
+  if (kind === 'credential') return item.state === 'terminal' ? '已停用' : (item.state === 'cooldown' ? '冷却中' : '正常');
+  return item.lockout_until ? '临时隔离' : '正常';
+}
+
+function runtimeRow(name, kind, item) {
+  const bad = runtimeStateLabel(kind, item) !== '正常';
+  const model = kind === 'model' ? name.slice(name.indexOf('/') + 1) : '';
+  const provider = kind === 'model' ? name.slice(0, name.indexOf('/')) : name.split(':slot-')[0];
+  return `<div class="runtime-row"><div><strong>${esc(name)}</strong><span>${esc(item.reason || (kind === 'provider' ? `${item.failures || 0} 次连续故障` : '运行时保护'))}</span></div><div class="runtime-actions"><span class="status-chip ${bad ? 'bad' : 'ok'}">${runtimeStateLabel(kind, item)}</span>${bad ? `<button class="text-button resilience-reset" data-provider="${esc(provider)}" data-model="${esc(model)}">重置</button>` : ''}</div></div>`;
+}
+
+function renderRouting(data) {
+  const resilience = data.resilience || {};
+  const routes = data.routes || {};
+  const providers = Object.entries(resilience.providers || {});
+  const credentials = Object.entries(resilience.credentials || {});
+  const models = Object.entries(resilience.models || {});
+  const active = providers.filter(([, item]) => item.state !== 'closed').length + credentials.filter(([, item]) => item.state !== 'ready').length + models.length;
+  byId('routing-summary').innerHTML = [
+    metric('保护状态', active, active ? '存在正在生效的隔离策略' : '当前没有隔离', active ? 'warning' : 'accent'),
+    metric('提供商熔断', providers.filter(([, item]) => item.state !== 'closed').length, '上游整体故障保护'),
+    metric('凭据槽受限', credentials.filter(([, item]) => item.state !== 'ready').length, '仅显示匿名槽位'),
+    metric('最近决策', routes.total || 0, `内存最多保留 ${routes.max_entries || 0} 条`),
+  ].join('');
+  const rows = [
+    ...providers.map(([name, item]) => runtimeRow(name, 'provider', item)),
+    ...credentials.map(([name, item]) => runtimeRow(name, 'credential', item)),
+    ...models.map(([name, item]) => runtimeRow(name, 'model', item)),
+  ];
+  byId('resilience-list').innerHTML = rows.join('') || '<div class="empty">当前没有熔断、冷却或模型隔离。</div>';
+  byId('route-list').innerHTML = (routes.items || []).map((item) => `<div class="runtime-row route-row"><div><strong>${esc(item.requested_model)}</strong><span>${esc(item.request_id)} · ${formatDate(Number(item.timestamp || 0) * 1000)}</span></div><div class="route-result"><span class="status-chip ${item.status === 'success' ? 'ok' : 'bad'}">${item.status === 'success' ? '成功' : `失败 ${item.status_code || ''}`}</span><span>${esc(item.provider || '未选中')} / ${esc(item.model || '—')} · ${item.attempts || 0} 次尝试</span></div></div>`).join('') || '<div class="empty">尚无路由决策；通过代理发送请求后会显示在这里。</div>';
+  document.querySelectorAll('.resilience-reset').forEach((button) => button.addEventListener('click', () => resetResilience(button.dataset.provider, button.dataset.model)));
+}
+
+async function loadRouting() {
+  try {
+    const response = await fetch('/api/routing');
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '读取失败');
+    renderRouting(data);
+  } catch (error) {
+    byId('resilience-list').innerHTML = `<div class="empty">${esc(error.message)}</div>`;
+    byId('route-list').innerHTML = '<div class="empty">请确认本地代理已启动。</div>';
+  }
+}
+
+async function resetResilience(provider, model = '') {
+  try {
+    const response = await authFetch('/api/routing/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ provider, model }) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || '重置失败');
+    showToast('routing-status', `已重置 ${provider}${model ? ` / ${model}` : ''} 的保护状态。`);
+    await loadRouting();
+  } catch (error) { showToast('routing-status', error.message, false); }
+}
+byId('routing-refresh').addEventListener('click', loadRouting);
 
 function renderProtocolGuides(data) {
   const url = data.service?.proxy_url || 'http://127.0.0.1:8337/v1';

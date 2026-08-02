@@ -92,6 +92,9 @@ pip install -e .
 | `open-free-router mcp [--print-config]` | 内置 MCP stdio 服务器；`--print-config` 打印宿主注册片段 |
 | `open-free-router status [--json]` | 一屏健康摘要（注册表 / 密钥 / 端口可达性） |
 | `open-free-router models [--json]` | 列出全部模型与能力标记（T=工具 R=推理） |
+| `open-free-router route explain MODEL [--json]` | 离线解释虚拟/显式模型的候选顺序，不发起推理 |
+| `open-free-router resilience [--json]` | 查看运行中代理的 Provider/Key 槽位/模型故障隔离状态 |
+| `open-free-router resilience reset --provider NAME [--model ID]` | 精确重置 Provider 或单模型运行时状态 |
 | `open-free-router doctor` | 安装体检：配置、密钥、端口与 9 个客户端配置状态 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
@@ -142,7 +145,31 @@ discovery:
   auto_adopt: false      # 只接入真实请求成功的模型
   max_providers_per_cycle: 5
   max_models_per_provider: 3
+
+routing:
+  aliases:
+    auto/coding:
+      require:
+        tool_calling: true
+      # 可选：省略 candidates 时按注册表顺序选择全部符合能力的模型
+      candidates: [gq/gpt-oss-120b, gq/gpt-oss-20b]
+  fallback:
+    enabled: true
+    max_attempts: 3
+    explicit_model: false  # 显式模型默认不静默换模
 ```
+
+内置虚拟模型为 `auto`、`auto/coding`、`auto/fast`、`auto/free`。当前开发
+版本已完成确定性候选计划，以及 Chat、Responses、Messages 共用的首字节前
+安全 fallback：虚拟模型可在 Key 失效、429、模型下线或上游 5xx 时切换候选；
+显式模型默认不静默换模。流式响应一旦向客户端发送响应头/事件便不再重放。
+可先运行 `open-free-router route explain auto/coding --json` 检查候选，不会
+消耗免费额度。
+
+成功或最终失败的代理响应会携带 `X-OFR-Request-Id`、`X-OFR-Provider`、
+`X-OFR-Model`、`X-OFR-Fallback-Attempts`。运行时三层状态只通过带本地代理
+Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Key 槽位
+编号，不包含 API Key 值、哈希、Prompt 或响应内容。
 
 首次运行 `serve` 自动创建配置文件和注册表，无需手动初始化。
 
@@ -240,10 +267,11 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖（144 例）：registry/config、刷新源、九客户端同步（含
+当前测试覆盖（198 例）：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
-MCP 握手与工具调用及 Codex profile。
+MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、
+三层故障隔离、原子状态恢复和有界路由决策历史。
 
 ## Codex 集成
 

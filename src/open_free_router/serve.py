@@ -16,6 +16,8 @@ from open_free_router.ui import run_ui
 from open_free_router.refresh import refresh
 from open_free_router.sync import write_pi_models, sync_all
 from open_free_router.auth import get_or_create_proxy_token
+from open_free_router.resilience import ResilienceManager
+from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
 
 
@@ -26,6 +28,8 @@ class Daemon:
         self.cfg = cfg
         self.reg = Registry.load(cfg.registry_path)
         self.proxy_token = get_or_create_proxy_token(cfg.config_dir)
+        self.resilience = ResilienceManager(state_path=cfg.data_dir / "runtime-state.json")
+        self.decisions = RouteDecisionStore()
         self._proxy_server = None
         self._stop = threading.Event()
 
@@ -89,7 +93,10 @@ class Daemon:
         # Start proxy
         srv, _ = run_proxy(self.reg, host=self.cfg.proxy_host, port=self.cfg.proxy_port,
                            upstream_timeout=self.cfg.upstream_timeout,
-                           auth_token=self.proxy_token)
+                           auth_token=self.proxy_token,
+                           routing=self.cfg.routing,
+                           resilience=self.resilience,
+                           decisions=self.decisions)
         self._proxy_server = srv
 
         # Write Pi models on startup

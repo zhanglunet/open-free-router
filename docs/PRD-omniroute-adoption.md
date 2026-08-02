@@ -1,9 +1,27 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: Draft — proposed for implementation planning, no code copied
+Status: In progress — P0 routing and resilience foundation implemented independently
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
+
+Implementation record (2026-08-02):
+
+- completed: `RoutingConfig`, deterministic `RoutePlanner`, four built-in virtual
+  models, custom aliases, proxy model-catalog integration and `route explain`;
+- completed: scoped failure classifier and thread-safe provider/credential/model
+  resilience state with redacted snapshots;
+- completed: one shared pre-first-byte executor for Chat, Responses and Messages,
+  including multi-Key rotation, bounded cross-model fallback, explicit-model
+  isolation, no replay after stream start and `X-OFR-*` routing headers;
+- completed: token-protected runtime resilience status/reset API and CLI;
+- completed: owner-only atomic runtime-state persistence with corrupt-file
+  quarantine and expired-state pruning;
+- completed: bounded redacted request-ID decision history plus an authenticated
+  proxy API and Chinese dashboard routing/resilience panel;
+- completed: restart recovery, concurrent atomic-write, redaction, API and UI
+  regression tests;
+- next: broader failure-matrix chaos validation and `doctor` repair guidance.
 
 ## 1. 结论
 

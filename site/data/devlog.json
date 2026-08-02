@@ -1,9 +1,51 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T02:44:08.284Z",
+  "updated_at": "2026-08-02T04:35:53.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-路由状态持久化与中文运维面板",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "路由状态持久化与中文运维面板",
+      "summary": "完成运行时保护状态的安全重启恢复、请求级路由决策历史，以及本地控制台的路由与韧性页面。",
+      "items": [
+        "runtime-state.json 使用 0600 权限和原子替换，损坏文件自动隔离",
+        "只保留有界脱敏决策，不记录提示词、响应或密钥",
+        "仪表盘可查看熔断、凭据槽冷却、模型隔离和最近 fallback",
+        "新增重启恢复、并发写入、鉴权转发与敏感信息回归测试"
+      ]
+    },
+    {
+      "id": "2026-08-02-完成首字节前安全-fallback",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "完成首字节前安全 Fallback",
+      "summary": "Chat、Responses、Messages 已统一接入候选与多 Key 切换，流开始后禁止重放，并开放脱敏韧性状态接口。",
+      "items": [
+        "429、Key 失效、模型下线和 5xx 可在虚拟模型内切换",
+        "显式模型默认不静默换模",
+        "响应增加 X-OFR 路由决策头",
+        "新增 resilience 查询和精确重置 CLI"
+      ]
+    },
+    {
+      "id": "2026-08-02-启动-omniroute-借鉴专项-p0-开发",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "启动 OmniRoute 借鉴专项 P0 开发",
+      "summary": "完成虚拟模型路由计划、路由解释 CLI 和三层故障隔离基础模块，保持显式模型兼容。",
+      "items": [
+        "新增 auto、auto/coding、auto/fast、auto/free 虚拟模型",
+        "新增 RoutePlanner 与自定义候选配置",
+        "新增 provider、credential、model 三层状态和错误分类",
+        "下一步接入跨候选真实请求 fallback"
+      ]
+    },
     {
       "id": "2026-08-02-完成-omniroute-对标需求评审",
       "date": "2026-08-02",

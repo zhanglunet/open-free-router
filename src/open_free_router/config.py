@@ -57,6 +57,11 @@ class Config:
         # proxy upstream timeout
         self.upstream_timeout = int(self._raw.get("upstream_timeout", 120))
 
+        # Deterministic virtual-model routing.  The planner owns validation so
+        # config loading stays backwards compatible with unknown future keys.
+        from open_free_router.routing import RoutingConfig
+        self.routing = RoutingConfig.from_dict(self._raw.get("routing", {}))
+
         # ui
         self.ui_host = self._raw.get("ui", {}).get("host", "127.0.0.1")
         self.ui_port = int(self._raw.get("ui", {}).get("port", 9057))

@@ -31,6 +31,7 @@
       <button class="tab" data-tab="providers"><span>◫</span>提供商</button>
       <button class="tab" data-tab="models"><span>◇</span>模型目录</button>
       <button class="tab" data-tab="live"><span>◉</span>实时实测</button>
+      <button class="tab" data-tab="routing"><span>⇄</span>路由韧性</button>
       <button class="tab" data-tab="radar"><span>⌁</span>模型雷达</button>
       <button class="tab" data-tab="clients"><span>↗</span>客户端接入</button>
       <button class="tab" data-tab="config"><span>⚙</span>系统配置</button>
@@ -136,6 +137,20 @@
         <div class="notice safe">安全边界：仪表盘扫描只更新候选快照，不会自动接入。自动测试与自动采用仍由本机配置和专用环境变量共同控制。</div>
         <div id="radar-summary" class="metric-grid compact"></div>
         <div id="discovery-list" class="provider-cards"><div class="empty">正在读取候选快照…</div></div>
+      </section>
+
+      <section id="tab-routing" class="tab-content" hidden>
+        <div class="page-heading">
+          <div><span class="eyebrow">运行时决策</span><h1>路由与韧性状态</h1><p>查看最近请求选择、回退次数、提供商熔断、凭据槽冷却和模型临时隔离。这里不记录提示词、响应内容或密钥。</p></div>
+          <button id="routing-refresh" class="btn secondary">立即刷新</button>
+        </div>
+        <div class="notice safe">状态来自当前本机代理进程；重启后仍会恢复尚未过期的保护状态。重置操作需要本地控制台令牌。</div>
+        <div id="routing-summary" class="metric-grid compact"></div>
+        <div class="two-column">
+          <article class="panel"><div class="panel-head"><div><span class="section-kicker">三层隔离</span><h2>当前保护状态</h2></div></div><div id="resilience-list" class="runtime-list"><div class="empty">正在读取运行状态…</div></div></article>
+          <article class="panel"><div class="panel-head"><div><span class="section-kicker">有界记录</span><h2>最近路由决策</h2></div></div><div id="route-list" class="runtime-list"><div class="empty">尚无路由记录</div></div></article>
+        </div>
+        <div id="routing-status" class="toast-region" aria-live="polite"></div>
       </section>
 
       <section id="tab-clients" class="tab-content" hidden>

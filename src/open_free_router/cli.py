@@ -12,6 +12,7 @@ from open_free_router.ui import run_ui
 from open_free_router.serve import Daemon
 from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
+from open_free_router.routing import RoutePlanner
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -255,6 +256,22 @@ def cmd_models(args):
                 "reasoning": m.reasoning,
                 "tool_calling": m.tool_calling,
             })
+    planner = RoutePlanner(reg, cfg.routing)
+    for model_id in planner.virtual_model_ids():
+        plan = planner.plan(model_id)
+        rows.append({
+            "id": model_id,
+            "name": model_id,
+            "provider": "open-free-router",
+            "context_window": 0,
+            "max_tokens": 0,
+            "reasoning": any(target.model.reasoning for target in plan.candidates),
+            "tool_calling": bool(plan.candidates) and all(
+                target.model.tool_calling for target in plan.candidates
+            ),
+            "virtual": True,
+            "candidate_count": len(plan.candidates),
+        })
     if args.json:
         import json as _json
         print(_json.dumps(rows, indent=2, ensure_ascii=False))
@@ -266,6 +283,86 @@ def cmd_models(args):
         ])
         print(f"  {row['id']:42s} {flags}  {row['context_window']:>9,}ctx  {row['provider']}")
     print(f"\n{len(rows)} models (T=tool calling, R=reasoning)")
+
+
+def cmd_route_explain(args):
+    """Explain deterministic route planning without calling an upstream."""
+    cfg = Config()
+    _bootstrap_registry(cfg)
+    reg = Registry.load(cfg.registry_path)
+    explanation = RoutePlanner(reg, cfg.routing).plan(args.model).explain()
+    if args.json:
+        import json as _json
+        print(_json.dumps(explanation, indent=2, ensure_ascii=False))
+        return
+    print(f"requested: {explanation['requested_model']}")
+    print(f"strategy : {explanation['strategy']}")
+    print(f"selected : {explanation['selected'] or '(none)'}")
+    print("candidates:")
+    for index, model_id in enumerate(explanation["candidates"], 1):
+        print(f"  {index}. {model_id}")
+    if explanation["rejected"]:
+        print("rejected:")
+        for item in explanation["rejected"]:
+            print(f"  - {item['model']}: {item['reason']}")
+
+
+def _resilience_request(cfg: Config, method: str = "GET", payload: dict | None = None) -> dict:
+    import json as _json
+    from urllib.request import Request, urlopen
+
+    token = get_or_create_proxy_token(cfg.config_dir)
+    url = f"http://{cfg.proxy_host}:{cfg.proxy_port}/api/resilience"
+    if method == "POST":
+        url += "/reset"
+    data = _json.dumps(payload).encode() if payload is not None else None
+    request = Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urlopen(request, timeout=5) as response:
+        return _json.loads(response.read())
+
+
+def cmd_resilience(args):
+    """Read the running proxy's redacted resilience state."""
+    cfg = Config()
+    try:
+        payload = _resilience_request(cfg)
+    except Exception as exc:
+        print(f"✗ cannot read proxy resilience state: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if args.json:
+        import json as _json
+        print(_json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    print("provider circuits:")
+    for name, state in payload.get("providers", {}).items():
+        print(f"  {name:24s} {state.get('state', 'unknown'):10s} failures={state.get('failures', 0)}")
+    print("credential states:")
+    for name, state in payload.get("credentials", {}).items():
+        print(f"  {name:24s} {state.get('state', 'unknown'):10s} {state.get('reason', '')}")
+    print("model lockouts:")
+    for name, state in payload.get("models", {}).items():
+        print(f"  {name:42s} {state.get('reason', '')}")
+
+
+def cmd_resilience_reset(args):
+    """Precisely reset one provider or provider/model runtime state."""
+    cfg = Config()
+    try:
+        payload = _resilience_request(
+            cfg, method="POST", payload={"provider": args.provider, "model": args.model}
+        )
+    except Exception as exc:
+        print(f"✗ cannot reset proxy resilience state: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(f"✔ reset {payload['provider']}" + (f"/{payload['model']}" if payload.get("model") else ""))
 
 
 def cmd_doctor(args):
@@ -405,6 +502,22 @@ def main():
     p_models = sub.add_parser("models", help="list registry models")
     p_models.add_argument("--json", action="store_true")
     p_models.set_defaults(func=cmd_models)
+
+    p_route = sub.add_parser("route", help="inspect deterministic virtual-model routing")
+    route_sub = p_route.add_subparsers(dest="route_command", required=True)
+    p_route_explain = route_sub.add_parser("explain", help="explain a model route without inference")
+    p_route_explain.add_argument("model")
+    p_route_explain.add_argument("--json", action="store_true")
+    p_route_explain.set_defaults(func=cmd_route_explain)
+
+    p_resilience = sub.add_parser("resilience", help="inspect or reset runtime failure isolation")
+    p_resilience.add_argument("--json", action="store_true")
+    p_resilience.set_defaults(func=cmd_resilience)
+    resilience_sub = p_resilience.add_subparsers(dest="resilience_command")
+    p_resilience_reset = resilience_sub.add_parser("reset", help="reset one provider or model state")
+    p_resilience_reset.add_argument("--provider", required=True)
+    p_resilience_reset.add_argument("--model")
+    p_resilience_reset.set_defaults(func=cmd_resilience_reset)
 
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
     p_doctor.set_defaults(func=cmd_doctor)

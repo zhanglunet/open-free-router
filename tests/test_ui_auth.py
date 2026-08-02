@@ -10,6 +10,9 @@ from open_free_router import ui
 from open_free_router.auth import check_auth, get_or_create_proxy_token, get_or_create_token
 from open_free_router.config import Config
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
+from open_free_router.proxy import run_proxy
+from open_free_router.resilience import ResilienceManager, classify_failure
+from open_free_router.telemetry import RouteDecisionStore
 
 
 class _FakeHeaders(dict):
@@ -165,3 +168,52 @@ def test_status_exposes_dashboard_summary_without_credentials(tmp_path):
         assert "Anthropic Messages" in payload["service"]["protocols"]
     finally:
         srv.shutdown()
+
+
+def test_dashboard_routing_api_reads_proxy_and_forwards_authenticated_reset(tmp_path):
+    proxy_token = get_or_create_proxy_token(tmp_path)
+    manager = ResilienceManager(model_cooldown=300)
+    manager.record_failure("provider", "model", classify_failure(404))
+    decisions = RouteDecisionStore()
+    decisions.record(
+        request_id="ofr_ui", requested_model="auto", strategy="virtual",
+        status="failed", status_code=503, attempts=1, rejected=[],
+    )
+    proxy, _ = run_proxy(
+        Registry({}), host="127.0.0.1", port=0, auth_token=proxy_token,
+        resilience=manager, decisions=decisions,
+    )
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(
+        f"proxy:\n  host: 127.0.0.1\n  port: {proxy.server_address[1]}\n"
+        "ui:\n  host: 127.0.0.1\n  port: 0\n"
+    )
+    cfg = Config(config_path=config_path)
+    ui._UIHandler.cfg = cfg
+    ui._UIHandler.reg = Registry({})
+    ui._UIHandler.config_path = cfg.path
+    ui._UIHandler.token = "ui-token"
+    dashboard = http.server.ThreadingHTTPServer(("127.0.0.1", 0), ui._UIHandler)
+    threading.Thread(target=dashboard.serve_forever, daemon=True).start()
+    try:
+        conn = http.client.HTTPConnection("127.0.0.1", dashboard.server_address[1], timeout=5)
+        conn.request("GET", "/api/routing")
+        response = conn.getresponse()
+        payload = json.loads(response.read())
+        assert response.status == 200
+        assert payload["routes"]["items"][0]["request_id"] == "ofr_ui"
+        assert "provider/model" in payload["resilience"]["models"]
+
+        conn.close()
+        conn = http.client.HTTPConnection("127.0.0.1", dashboard.server_address[1], timeout=5)
+        conn.request(
+            "POST", "/api/routing/reset", json.dumps({"provider": "provider", "model": "model"}),
+            {"Content-Type": "application/json", "Authorization": "Bearer ui-token"},
+        )
+        response = conn.getresponse()
+        assert response.status == 200
+        assert json.loads(response.read())["ok"] is True
+        assert manager.snapshot()["models"] == {}
+    finally:
+        dashboard.shutdown()
+        proxy.shutdown()
