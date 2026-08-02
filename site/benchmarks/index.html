@@ -13,9 +13,9 @@
   <title>模型评测 · 模力自由港</title>
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/benchmarks/benchmarks.css?v=20260802b">
+  <link rel="stylesheet" href="/benchmarks/benchmarks.css?v=20260803c">
   <script src="/nav.js?v=20260803b" defer></script>
-  <script src="/benchmarks/benchmarks.js?v=20260802b" defer></script>
+  <script src="/benchmarks/benchmarks.js?v=20260803c" defer></script>
 </head>
 <body>
   <div class="site-grid" aria-hidden="true"></div>
@@ -36,15 +36,17 @@
 
     <section class="bench-section" id="chart">
       <header><p class="bench-eyebrow"><span></span> LOCAL READINESS MAP</p><h2>越靠右越快，<br><em>越靠上越适配。</em></h2><p>图中最多展示任务适配分最高的 30 个模型以保证可读性；完整结果在下方表格。提供商不可用或尚未探测的模型仍保留，但会明确标色。</p></header>
-      <div class="scatter-shell">
-        <div class="axis-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span><b>自由港任务适配分</b></div>
-        <div class="scatter" id="scatter" aria-label="模型任务适配分与服务器实测延迟散点图">
-          <div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>
-          <p class="scatter-loading">正在读取服务器端目录与评测快照…</p>
+      <div class="scatter-viewport" role="region" aria-label="模型评测散点图，可在窄屏横向滚动" tabindex="0">
+        <div class="scatter-shell">
+          <div class="axis-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span><b>自由港任务适配分</b></div>
+          <div class="scatter" id="scatter" aria-label="模型任务适配分与服务器实测延迟散点图">
+            <div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>
+            <p class="scatter-loading">正在读取服务器端目录与评测快照…</p>
+          </div>
+          <div class="axis-x"><span>较慢 / 未测</span><span>3s</span><span>1.5s</span><span>较快</span><b>最近服务端延迟（对数映射）</b></div>
         </div>
-        <div class="axis-x"><span>较慢 / 未测</span><span>3s</span><span>1.5s</span><span>较快</span><b>最近服务端延迟（对数映射）</b></div>
       </div>
-      <div class="legend"><span><i class="available"></i>服务端可用</span><span><i class="unverified"></i>未验证</span><span><i class="unavailable"></i>当前不可用</span><span><i class="external"></i>已匹配外部基准</span></div>
+      <div class="legend"><span><i class="available"></i>服务端可用</span><span><i class="unverified"></i>未验证</span><span><i class="unavailable"></i>当前不可用</span><span><i class="external"></i>已匹配外部基准</span><span>悬停或键盘聚焦圆点可查看完整模型名</span></div>
     </section>
 
     <section class="bench-section methodology">

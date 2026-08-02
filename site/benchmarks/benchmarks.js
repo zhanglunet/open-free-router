@@ -60,12 +60,18 @@ function renderScatter() {
   const rows = [...state.rows].sort((a, b) => b.readiness - a.readiness || (a.latency_ms ?? 99999) - (b.latency_ms ?? 99999)).slice(0, 30);
   const xPosition = (ms) => {
     const clamped = Math.max(300, Math.min(8000, ms ?? 8000));
-    return 100 - ((Math.log(clamped) - Math.log(300)) / (Math.log(8000) - Math.log(300))) * 92;
+    return 86 - ((Math.log(clamped) - Math.log(300)) / (Math.log(8000) - Math.log(300))) * 78;
   };
-  $("#scatter").innerHTML = '<div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>' + rows.map((row) => {
+  const yPosition = (score) => 7 + Math.max(0, Math.min(100, score)) * .86;
+  const labelledBins = new Set();
+  $("#scatter").innerHTML = '<div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>' + rows.map((row, index) => {
     const label = row.name || row.id;
     const title = `${label} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
-    return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""} ${positionClass("x", xPosition(row.latency_ms))} ${positionClass("y", row.readiness)}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
+    const x = xPosition(row.latency_ms);
+    const labelBin = `${Math.round(x / 16)}-${Math.round(row.readiness / 12)}`;
+    const labelled = labelledBins.size < 14 && !labelledBins.has(labelBin);
+    if (labelled) labelledBins.add(labelBin);
+    return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""} ${labelled ? "labelled" : ""} jitter-${index % 8} ${positionClass("x", x)} ${positionClass("y", yPosition(row.readiness))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
   }).join("");
 }
 
@@ -102,11 +108,11 @@ function renderRows() {
 function renderExternalScatter(models) {
   const rows = models.filter((item) => item.registry_matches?.length && item.intelligence != null && item.cost_per_task_usd > 0).slice(0, 40);
   if (!rows.length) return;
-  const x = (cost) => Math.max(3, Math.min(97, ((Math.log(cost) - Math.log(.005)) / (Math.log(5) - Math.log(.005))) * 94 + 3));
-  const y = (score) => Math.max(4, Math.min(96, ((score - 5) / 60) * 92 + 4));
-  $("#external-scatter").innerHTML = '<div class="external-grid g25"></div><div class="external-grid g50"></div><div class="external-grid g75"></div>' + rows.map((item) => {
+  const x = (cost) => Math.max(7, Math.min(87, ((Math.log(cost) - Math.log(.005)) / (Math.log(5) - Math.log(.005))) * 80 + 7));
+  const y = (score) => Math.max(7, Math.min(93, ((score - 5) / 60) * 86 + 7));
+  $("#external-scatter").innerHTML = '<div class="external-grid g25"></div><div class="external-grid g50"></div><div class="external-grid g75"></div>' + rows.map((item, index) => {
     const title = `${item.name} · Intelligence ${item.intelligence} · ${formatUsd(item.cost_per_task_usd)}/task`;
-    return `<button class="external-point ${positionClass("x", x(item.cost_per_task_usd))} ${positionClass("y", y(item.intelligence))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(item.name)}</span></button>`;
+    return `<button class="external-point jitter-${index % 8} ${positionClass("x", x(item.cost_per_task_usd))} ${positionClass("y", y(item.intelligence))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(item.name)}</span></button>`;
   }).join("");
   $("#external-chart").hidden = false;
 }
@@ -129,7 +135,7 @@ function indexExternal(snapshot) {
 async function load() {
   const [catalogResponse, benchmarkResponse] = await Promise.all([
     fetch("/api/catalog", { headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : fetch("/data/catalog.json").then((fallback) => fallback.json())).catch(() => fetch("/data/catalog.json").then((response) => response.json())),
-    fetch("/data/benchmarks.json?v=20260802a").then((response) => response.ok ? response.json() : Promise.reject(new Error(`评测快照 HTTP ${response.status}`))),
+    fetch("/data/benchmarks.json?v=20260803c").then((response) => response.ok ? response.json() : Promise.reject(new Error(`评测快照 HTTP ${response.status}`))),
   ]);
   indexExternal(benchmarkResponse);
   state.rows = flatten(catalogResponse);

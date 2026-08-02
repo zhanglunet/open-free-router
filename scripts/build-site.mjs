@@ -150,6 +150,12 @@ if (benchmarksJs.includes('style="') || benchmarksJs.includes("style='")) {
 for (const marker of [".x-100", ".y-100", ".score-100"]) {
   if (!benchmarksCss.includes(marker)) throw new Error(`Benchmarks CSP-safe chart positioning is missing: ${marker}`);
 }
+for (const marker of [".scatter-viewport", ".jitter-7", 'font-family:"PingFang SC"', ".point.labelled span"]) {
+  if (!benchmarksCss.includes(marker)) throw new Error(`Benchmarks responsive visual fix is missing: ${marker}`);
+}
+for (const marker of ["labelledBins", "return 86 -", "jitter-${index % 8}"]) {
+  if (!benchmarksJs.includes(marker)) throw new Error(`Benchmarks chart collision guard is missing: ${marker}`);
+}
 if (!benchmarksJs.includes("/data/benchmarks.json?v=")) {
   throw new Error("Benchmarks static snapshot request must be versioned to avoid stale edge 404s");
 }
