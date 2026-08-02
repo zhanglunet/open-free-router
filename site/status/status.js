@@ -112,7 +112,9 @@
     renderStats(catalog);
     renderCards(catalog);
     if (catalog.status_note) $("#st-note-text").textContent = catalog.status_note;
-    $("#st-generated").textContent = `快照生成于 ${relativeTime(catalog.generated_at)} · 探测于 ${relativeTime(catalog.status_as_of)}`;
+    $("#st-generated").textContent = catalog.status_source === "cloudflare-server-probe"
+      ? `服务器探测于 ${relativeTime(catalog.status_as_of)} · 每 ${catalog.probe_interval_minutes || 15} 分钟轮换`
+      : `目录生成于 ${relativeTime(catalog.generated_at)} · 等待服务器探测`;
   }
 
   function metadataOnly(catalog) {

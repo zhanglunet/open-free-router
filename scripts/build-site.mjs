@@ -68,6 +68,9 @@ for (const marker of ["服务器端", "Cloudflare", "每 15 分钟", "完全不�
     throw new Error(`Generated status page is missing required content: ${marker}`);
   }
 }
+if (!statusJs.includes("服务器探测于") || !statusJs.includes("probe_interval_minutes")) {
+  throw new Error("Status page must distinguish server probe time from static catalog generation time");
+}
 if (!statusCss.includes(".st-error[hidden]") || !statusCss.includes("display:none")) {
   throw new Error("Status error banner must remain hidden after a successful refresh");
 }
