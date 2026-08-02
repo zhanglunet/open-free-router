@@ -2,7 +2,7 @@
 
 > **全球免费大模型，一站发现、实测、接入。** 由 Open Free Router 提供技术引擎。
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装指南](https://oaf.asia/guide/) · [模型雷达](https://oaf.asia/models/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装指南](https://oaf.asia/guide/) · [模型雷达](https://oaf.asia/models/) · [模型评测](https://oaf.asia/benchmarks/) · [工具比较](https://oaf.asia/compare/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -13,7 +13,7 @@
 > 可解释智能评分、本机使用分析、协议兼容矩阵、扩展测试与项目文档网站。
 > 详见 [`NOTICE.md`](NOTICE.md)。
 
-**当前稳定版：v0.3.0** · Python 3.11+ · MIT · 275 个 Python 测试 + 10 个网站测试
+**当前稳定版：v0.3.0** · Python 3.11+ · MIT · 275 个 Python 测试 + 14 个网站测试 + 4 个 npm 测试
 
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
@@ -85,6 +85,10 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
+
+**方式三：npm（已完成打包准备，尚未公开发布）**
+
+仓库内的 `npm/open-free-router/` 是一个薄启动器：检查 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。当前只用于 `npm pack` 和自动测试；正式发布会使随包源码公开，因此要等所有者确认公开边界并完成 `npm login` 后才会启用。发布前不要把 `npm install -g open-free-router` 当作线上可用命令。
 
 ## 命令
 
@@ -377,6 +381,20 @@ Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录
 冒充“服务器可用”。完整矩阵与验收口径见
 [`docs/protocol-capability-matrix.md`](docs/protocol-capability-matrix.md)。
 
+## 模型评测与第三方基准
+
+[模型评测页](https://oaf.asia/benchmarks/)把证据分成三层：Cloudflare 服务器端真实可用性与延迟、注册表声明的功能密度与免费证据、可选的 Artificial Analysis 外部质量基准。本站“任务适配分”只衡量当前接入就绪度，不等于智力或回答质量。
+
+外部数据必须通过官方 API 导入；没有 Key 时保持空值，不从截图人工猜分：
+
+```bash
+ARTIFICIAL_ANALYSIS_API_KEY=... npm run benchmarks:import
+# 也可用已下载的官方 JSON 快照做离线、可重复导入
+npm run benchmarks:import -- --input snapshot.json
+```
+
+导入器只发布展示需要的评分、价格、中位性能、来源版本和保守模型匹配，不保存 API Key 或完整原始响应。展示和再分发须遵守 Artificial Analysis 条款并清晰署名。详细边界见 [`docs/PRD-comparison-benchmarks-npm.md`](docs/PRD-comparison-benchmarks-npm.md)。
+
 ## 测试
 
 ```bash
@@ -384,7 +402,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖 **275 个 Python 用例 + 10 个网站用例**：registry/config、刷新源、九客户端同步（含
+当前测试覆盖 **275 个 Python 用例 + 14 个网站用例 + 4 个 npm 用例**：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
 MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、

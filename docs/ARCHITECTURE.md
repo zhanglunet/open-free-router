@@ -142,6 +142,20 @@ sequenceDiagram
 5. **持久化边界**：运行时状态与统计使用匿名槽位和字段白名单，不保存内容数据。
 6. **公开网站边界**：Cloudflare Worker 只读取部署时公开资产、KV 状态与专用 Secrets，不能访问用户电脑的 `registry.yaml`、Key 或统计库。
 
+### 6.1 公开评测数据流
+
+公开评测页把三种数据保持在独立证据层，避免把“能用”“功能多”和“回答质量高”混成同一个结论：
+
+1. Cloudflare Cron 的最小真实请求写入服务器端可用性与延迟快照；
+2. 脱敏公开目录提供上下文、输出、推理、工具调用和结构化免费证据；
+3. `scripts/import-artificial-analysis.mjs` 可从官方 API 或审计过的离线 JSON 快照提取公开评分字段，保留来源、Index 版本、导入时间与保守模型匹配。
+
+导入器只从 `ARTIFICIAL_ANALYSIS_API_KEY` 环境变量读取凭据，不把 Key、原始响应或未匹配模型的猜测写入静态站点。外部导入失败时原有快照不被覆盖。
+
+### 6.2 npm 分发层
+
+`npm/open-free-router` 是 Python CLI 的薄封装，不形成第二套路由实现。首次运行时检测 Python 3.11+，在用户缓存目录建立按版本隔离的虚拟环境，并从 npm tarball 内的 `vendor/open-free-router` 安装同版本 Python 包。虚拟环境写入版本标记，后续直接复用；启动器不读取上游 API Key。npm 发布会公开随包源码，因此打包验证与正式发布是两个独立动作。
+
 ## 7. 主要模块
 
 | 模块 | 职责 |

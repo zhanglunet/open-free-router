@@ -1,9 +1,27 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T14:05:00.000Z",
+  "updated_at": "2026-08-02T15:10:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-工具比较模型评测与npm准备",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "v0.3.0",
+      "title": "工具比较、模型评测与 npm 分发准备",
+      "summary": "新增可追溯的同类工具比较、分层模型评测与安全第三方基准导入器，并完成 npm 薄启动器的打包准备。",
+      "items": [
+        "比较模力自由港、OmniRoute、9Router、LiteLLM 与 Free Router 的定位、能力和边界",
+        "以服务器实测、免费证据、功能密度和延迟形成任务适配分，不冒充模型智力",
+        "Artificial Analysis 数据只从官方 API 或离线快照导入，保留署名、版本和保守匹配",
+        "npm 包已可本地打包和测试；公开发布前仍需确认源码公开边界并登录 npm"
+      ],
+      "links": [
+        {"label": "查看模型评测", "href": "/benchmarks/"},
+        {"label": "查看工具比较", "href": "/compare/"}
+      ]
+    },
     {
       "id": "2026-08-02-v030-文档与架构收口",
       "date": "2026-08-02",
