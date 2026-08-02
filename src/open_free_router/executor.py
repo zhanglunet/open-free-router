@@ -4,6 +4,7 @@ from __future__ import annotations
 import http.client
 import json
 import socket
+import time
 import uuid
 from dataclasses import dataclass
 from urllib.parse import urlsplit
@@ -16,6 +17,7 @@ from open_free_router.resilience import (
 )
 from open_free_router.routing import RoutePlanner, RouteTarget
 from open_free_router.telemetry import RouteDecisionStore
+from open_free_router.quota import parse_quota_headers
 
 
 MAX_ERROR_BODY = 64 * 1024
@@ -170,7 +172,9 @@ class UpstreamExecutor:
         last_decision: FailureDecision | None = None
 
         for target_index, target in enumerate(plan.candidates):
-            slots = _credentials(target)
+            slots = self.resilience.order_credentials(
+                target.provider_name, _credentials(target)
+            )
             if not slots:
                 rejected.append({"model": target.canonical_id, "reason": "credential_missing"})
                 continue
@@ -220,6 +224,11 @@ class UpstreamExecutor:
                     self.resilience.record_success(
                         target.provider_name, target.upstream_model_id, credential_slot
                     )
+                    self.resilience.record_quota(
+                        target.provider_name,
+                        credential_slot,
+                        parse_quota_headers(response.headers, response.status),
+                    )
                     result = OpenedRoute(
                         request_id,
                         target,
@@ -237,12 +246,31 @@ class UpstreamExecutor:
                 conn.close()
                 message = body.decode("utf-8", errors="replace")
                 decision = classify_failure(response.status, message)
+                observation = parse_quota_headers(
+                    response.headers, response.status, decision.kind
+                )
+                self.resilience.record_quota(
+                    target.provider_name,
+                    credential_slot,
+                    observation,
+                )
+                retry_delay = parse_retry_after(retry_after)
+                # A declared reset turns recurring daily/monthly quota exhaustion
+                # into a bounded cooldown. Unknown or credit exhaustion remains
+                # terminal until the operator explicitly resets the slot.
+                if decision.kind == "quota_exhausted" and observation.next_reset_at:
+                    decision = FailureDecision(
+                        "quota_exhausted", retryable=True, credential_cooldown=True
+                    )
+                    retry_delay = max(
+                        retry_delay, observation.next_reset_at - time.time()
+                    )
                 self.resilience.record_failure(
                     target.provider_name,
                     target.upstream_model_id,
                     decision,
                     credential_slot,
-                    parse_retry_after(retry_after),
+                    retry_delay,
                 )
                 last_decision = decision
                 last_failure = RouteFailure(

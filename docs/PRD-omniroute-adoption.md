@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: P1 in progress — FR-P1-1 free-tier evidence implemented
+Status: P1 in progress — FR-P1-1 and FR-P1-2 implemented
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -27,7 +27,10 @@ Implementation record (2026-08-02):
   provider-specific credential isolation and route-plan p95 performance gate;
 - completed: P1 provider/model free-tier evidence schema, expiry enforcement,
   `auto/free` gating, Doctor/CLI/UI/public catalog propagation and export guards;
-- next: P1 rate-limit header normalization and per-credential quota/reset state.
+- completed: P1 common rate-limit header normalization, per-credential
+  request/token quota state, restart recovery, reset-aware cooldown, safe
+  multi-Key ordering and CLI/API/Chinese dashboard visibility;
+- next: P1 explainable scoring with normalized factors and deterministic opt-out.
 
 ## 1. 结论
 
@@ -257,6 +260,11 @@ P0 使用线程安全内存状态，按节流频率原子写入
 - 支持 provider 插件补充特有额度 API，但不得把密钥或原始返回上传到网站；
 - 额度未知时显示 unknown，不根据错误文本猜出具体剩余额度；
 - 多 Key 选择优先使用未冷却、重置更早且近期成功的槽位。
+
+实现结果（2026-08-02）：核心解析器已覆盖通用请求与 Token 维度头、数值/时长/
+HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字段；带明确重置点的
+周期额度转为冷却，未知余额类错误保持终止状态。Provider 特有额度 API 适配器保留
+为后续按实际官方接口增补，不阻塞通用头解析验收。
 
 #### FR-P1-3 可解释评分
 

@@ -154,6 +154,42 @@ def test_bad_credential_switches_slot_without_switching_model():
         server.shutdown()
 
 
+def test_quota_headers_are_recorded_and_resettable_exhaustion_cools_down():
+    class QuotaHandler(_ConfiguredHandler):
+        seen_auth = []
+
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            type(self).seen_auth.append(self.headers.get("Authorization"))
+            body = json.dumps({"error": {"message": "daily quota exhausted"}}).encode()
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Limit-Requests", "100")
+            self.send_header("X-RateLimit-Remaining-Requests", "0")
+            self.send_header("X-RateLimit-Reset-Requests", "1d")
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = _start(QuotaHandler)
+    try:
+        registry = Registry({
+            "provider": _provider(server.server_address[1], "p", ["placeholder"])
+        })
+        manager = ResilienceManager()
+        result = UpstreamExecutor(
+            RoutePlanner(registry), manager, timeout=5
+        ).execute("p/model", "chat/completions", {"messages": []})
+        assert isinstance(result, RouteFailure)
+        state = manager.snapshot()["credentials"]["provider:slot-0"]
+        assert state["state"] == "cooldown"
+        assert state["reason"] == "quota_exhausted"
+        assert state["quota"]["requests"]["remaining"] == 0
+        assert state["quota"]["requests"]["reset_at"] > state["quota"]["observed_at"]
+    finally:
+        server.shutdown()
+
+
 def test_invalid_request_never_falls_back():
     invalid_handler = _handler(400)
     healthy_handler = _handler(200)

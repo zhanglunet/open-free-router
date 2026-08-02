@@ -190,6 +190,13 @@ groq:
 来源时仍会显示在目录中，但标记为“待复核/条件未知”，不会继续宣称已核验免费。
 运行 `open-free-router doctor --json` 可查看证据问题的精确注册表路径。
 
+代理还会把上游返回的 `RateLimit-*`、`X-RateLimit-*` 和 `Retry-After`
+归一化为每个匿名 Key 槽位的请求/Token 上限、剩余量与重置时间。只保存数字、
+分类和时间戳，不保存原始响应头。带明确重置时间的日/月额度耗尽会冷却到重置点，
+余额不足或重置时间未知则保持停用，等待人工检查。多 Key 路由按“当前可尝试、
+更早重置、最近成功”的顺序选择。可用 `open-free-router resilience --json` 或
+本地仪表盘“路由与韧性”页面查看。
+
 成功或最终失败的代理响应会携带 `X-OFR-Request-Id`、`X-OFR-Provider`、
 `X-OFR-Model`、`X-OFR-Fallback-Attempts`。运行时三层状态只通过带本地代理
 Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Key 槽位
@@ -212,6 +219,7 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 | `responses.py` | Responses ↔ Chat Completions 消息、function tool 与 SSE 事件转换 |
 | `anthropic.py` | Messages ↔ Chat Completions 转换（Claude Code）：content blocks、tool_use/tool_result、类型化 SSE 事件流 |
 | `probe.py` | 实时可用性探测：每模型一次真实 1-token 请求，输出延迟与状态快照 |
+| `quota.py` | 额度与限流响应头归一化：请求/Token 余量、重置时间和安全分类 |
 | `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，6 个工具，零第三方依赖） |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |

@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T05:43:28.000Z",
+  "updated_at": "2026-08-02T05:55:31.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-额度与限流状态",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P1 开发版",
+      "title": "P1 额度与限流状态",
+      "summary": "统一记录上游请求与 Token 额度，把周期重置、瞬时限流和余额耗尽应用到安全的多 Key 路由。",
+      "items": [
+        "归一化 RateLimit、X-RateLimit 与 Retry-After 常见响应头",
+        "周期额度按重置时间冷却，未知余额不足继续等待人工确认",
+        "多 Key 优先选择可尝试、重置更早且近期成功的匿名槽位",
+        "CLI、本地中文仪表盘与重启恢复共享同一脱敏额度状态"
+      ]
+    },
     {
       "id": "2026-08-02-p1-免费额度证据模型",
       "date": "2026-08-02",

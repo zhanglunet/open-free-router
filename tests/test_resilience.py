@@ -1,6 +1,7 @@
 import json
 import threading
 
+from open_free_router.quota import parse_quota_headers
 from open_free_router.resilience import (
     ResilienceManager,
     classify_failure,
@@ -72,6 +73,37 @@ def test_snapshot_contains_slots_but_no_secret_material():
     assert "provider:slot-2" in encoded
     assert "api_key" not in encoded
     assert "authorization" not in encoded.lower()
+
+
+def test_quota_state_is_redacted_preserved_and_orders_credentials():
+    manager = ResilienceManager()
+    later = parse_quota_headers({"X-RateLimit-Reset-Requests": "200s"}, 200, now=100)
+    sooner = parse_quota_headers({"X-RateLimit-Reset-Requests": "100s"}, 200, now=100)
+    manager.record_quota("provider", 0, later)
+    manager.record_quota("provider", 1, sooner)
+    manager.record_success("provider", "model", credential_slot=0, now=150)
+    manager.record_success("provider", "model", credential_slot=1, now=140)
+
+    ordered = manager.order_credentials(
+        "provider", [(0, "secret-zero"), (1, "secret-one")], now=150
+    )
+    assert [slot for slot, _ in ordered] == [1, 0]
+    manager.record_failure(
+        "provider", "model", classify_failure(401), credential_slot=1, now=160
+    )
+    state = manager.snapshot()["credentials"]["provider:slot-1"]
+    assert state["quota"]["requests"]["reset_at"] == 200
+    encoded = json.dumps(manager.snapshot())
+    assert "secret-zero" not in encoded and "secret-one" not in encoded
+
+
+def test_credential_order_prefers_attemptable_then_recent_success():
+    manager = ResilienceManager()
+    manager.record_success("p", "m", credential_slot=0, now=100)
+    manager.record_success("p", "m", credential_slot=1, now=200)
+    manager.record_failure("p", "m", classify_failure(429), credential_slot=1, now=210)
+    slots = [(0, "zero"), (1, "one"), (2, "two")]
+    assert [slot for slot, _ in manager.order_credentials("p", slots, now=211)] == [0, 2, 1]
 
 
 def test_retry_after_is_bounded():
