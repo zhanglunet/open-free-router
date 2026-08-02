@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Published the public `open-free-router@0.3.0` npm bootstrap package with
+  `open-free-router` and `ofr` commands; verified a clean registry install,
+  isolated Python environment creation and CLI startup.
+
 ## 0.3.0 - 2026-08-02
 
 ### Added

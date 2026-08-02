@@ -83,9 +83,16 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-**Option 3: npm (pack-ready, not published)**
+**Option 3: npm**
 
-`npm/open-free-router/` is a thin bootstrapper that checks for Python 3.11+, creates a versioned virtual environment in the user cache, and installs the bundled Python source. Publishing would make that source public through npm, so this path remains disabled until the owner confirms the boundary and authenticates to npm. Do not treat `npm install -g open-free-router` as live yet.
+```bash
+npm install -g open-free-router
+open-free-router doctor
+# short alias
+ofr serve
+```
+
+[`open-free-router@0.3.0`](https://www.npmjs.com/package/open-free-router) is a thin bootstrapper that checks for Node.js 18+ and Python 3.11+, creates a versioned virtual environment in the user cache, and installs the bundled Python source. API keys remain local; the npm bootstrapper does not read or upload credentials.
 
 ## Commands
 

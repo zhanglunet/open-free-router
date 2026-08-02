@@ -86,9 +86,16 @@ source .venv/bin/activate
 pip install -e .
 ```
 
-**方式三：npm（已完成打包准备，尚未公开发布）**
+**方式三：npm（已公开发布）**
 
-仓库内的 `npm/open-free-router/` 是一个薄启动器：检查 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。当前只用于 `npm pack` 和自动测试；正式发布会使随包源码公开，因此要等所有者确认公开边界并完成 `npm login` 后才会启用。发布前不要把 `npm install -g open-free-router` 当作线上可用命令。
+```bash
+npm install -g open-free-router
+open-free-router doctor
+# 短命令也可用
+ofr serve
+```
+
+[`open-free-router@0.3.0`](https://www.npmjs.com/package/open-free-router) 是 Python CLI 的薄启动器：检查 Node.js 18+ 与 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。API Key 仍只由本机配置管理，npm 引导器不会读取或上传凭据。
 
 ## 命令
 
