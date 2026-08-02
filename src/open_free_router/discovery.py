@@ -135,6 +135,29 @@ def _credential_env(provider: dict, environment: dict[str, str]) -> str:
     return name if environment.get(name) else ""
 
 
+def _has_valid_chat_response(body: object) -> bool:
+    """Require an actual assistant payload, not merely a non-empty choices list."""
+    if not isinstance(body, dict):
+        return False
+    choices = body.get("choices")
+    if not isinstance(choices, list) or not choices or not isinstance(choices[0], dict):
+        return False
+    message = choices[0].get("message")
+    if not isinstance(message, dict):
+        return False
+    content = message.get("content")
+    if isinstance(content, str):
+        return bool(content.strip())
+    if isinstance(content, list):
+        return any(
+            isinstance(part, dict)
+            and isinstance(part.get("text"), str)
+            and bool(part["text"].strip())
+            for part in content
+        )
+    return False
+
+
 def validate_candidates(
     snapshot: dict,
     *,
@@ -161,12 +184,6 @@ def validate_candidates(
             result.update(state="unsupported", reason="Provider is not declared OpenAI-compatible")
             continue
         credential_name = _credential_env(provider, environment)
-        if not credential_name:
-            result.update(
-                state="needs_credentials",
-                reason=f"Set dedicated environment variable {provider.get('credential_env', '')}",
-            )
-            continue
         if checked >= max(0, max_providers):
             continue
         if not _public_https_host(str(provider.get("api") or "")):
@@ -174,14 +191,16 @@ def validate_candidates(
             continue
         checked += 1
         result["credential_env"] = credential_name
+        result["auth_mode"] = "bearer" if credential_name else "none"
         session = requests.Session()
         session.trust_env = False
         headers = {
-            "Authorization": f"Bearer {environment[credential_name]}",
             "Content-Type": "application/json",
             "Accept": "application/json",
             "User-Agent": USER_AGENT,
         }
+        if credential_name:
+            headers["Authorization"] = f"Bearer {environment[credential_name]}"
         latencies = []
         failures = []
         models = provider.get("models", [])[: max(0, max_models)]
@@ -198,7 +217,9 @@ def validate_candidates(
                     json={
                         "model": model_id,
                         "messages": [{"role": "user", "content": "Reply with OK."}],
-                        "max_tokens": 8,
+                        # Reasoning models can consume a tiny budget before emitting
+                        # final assistant content, so eight tokens causes false negatives.
+                        "max_tokens": 64,
                         "temperature": 0,
                     },
                     timeout=timeout,
@@ -206,8 +227,7 @@ def validate_candidates(
                 )
                 latency = round((time.monotonic() - started) * 1000)
                 body = response.json() if response.status_code == 200 else {}
-                choices = body.get("choices") if isinstance(body, dict) else None
-                if response.status_code == 200 and isinstance(choices, list) and choices:
+                if response.status_code == 200 and _has_valid_chat_response(body):
                     result["successful_models"].append(model_id)
                     latencies.append(latency)
                 else:
@@ -218,8 +238,17 @@ def validate_candidates(
         if result["successful_models"]:
             result.update(
                 state="ready",
-                reason="Authenticated Chat Completions smoke test succeeded",
+                reason=(
+                    "Authenticated Chat Completions smoke test succeeded"
+                    if credential_name
+                    else "Keyless Chat Completions smoke test succeeded"
+                ),
                 latency_ms=round(sum(latencies) / len(latencies)),
+            )
+        elif not credential_name:
+            result.update(
+                state="needs_credentials",
+                reason=f"Keyless test failed; set dedicated environment variable {provider.get('credential_env', '')}",
             )
         else:
             result.update(state="failed", reason="No tested model completed a valid response")
@@ -230,7 +259,7 @@ def validate_candidates(
             item.get("validation", {}).get("state") == "ready"
             for item in snapshot.get("providers", [])
         ),
-        "policy": "public HTTPS + declared credential env + OpenAI-compatible chat response",
+        "policy": "public HTTPS + dedicated credential or verified keyless mode + OpenAI-compatible chat response",
     }
     return snapshot
 
@@ -269,6 +298,7 @@ def adopt_validated(snapshot: dict, registry: Registry) -> list[str]:
             name=str(candidate["id"]),
             upstream_url=str(candidate["api"]),
             api_key_env=str(validation["credential_env"]),
+            auth_mode=str(validation.get("auth_mode") or "bearer"),
             models=models,
             auto_refresh=False,
             refresh_method="discovery_verified",

@@ -2,7 +2,7 @@
 
 > **全球免费大模型，一站发现、实测、接入。** 由 Open Free Router 提供技术引擎。
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [站点地图](https://oaf.asia/sitemap/) · [安装指南](https://oaf.asia/guide/) · [npm 完整教程](https://oaf.asia/guide/npm/) · [模型雷达](https://oaf.asia/models/) · [模型评测](https://oaf.asia/benchmarks/) · [工具比较](https://oaf.asia/compare/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [站点地图](https://oaf.asia/sitemap/) · [安装指南](https://oaf.asia/guide/) · [npm 完整教程](https://oaf.asia/guide/npm/) · [模型雷达](https://oaf.asia/models/) · [模型评测](https://oaf.asia/benchmarks/) · [工具比较](https://oaf.asia/compare/) · [候选准入机制](https://oaf.asia/validation/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -395,6 +395,8 @@ Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录
 [模型评测页](https://oaf.asia/benchmarks/)把证据分成三层：Cloudflare 服务器端真实可用性与延迟、注册表声明的功能密度与免费证据、可选的 Artificial Analysis 外部质量基准。本站“任务适配分”只衡量当前接入就绪度，不等于智力或回答质量；页面已公开四个分项的精确计分规则。当前状态和延迟是提供商级服务端快照，同一提供商模型可能继承同一轮结果，不冒充逐模型质量实测。
 
 [工具比较页](https://oaf.asia/compare/)同步列出 OmniRoute 等项目的动态规模口径，并维护自由港提供商扩容雷达。候选提供商只有通过免费证据、协议、凭据隔离和真实请求门槛后，才会计入当前已接入规模。
+
+[候选准入机制页](https://oaf.asia/validation/)进一步公开真实代码中的八道闸门、状态机、测试证据和能力边界，并提供 [DeepSeek V4 Flash 免费渠道专项核验](https://oaf.asia/validation/#deepseek-v4)。`ready` 只表示专用凭据或显式 Keyless 端点下的最小 Chat Completions 文本响应成功，不等于已经证明永久免费、工具调用、流式输出或全部协议兼容。
 
 外部数据必须通过官方 API 导入；没有 Key 时明确显示“未导入”，已有快照中的单条字段缺失才显示“该记录缺失”，两者都不是 0 分，也不从截图人工猜分：
 

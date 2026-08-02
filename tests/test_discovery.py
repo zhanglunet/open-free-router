@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 from open_free_router.discovery import (
+    _has_valid_chat_response,
     _public_https_host,
     adopt_validated,
     discover,
@@ -104,8 +105,10 @@ def test_validation_never_retains_credential_and_adopts_success(monkeypatch):
     class Session:
         trust_env = True
         def post(self, *args, **kwargs):
+            assert self.trust_env is False
             assert kwargs["headers"]["Authorization"] == "Bearer private-value"
             assert kwargs["allow_redirects"] is False
+            assert kwargs["json"]["max_tokens"] == 64
             return Response()
 
     monkeypatch.setattr("open_free_router.discovery._public_https_host", lambda _url: True)
@@ -124,15 +127,52 @@ def test_validation_never_retains_credential_and_adopts_success(monkeypatch):
     assert provider.models[0].tool_calling is False
 
 
-def test_validation_requires_declared_credential():
+def test_chat_smoke_test_requires_non_empty_assistant_content():
+    assert _has_valid_chat_response({"choices": [{"message": {"content": " OK "}}]}) is True
+    assert _has_valid_chat_response({
+        "choices": [{"message": {"content": [{"type": "text", "text": "OK"}]}}]
+    }) is True
+    assert _has_valid_chat_response({"choices": [{"message": {"content": ""}}]}) is False
+    assert _has_valid_chat_response({"choices": [{}]}) is False
+
+
+def test_validation_requires_declared_credential(monkeypatch):
     snapshot = {"providers": [{
         "id": "candidate", "api": "https://candidate.example/v1",
         "auth_env": ["CANDIDATE_API_KEY"], "protocol": "openai-compatible", "models": [],
         "credential_env": "OFR_CANDIDATE_API_KEY",
     }]}
+    monkeypatch.setattr("open_free_router.discovery._public_https_host", lambda _url: True)
     validate_candidates(snapshot, environment={"CANDIDATE_API_KEY": "generic-token-must-not-be-read"})
     assert snapshot["providers"][0]["validation"]["state"] == "needs_credentials"
     assert adopt_validated(snapshot, Registry()) == []
+
+
+def test_validation_can_adopt_a_verified_keyless_candidate(monkeypatch):
+    snapshot = {"providers": [{
+        "id": "keyless", "api": "https://keyless.example/v1",
+        "credential_env": "OFR_KEYLESS_API_KEY", "protocol": "openai-compatible",
+        "models": [{"id": "model-free", "name": "Free"}],
+    }]}
+
+    class Response:
+        status_code = 200
+        def json(self): return {"choices": [{"message": {"content": "OK"}}]}
+
+    class Session:
+        trust_env = True
+        def post(self, *args, **kwargs):
+            assert "Authorization" not in kwargs["headers"]
+            return Response()
+
+    monkeypatch.setattr("open_free_router.discovery._public_https_host", lambda _url: True)
+    monkeypatch.setattr("open_free_router.discovery.requests.Session", Session)
+    validate_candidates(snapshot, environment={})
+    assert snapshot["providers"][0]["validation"]["state"] == "ready"
+    registry = Registry()
+    assert adopt_validated(snapshot, registry) == ["keyless"]
+    assert registry.get("keyless").auth_mode == "none"
+    assert registry.get("keyless").api_key_env == ""
 
 
 def test_public_https_policy_rejects_private_resolution(monkeypatch):

@@ -125,6 +125,10 @@ def cmd_setup(args):
     changed = False
     for name, p in reg.providers.items():
 
+        if p.auth_mode == "none":
+            print(f"  {name:25s} ✓ keyless endpoint")
+            continue
+
         if p.api_key_env:
             status = "✓ available" if p.effective_key else "✗ not set"
             print(f"  {name:25s} {status} via ${p.api_key_env}")

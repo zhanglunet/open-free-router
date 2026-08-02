@@ -48,7 +48,7 @@ def probe_model(provider: ProviderConfig, model: ModelInfo, timeout: int = PROBE
         return {"ok": False, "status": "no_endpoint", "latency_ms": None,
                 "error": "provider has no upstream URL", "checked_at": checked_at}
     key = provider.effective_key
-    if not key:
+    if not key and provider.auth_mode != "none":
         return {"ok": False, "status": "no_key", "latency_ms": None,
                 "error": "no API key configured", "checked_at": checked_at}
     body = json.dumps({
@@ -57,14 +57,16 @@ def probe_model(provider: ProviderConfig, model: ModelInfo, timeout: int = PROBE
         "max_tokens": 1,
         "stream": False,
     }).encode()
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "open-free-router/0.1",
+    }
+    if key:
+        headers["Authorization"] = f"Bearer {key}"
     request = Request(
         f"{base}/chat/completions",
         data=body,
-        headers={
-            "Content-Type": "application/json",
-            "Authorization": f"Bearer {key}",
-            "User-Agent": "open-free-router/0.1",
-        },
+        headers=headers,
         method="POST",
     )
     start = time.monotonic()

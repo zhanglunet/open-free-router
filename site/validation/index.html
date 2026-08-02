@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港候选提供商与免费模型的发现、验证、自动接入机制：真实代码门槛、测试证据、安全边界与能力限制。">
+  <meta property="og:title" content="候选准入机制 · 模力自由港">
+  <meta property="og:description" content="从 models.dev 候选目录到真实 Chat Completions 请求，再到只收录成功模型：逐步公开自动接入的逻辑与边界。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>候选准入机制 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/validation/validation.css">
+  <link rel="stylesheet" href="/validation/deepseek.css">
+  <script src="/nav.js?v=20260803b" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <a class="skip-link" href="#verdict">跳到验证结论</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="准入机制页导航"><a href="#flow">验证流程</a><a href="#evidence">测试证据</a><a href="#deepseek-v4">DeepSeek V4</a><a href="#limits">能力边界</a></nav>
+    <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
+  </header>
+
+  <main>
+    <section class="validation-hero" id="verdict">
+      <p class="validation-eyebrow"><span></span> CANDIDATE ADMISSION · AUDITED 2026.08.03</p>
+      <h1>不是发现了就接入，<br><em>而是过关后才靠岸。</em></h1>
+      <p>扩容候选来自公开目录，但公开目录只负责“发现”，没有注册表写权限。系统需要经过静态筛选、专用凭据、网络安全检查和真实最小请求；最终只把实测成功的模型加入本地注册表。</p>
+      <div class="verdict-grid">
+        <article class="pass"><small>公开目录发现</small><b>有效</b><span>本轮实时发现 44 家 / 322 个显式零单价模型</span></article>
+        <article class="pass"><small>安全准入链路</small><b>有效</b><span>58 项聚焦测试全部通过</span></article>
+        <article class="pass"><small>V4 Flash 渠道实调用</small><b>3 成功 / 2 失败</b><span>逐渠道结果见下方专项研究</span></article>
+        <article class="partial"><small>“永久免费”证明</small><b>不能据此断言</b><span>仍需官方条款、额度和有效期证据</span></article>
+      </div>
+      <p class="verdict-note"><b>结论：</b>当前机制能有效证明“这个凭据下，这个模型此刻能返回最小 OpenAI Chat 响应”，也能阻止未经测试的候选静默接入；它不能单独证明长期免费、流式输出、工具调用或全部协议能力。</p>
+    </section>
+
+    <section class="validation-section" id="flow">
+      <header><p class="validation-eyebrow"><span></span> CONTROL FLOW</p><h2>八道闸门，<em>两条结果支线。</em></h2><p>绿色节点是自动执行的准入检查；黄色节点需要用户明确开启或提供凭据。任何一步失败，候选都会留在隔离快照中，不进入可路由注册表。</p></header>
+      <div class="flow-chart" role="img" aria-label="候选模型从 models.dev 发现，经过零价格、HTTPS、协议、凭据、网络和真实请求检查，成功后进入注册表，失败则留在候选区">
+        <div class="flow-row">
+          <article><small>01 · DISCOVER</small><b>读取 models.dev</b><span>公开 API 目录快照</span></article><i>→</i>
+          <article><small>02 · FILTER</small><b>显式零单价</b><span>input = 0 且 output = 0</span></article><i>→</i>
+          <article><small>03 · ISOLATE</small><b>候选隔离</b><span>仅写 discovery.json，权限 0600</span></article><i>→</i>
+          <article class="optional"><small>04 · OPT-IN</small><b>用户开启测试</b><span>--test / auto_test</span></article>
+        </div>
+        <div class="flow-down" aria-hidden="true">↓</div>
+        <div class="flow-row reverse">
+          <article class="optional"><small>05 · AUTH</small><b>专用凭据 / Keyless</b><span>OFR_*_API_KEY 或实测无鉴权</span></article><i>→</i>
+          <article><small>06 · NETWORK</small><b>公网 HTTPS</b><span>拒绝私网 IP、重定向与系统代理</span></article><i>→</i>
+          <article><small>07 · LIVE CALL</small><b>真实最小请求</b><span>POST /chat/completions</span></article><i>→</i>
+          <article><small>08 · RESPONSE</small><b>有效助手文本</b><span>HTTP 200 + 非空 message.content</span></article>
+        </div>
+        <div class="flow-branches">
+          <article class="accepted"><small>READY</small><b>只收录成功模型</b><span>注册表保存环境变量名；工具能力默认关闭；同步客户端</span></article>
+          <article class="rejected"><small>STAY CANDIDATE</small><b>未支持 / 缺凭据 / 被阻止 / 失败</b><span>保留原因和 HTTP 状态，不保存响应正文与 Key</span></article>
+        </div>
+      </div>
+    </section>
+
+    <section class="validation-section" id="gates">
+      <header><p class="validation-eyebrow"><span></span> EXACT GATES</p><h2>每一道检查，究竟证明什么？</h2></header>
+      <div class="gate-table-wrap" role="region" aria-label="候选验证门槛表，可横向滚动" tabindex="0">
+        <table class="gate-table">
+          <thead><tr><th>检查</th><th>代码条件</th><th>失败结果</th><th>能够证明</th><th>不能证明</th></tr></thead>
+          <tbody>
+            <tr><th>目录价格</th><td><code>cost.input === 0</code><br><code>cost.output === 0</code></td><td>不生成候选</td><td>目录当前把单位价格标为零</td><td>永久免费、免费额度、无需绑卡</td></tr>
+            <tr><th>端点语法</th><td>HTTPS；无用户名、密码、查询串和片段</td><td>不生成候选</td><td>URL 没有常见明文凭据</td><td>域名归属和服务质量</td></tr>
+            <tr><th>协议声明</th><td><code>@ai-sdk/openai-compatible</code></td><td><code>unsupported</code></td><td>目录声明 OpenAI 兼容</td><td>Responses / Messages / Embeddings</td></tr>
+            <tr><th>鉴权模式</th><td>优先读取 <code>OFR_..._API_KEY</code>；无 Key 时尝试不发送 Authorization</td><td><code>needs_credentials</code></td><td>凭据显式授权，或端点当前确实 keyless</td><td>账号额度或服务条款</td></tr>
+            <tr><th>网络策略</th><td>DNS 所有地址为公网；HTTPS；禁系统代理；禁重定向</td><td><code>blocked</code></td><td>降低 SSRF 与凭据转发风险</td><td>完全消除 DNS 重绑定等网络风险</td></tr>
+            <tr><th>真实响应</th><td>HTTP 200；JSON；64-token 小预算；首个 choice 有非空助手文本</td><td><code>failed</code></td><td>此刻的最小文本对话可用</td><td>流式、工具、多模态、稳定性和长期免费</td></tr>
+            <tr><th>自动收录</th><td>仅 <code>ready</code> 且仅 successful_models</td><td>注册表不变化</td><td>未成功模型不会混入可路由清单</td><td>完整能力认证</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="validation-section" id="evidence">
+      <header><p class="validation-eyebrow"><span></span> TEST EVIDENCE</p><h2>本轮实际测了什么，<em>没有测什么。</em></h2><p>测试于 2026-08-03 在项目真实工作区运行。结果按“模拟链路”和“公网实时数据”分开记录。</p></header>
+      <div class="evidence-grid">
+        <article><small>A · AUTOMATED TESTS</small><b>58 / 58 通过</b><p>覆盖候选筛选、已接入去重、不安全 URL、0600 快照、专用凭据、Key 不落盘、Keyless 不发送鉴权头、禁重定向、私网 DNS 拒绝、非空助手文本、仅成功模型收录、免费证据、路由执行和后续探测。</p><span>运行：pytest discovery / evidence / probe / executor / registry</span></article>
+        <article><small>B · LIVE DIRECTORY</small><b>44 家 / 322 模型</b><p>真实请求 models.dev 成功，并用当前本地注册表排除重复提供商。数量会随上游目录和已接入清单变化，它是候选规模，不是已支持规模。</p><span>运行：open-free-router discover --dry-run --timeout 30</span></article>
+        <article><small>C · LIVE V4 CALLS</small><b>5 个渠道实测</b><p>使用现有本地凭据或明确 Keyless 端点发送最小 1-token 请求；不保存响应正文。OpenCode、NVIDIA、SenseNova 成功，OpenRouter 免费别名与 Gitee AI 失败。</p><span>一次成功只代表检查时刻可用，不是稳定性基准</span></article>
+        <article class="warning"><small>D · CURRENT LIMIT</small><b>条件有效</b><p>自动化准入适合验证最小文本接口；“免费资格”还需要结构化官方证据，工具调用、流式和跨协议支持还需要单独能力测试。</p><span>ready ≠ 永久免费 ≠ 全能力已验证</span></article>
+      </div>
+      <div class="state-legend"><b>状态机</b><span class="candidate">candidate 候选</span><i>→</i><span>needs_credentials 缺凭据</span><span>unsupported 不支持</span><span>blocked 网络拦截</span><span>failed 请求失败</span><span class="ready">ready 最小对话通过</span></div>
+    </section>
+
+    <section class="validation-section deepseek-study" id="deepseek-v4">
+      <header><p class="validation-eyebrow"><span></span> DEEPSEEK V4 FLASH · SPECIAL STUDY</p><h2>哪些是真的免费，<em>哪些只是目录写着 0。</em></h2><p>DeepSeek 官方当前主模型 ID 是 <code>deepseek-v4-flash</code>。部分渠道使用 <code>deepseek-v4-flash-0731</code> 表示其 7 月 31 日快照；DeepSeek 官方模型列表没有把 0731 作为主 API ID，因此不同渠道的 0731 别名不可默认视为完全相同版本。</p></header>
+      <div class="model-facts"><article><small>参数规模</small><b>284B / 13B active</b></article><article><small>上下文</small><b>1M tokens</b></article><article><small>官方最大输出</small><b>384K tokens</b></article><article><small>开放权重</small><b>MIT License</b></article></div>
+      <div class="channel-table-wrap" role="region" aria-label="DeepSeek V4 Flash 免费渠道验证表，可横向滚动" tabindex="0">
+        <table class="channel-table">
+          <thead><tr><th>渠道</th><th>免费性质</th><th>模型 ID</th><th>2026-08-03 实测</th><th>结论</th></tr></thead>
+          <tbody>
+            <tr class="available"><th>NVIDIA NIM</th><td>官方页面标注 Free Endpoint；需 NVIDIA API Key，受试用条款约束</td><td><code>deepseek-ai/deepseek-v4-flash</code></td><td>HTTP 200 · 非空文本 · 约 1.08s</td><td><b>当前可用</b><small>本轮最强的 API 免费渠道证据</small></td></tr>
+            <tr class="available"><th>OpenCode Zen</th><td>官方明确“限时免费”；当前 Keyless</td><td><code>deepseek-v4-flash-free</code></td><td>模型列表 HTTP 200；推理 HTTP 200；探测约 4.27s</td><td><b>当前可用</b><small>限时活动，可能随时结束</small></td></tr>
+            <tr class="conditional"><th>SenseNova</th><td>本机既有账号可调用；未找到 V4 Flash 免费额度的明确官方条款</td><td><code>deepseek-v4-flash</code></td><td>HTTP 200 · 约 9.63s</td><td><b>接口可用，免费性待核</b><small>不能只凭调用成功标成永久免费</small></td></tr>
+            <tr class="unavailable"><th>OpenRouter</th><td>官方索引仍有 <code>:free</code> 页面，但实时模型列表不含该别名</td><td><code>deepseek/deepseek-v4-flash:free</code></td><td>推理 HTTP 404；付费 V4 / 0731 仍在目录</td><td><b>免费别名当前不可用</b><small>网页索引与实时 API 状态冲突</small></td></tr>
+            <tr class="unavailable"><th>Gitee AI</th><td>官方标价为付费；当前账号无可用计费资源</td><td><code>DeepSeek-V4-Flash</code></td><td>HTTP 400 · 要求套餐、资源包或余额</td><td><b>不是可用免费渠道</b></td></tr>
+            <tr class="conditional"><th>Kenari / UnoRouter</th><td>models.dev 标记零单价，但未核到清晰官方免费条款</td><td><code>deepseek-v4-flash:free</code></td><td>Kenari 无 Key HTTP 401；UnoRouter 模型列表 HTTP 401</td><td><b>候选，尚未验证</b><small>需要专用 Key 与条款证据</small></td></tr>
+            <tr class="unavailable"><th>DeepSeek 官方 API</th><td>按 Token 收费；赠送余额不等于永久免费</td><td><code>deepseek-v4-flash</code></td><td>官方价格页明确计费</td><td><b>低价但非免费 API</b></td></tr>
+            <tr class="conditional"><th>自托管开放权重</th><td>模型权重 MIT 免费；算力、存储和运维不免费</td><td><code>deepseek-ai/DeepSeek-V4-Flash</code></td><td>官方提供 Transformers / vLLM / SGLang 路径</td><td><b>软件自由，不是免费云算力</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="channel-verdict"><b>推荐顺序</b><p><strong>1. NVIDIA NIM</strong>：官方 Free Endpoint + 本轮实测成功；<strong>2. OpenCode Zen</strong>：Keyless 且实测成功，但属于限时活动；<strong>3. SenseNova</strong>：当前账户实测可用，但先核对套餐；其余渠道暂不进入“已验证免费”列表。</p></div>
+      <div class="official-sources">
+        <a href="https://api-docs.deepseek.com/news/news260424/" rel="noreferrer"><b>DeepSeek V4 官方发布</b><span>模型身份、参数、1M 上下文与开放权重</span></a>
+        <a href="https://api-docs.deepseek.com/quick_start/pricing" rel="noreferrer"><b>DeepSeek 官方价格</b><span>官方 API 按 Token 计费</span></a>
+        <a href="https://build.nvidia.com/deepseek-ai/deepseek-v4-flash" rel="noreferrer"><b>NVIDIA NIM 模型页</b><span>Free Endpoint、模型 ID 与 API 示例</span></a>
+        <a href="https://dev.opencode.ai/docs/zen" rel="noreferrer"><b>OpenCode Zen 官方说明</b><span>独立免费 ID 与“限时免费”声明</span></a>
+        <a href="https://openrouter.ai/deepseek/deepseek-v4-flash%3Afree/pricing" rel="noreferrer"><b>OpenRouter 免费索引页</b><span>保留为冲突证据；实时 API 本轮返回 404</span></a>
+        <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash" rel="noreferrer"><b>DeepSeek 官方 Hugging Face</b><span>MIT 权重与本地部署方法</span></a>
+      </div>
+      <p class="source-note">延迟均为单次最小请求的客户端观察值，不是性能排名。Key 从本地私有配置读取，页面、日志和测试输出均不包含 Key 或响应正文。渠道政策会变化，本站需要持续复核。</p>
+    </section>
+
+    <section class="validation-section" id="limits">
+      <header><p class="validation-eyebrow"><span></span> TRUST BOUNDARY</p><h2>“接入成功”分成三层，<em>不要混为一谈。</em></h2></header>
+      <div class="layers">
+        <article><small>L1</small><div><b>协议准入</b><p>真实最小 Chat Completions 请求返回非空助手文本。自动收录达到的是这一层。</p></div><strong>自动</strong></article>
+        <article><small>L2</small><div><b>运行可用</b><p>接入后由 Live Probe 持续记录模型可用性、HTTP 状态和延迟；公开状态页使用 Cloudflare 服务器端探测，与用户本机无关。</p></div><strong>持续探测</strong></article>
+        <article><small>L3</small><div><b>免费资格与完整能力</b><p>需要官方证据 URL、核验时间、失效时间、额度/地区/绑卡条件，以及流式、工具、多模态等专项测试。</p></div><strong>待增强</strong></article>
+      </div>
+      <div class="limits-grid">
+        <article><b>已经控制</b><ul><li>公开目录没有直接写注册表的权限</li><li>凭据值不写 discovery.json 或 registry.yaml</li><li>自动接入默认关闭，需要显式 opt-in</li><li>单个周期默认最多测试 5 家、每家 3 个模型</li><li>候选声称有工具能力，收录时仍强制关闭</li></ul></article>
+        <article><b>尚未自动证明</b><ul><li>免费额度、重置周期、地区限制和长期有效性</li><li>SSE 流式事件顺序与中途断流行为</li><li>工具调用参数、thought signature 等厂商差异</li><li>Responses、Anthropic Messages、Embeddings 协议</li><li>多次重复成功、限流阈值与生产稳定性</li></ul></article>
+        <article><b>下一步增强建议</b><ul><li>P0：ready 后仍需有效免费证据才进入 free/* 自动路由</li><li>P0：至少两次跨时间成功再标为稳定可用</li><li>P1：按声明能力增加 stream / tools 专项探测</li><li>P1：公开最近成功率与失败原因分布</li><li>P2：对免费条款变更做定期复核和过期降级</li></ul></article>
+      </div>
+    </section>
+
+    <section class="validation-section" id="operate">
+      <header><p class="validation-eyebrow"><span></span> OPERATOR GUIDE</p><h2>如何安全地验证并接入候选</h2><p>下面命令都在运行 open-free-router 的机器执行。先只读发现，再为你认可的候选单独配置凭据。</p></header>
+      <div class="command-flow">
+        <article><small>01 · 只读发现</small><code>open-free-router discover --dry-run</code><p>联网读取候选，但不写快照、不修改注册表。</p></article>
+        <article><small>02 · 专用授权</small><code>export OFR_PROVIDER_API_KEY=&quot;你的密钥&quot;</code><p>需要鉴权时使用页面输出的准确变量名；实测 Keyless 则不发送 Authorization。</p></article>
+        <article><small>03 · 测试不收录</small><code>open-free-router discover --test</code><p>保存私有验证快照，检查 ready / failed 等状态。</p></article>
+        <article><small>04 · 明确收录</small><code>open-free-router discover --test --adopt</code><p>只将本轮成功模型写入注册表，并保留备份。</p></article>
+      </div>
+      <div class="config-card"><div><small>默认配置</small><pre><code>discovery:
+  enabled: true
+  interval_hours: 24
+  auto_test: false
+  auto_adopt: false
+  max_providers_per_cycle: 5
+  max_models_per_provider: 3</code></pre></div><p><b>推荐：</b>先保持 <code>auto_adopt: false</code>。候选完成官方免费条款核验、连续可用性探测和所需能力测试后，再决定是否长期自动收录。</p></div>
+    </section>
+  </main>
+
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Admission Audit</small></span></div><p>把候选、可用和免费资格分开，才是真正可信的模型扩容。</p><div class="footer-links"><a href="/compare/#provider-expansion">扩容雷达</a><a href="/models/">模型雷达</a><a href="/status/">实时状态</a><a href="/architecture/">系统架构</a><a href="/sitemap/">站点地图</a></div></footer>
+</body>
+</html>

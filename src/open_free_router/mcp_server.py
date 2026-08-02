@@ -250,6 +250,8 @@ class McpServer:
                 "models": len(p.models),
                 "auto_refresh": p.auto_refresh,
                 "has_key": bool(p.effective_key),
+                "auth_mode": p.auth_mode,
+                "auth_ready": bool(p.effective_key) or p.auth_mode == "none",
                 "key_env": p.api_key_env or None,
             }
             for name, p in reg.providers.items()
@@ -267,13 +269,17 @@ class McpServer:
     def tool_get_status(self, args: dict) -> dict:
         reg = self._registry()
         model_count = sum(len(p.models) for p in reg.providers.values())
-        keyed = sum(1 for p in reg.providers.values() if p.effective_key)
+        keyed = sum(
+            1 for p in reg.providers.values()
+            if p.effective_key or p.auth_mode == "none"
+        )
         return _text_result({
             "version": __version__,
             "config_path": str(self.cfg.path) if self.cfg.path else None,
             "registry_path": str(self.cfg.registry_path),
             "providers": len(reg.providers),
             "providers_with_key": keyed,
+            "providers_auth_ready": keyed,
             "models": model_count,
             "proxy_url": f"{self._proxy_base()}/v1",
             "proxy_reachable": self._http_ok(f"{self._proxy_base()}/v1/models"),

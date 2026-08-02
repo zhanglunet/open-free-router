@@ -1,9 +1,30 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T21:59:50.000Z",
+  "updated_at": "2026-08-03T01:00:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-03-候选准入机制审计与可视化",
+      "date": "2026-08-03",
+      "type": "security",
+      "version": "v0.3.0",
+      "title": "候选准入机制审计、响应校验加固与公开图示",
+      "summary": "实测公开候选发现、Keyless 与自动准入链路，收紧最小响应判定，并专项核验 DeepSeek V4 Flash 免费渠道。",
+      "items": [
+        "公网实时发现 44 家候选提供商与 322 个显式零单价模型，候选不计入已支持规模",
+        "58 项发现、注册表、执行器、免费证据与后续探测测试全部通过",
+        "最小 Chat 响应从仅检查 choices 非空加固为必须包含非空助手文本",
+        "验证输出预算调整为 64 tokens，避免推理模型只产生 reasoning_content 而被误判失败",
+        "补齐显式 Keyless 端点的发现、注册、路由和探测支持，省略 Authorization 仅限已验证 auth_mode none",
+        "专项实测 DeepSeek V4 Flash 五个渠道：NVIDIA、OpenCode、SenseNova 成功，OpenRouter 免费别名和 Gitee 失败",
+        "新增八道准入闸门流程图、状态机、三层信任边界、命令与默认配置说明"
+      ],
+      "links": [
+        {"label": "查看候选准入机制", "href": "/validation/"},
+        {"label": "查看扩容雷达", "href": "/compare/#provider-expansion"}
+      ]
+    },
     {
       "id": "2026-08-03-站点地图与提供商扩容雷达",
       "date": "2026-08-03",

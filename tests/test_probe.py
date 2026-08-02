@@ -20,10 +20,12 @@ from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
 
 class _OkUpstream(BaseHTTPRequestHandler):
+    seen_auth = []
     def log_message(self, *args):
         pass
 
     def do_POST(self):
+        type(self).seen_auth.append(self.headers.get("Authorization"))
         self.rfile.read(int(self.headers.get("Content-Length", 0)))
         body = json.dumps({"choices": [{"message": {"content": "pong"}}]}).encode()
         self.send_response(200)
@@ -93,6 +95,19 @@ def test_probe_model_without_key_is_not_probed():
     result = probe_model(p, p.models[0], timeout=1)
     assert result["ok"] is False
     assert result["status"] == "no_key"
+
+
+def test_probe_model_supports_explicit_keyless_provider():
+    srv = _start(_OkUpstream)
+    try:
+        _OkUpstream.seen_auth.clear()
+        p = _provider(srv.server_address[1], api_key="")
+        p.auth_mode = "none"
+        result = probe_model(p, p.models[0], timeout=5)
+        assert result["ok"] is True
+        assert _OkUpstream.seen_auth == [None]
+    finally:
+        srv.shutdown()
 
 
 def test_probe_runner_completes_and_rejects_concurrent_runs():

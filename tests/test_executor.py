@@ -237,3 +237,23 @@ def test_virtual_route_skips_provider_without_credentials_before_network():
     finally:
         unused.shutdown()
         healthy.shutdown()
+
+
+def test_explicit_keyless_route_omits_authorization_header():
+    handler = _handler(200)
+    server = _start(handler)
+    try:
+        provider = _provider(server.server_address[1], "free")
+        provider["api_key"] = ""
+        provider["auth_mode"] = "none"
+        result = UpstreamExecutor(
+            RoutePlanner(Registry({"keyless": provider})), ResilienceManager(), timeout=5
+        ).execute("free/model", "chat/completions", {"messages": []})
+        assert isinstance(result, OpenedRoute)
+        try:
+            result.response.read()
+            assert handler.seen_auth == [None]
+        finally:
+            result.close()
+    finally:
+        server.shutdown()

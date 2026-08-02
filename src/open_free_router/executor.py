@@ -70,6 +70,8 @@ class RouteFailure:
 def _credentials(target: RouteTarget) -> list[tuple[int, str]]:
     """Return configured credential slots without exposing identifiers."""
     provider = target.provider
+    if provider.auth_mode == "none":
+        return [(0, "")]
     if provider.api_keys:
         slots = [(index, value) for index, value in enumerate(provider.api_keys) if value]
         if slots:
@@ -159,9 +161,10 @@ class UpstreamExecutor:
         data = json.dumps(body).encode()
         headers = {
             "Content-Type": "application/json",
-            "Authorization": f"Bearer {credential}",
             "User-Agent": "open-free-router/0.1",
         }
+        if credential:
+            headers["Authorization"] = f"Bearer {credential}"
         try:
             conn.connect()
             if conn.sock:

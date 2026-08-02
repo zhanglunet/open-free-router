@@ -74,7 +74,9 @@ def protocol_matrix(registry: Registry) -> dict:
                 "endpoint": protocol["endpoint"],
                 "envelope": protocol["envelope"],
                 "configured": issue is None and bool(provider.models),
-                "credential_ready": bool(provider.api_keys or provider.effective_key),
+                "credential_ready": bool(
+                    provider.auth_mode == "none" or provider.api_keys or provider.effective_key
+                ),
                 "model_count": len(provider.models),
                 "tool_calling_models": tool_models,
                 "reasoning_models": reasoning_models,

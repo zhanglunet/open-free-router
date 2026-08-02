@@ -84,6 +84,7 @@ poolside:
   prefix: ps
 opencode-zen-free:
   upstream_url: https://opencode.ai/zen/v1
+  auth_mode: none
   auto_refresh: true
   refresh_method: zen_api
   api_key: ''

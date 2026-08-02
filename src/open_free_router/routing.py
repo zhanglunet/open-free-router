@@ -405,9 +405,13 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
             )
             continue
         missing = sorted({
-            target.provider_name for target in plan.candidates if not target.provider.effective_key
+            target.provider_name for target in plan.candidates
+            if target.provider.auth_mode != "none" and not target.provider.effective_key
         })
-        ready = [target for target in plan.candidates if target.provider.effective_key]
+        ready = [
+            target for target in plan.candidates
+            if target.provider.auth_mode == "none" or target.provider.effective_key
+        ]
         if missing:
             severity = "warning" if ready or alias not in aliases else "error"
             code = "candidates_missing_credentials" if ready else "no_credential_candidates"

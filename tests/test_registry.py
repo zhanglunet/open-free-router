@@ -77,6 +77,15 @@ class TestModelInfo:
 
 
 class TestProviderConfig:
+    def test_keyless_auth_mode_round_trip(self):
+        registry = Registry({"free": {
+            "upstream_url": "https://free.example/v1",
+            "auth_mode": "none",
+            "models": [{"id": "m1"}],
+        }})
+        assert registry.get("free").auth_mode == "none"
+        assert registry.to_dict()["free"]["auth_mode"] == "none"
+
     def test_effective_key_single(self):
         p = ProviderConfig(name="test", api_key="sk-abc")
         assert p.effective_key == "sk-abc"

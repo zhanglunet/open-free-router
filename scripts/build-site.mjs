@@ -29,6 +29,7 @@ const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
 const storyHtml = await readFile(resolve(output, "stories", "free-model-port", "index.html"), "utf8");
 const storyJs = await readFile(resolve(output, "stories", "free-model-port", "article.js"), "utf8");
 const compareHtml = await readFile(resolve(output, "compare", "index.html"), "utf8");
+const validationHtml = await readFile(resolve(output, "validation", "index.html"), "utf8");
 const benchmarksHtml = await readFile(resolve(output, "benchmarks", "index.html"), "utf8");
 const benchmarksJs = await readFile(resolve(output, "benchmarks", "benchmarks.js"), "utf8");
 const benchmarksCss = await readFile(resolve(output, "benchmarks", "benchmarks.css"), "utf8");
@@ -47,7 +48,7 @@ for (const marker of required) {
     throw new Error(`Generated site is missing required content: ${marker}`);
   }
 }
-for (const marker of ['href="/guide/npm/"', 'href="/sitemap/"']) {
+for (const marker of ['href="/guide/npm/"', 'href="/validation/"', 'href="/sitemap/"']) {
   if (!html.includes(marker)) throw new Error(`Homepage navigation is missing required route: ${marker}`);
 }
 for (const marker of ["免费模型", "模型参数与能力比较", "持续发现", "/api/catalog"]) {
@@ -121,14 +122,17 @@ for (const marker of ["免费大模型", "真实实测", "本地优先", "复制
 for (const marker of ["OmniRoute", "9Router", "LiteLLM", "Free Router", "比较依据", "2026-08-03", "290+", "Provider Reference", "统一准入门槛", "扩容候选"]) {
   if (!compareHtml.includes(marker)) throw new Error(`Generated comparison page is missing required content: ${marker}`);
 }
-for (const route of ["/", "/models/", "/status/", "/benchmarks/", "/compare/", "/architecture/", "/map/", "/guide/", "/guide/npm/", "/stories/free-model-port/", "/logs/", "/brand/", "/sitemap/"]) {
+for (const marker of ["八道闸门", "models.dev", "44 家 / 322 模型", "58 / 58 通过", "OFR_*_API_KEY", "ready ≠ 永久免费", "auto_adopt: false", "非空 message.content", "DEEPSEEK V4 FLASH", "OpenCode Zen", "NVIDIA NIM", "HTTP 404", "软件自由，不是免费云算力"]) {
+  if (!validationHtml.includes(marker)) throw new Error(`Generated candidate validation page is missing required content: ${marker}`);
+}
+for (const route of ["/", "/models/", "/status/", "/validation/", "/benchmarks/", "/compare/", "/architecture/", "/map/", "/guide/", "/guide/npm/", "/stories/free-model-port/", "/logs/", "/brand/", "/sitemap/"]) {
   if (!sitemapHtml.includes(`href="${route}"`)) throw new Error(`Generated site map is missing route: ${route}`);
 }
-for (const marker of ["页面关系结构", "全部页面链接", "推荐路径", "13 PAGES"]) {
+for (const marker of ["页面关系结构", "全部页面链接", "推荐路径", "14 PAGES"]) {
   if (!sitemapHtml.includes(marker)) throw new Error(`Generated site map is missing required content: ${marker}`);
 }
-if ((sitemapXml.match(/<url>/g) || []).length !== 13 || !robotsTxt.includes("https://oaf.asia/sitemap.xml")) {
-  throw new Error("Machine-readable sitemap and robots.txt must expose all 13 public pages");
+if ((sitemapXml.match(/<url>/g) || []).length !== 14 || !robotsTxt.includes("https://oaf.asia/sitemap.xml")) {
+  throw new Error("Machine-readable sitemap and robots.txt must expose all 14 public pages");
 }
 for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", "不从图片猜分", "35%", "25%", "30%", "10%"]) {
   if (!benchmarksHtml.includes(marker) && !benchmarksJs.includes(marker)) {
@@ -160,7 +164,7 @@ if (!Array.isArray(benchmarksData.sources) || !benchmarksData.sources.some((sour
 }
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));
-for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, sitemapHtml, logsHtml, storyHtml, compareHtml, benchmarksHtml]) {
+for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, sitemapHtml, logsHtml, storyHtml, compareHtml, validationHtml, benchmarksHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }

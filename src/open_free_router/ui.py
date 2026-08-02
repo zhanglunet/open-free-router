@@ -171,7 +171,9 @@ class _UIHandler(BaseHTTPRequestHandler):
     def _api_status(self):
         providers = self.reg.providers if self.reg else {}
         model_count = sum(len(p.models) for p in providers.values())
-        credential_count = sum(bool(p.effective_key) for p in providers.values())
+        credential_count = sum(
+            bool(p.effective_key) or p.auth_mode == "none" for p in providers.values()
+        )
         status = {
             "version": __version__,
             "service": {
@@ -200,7 +202,8 @@ class _UIHandler(BaseHTTPRequestHandler):
                 "name": name,
                 "base_url": p.base_url,
                 "prefix": p.model_prefix,
-                "credential_configured": bool(p.effective_key),
+                "credential_configured": bool(p.effective_key) or p.auth_mode == "none",
+                "auth_mode": p.auth_mode,
                 "credential_env": p.api_key_env,
                 "auto_refresh": p.auto_refresh,
                 "refresh_method": p.refresh_method,
