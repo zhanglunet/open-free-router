@@ -13,9 +13,9 @@
   <title>模型评测 · 模力自由港</title>
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
-  <link rel="stylesheet" href="/benchmarks/benchmarks.css">
+  <link rel="stylesheet" href="/benchmarks/benchmarks.css?v=20260802b">
   <script src="/nav.js?v=20260802c" defer></script>
-  <script src="/benchmarks/benchmarks.js?v=20260802a" defer></script>
+  <script src="/benchmarks/benchmarks.js?v=20260802b" defer></script>
 </head>
 <body>
   <div class="site-grid" aria-hidden="true"></div>
@@ -31,7 +31,7 @@
       <p class="bench-eyebrow"><span></span> MODEL EVALUATION · EVIDENCE FIRST</p>
       <h1>不只问谁更聪明，<br><em>还要问此刻能不能用。</em></h1>
       <p>参考 Intelligence Index“性能 × 成本”的二维思路，模力自由港先绘制“任务适配 × 实测延迟”：把服务器端真实请求、免费证据和模型声明能力放在一张图上。第三方智力、编码与 Agent 基准单独引入、单独署名，绝不与本站指标混成一个神秘总分。</p>
-      <div class="bench-stats"><article><b id="evaluated-models">—</b><span>登记模型</span></article><article><b id="live-models">—</b><span>服务端可用</span></article><article><b id="external-models">0</b><span>外部基准匹配</span></article><article><b id="index-version">待导入</b><span>Intelligence Index</span></article></div>
+      <div class="bench-stats"><article><b id="evaluated-models">—</b><span>登记模型</span></article><article><b id="live-models">—</b><span>服务端可用</span></article><article><b id="free-evidence-models">—</b><span>有结构化免费证据</span></article><article><b id="external-models">0</b><span>外部基准匹配</span></article><article><b id="index-version">待导入</b><span>Intelligence Index</span></article></div>
     </section>
 
     <section class="bench-section" id="chart">
@@ -55,11 +55,20 @@
         <article><b>03 · 第三方独立评测</b><h3>智力、编码与 Agent 指数</h3><p>可通过 Artificial Analysis 官方 API 导入；展示时保留 Index 版本、更新时间、来源链接和模型匹配置信度。</p></article>
       </div>
       <div class="formula"><b>自由港任务适配分 v1</b><span>服务端可用性 35%</span><i>+</i><span>免费证据 25%</span><i>+</i><span>声明功能密度 30%</span><i>+</i><span>最近延迟 10%</span></div>
+      <div class="rubric-wrap" role="region" aria-label="任务适配分详细计分规则" tabindex="0">
+        <table class="rubric"><thead><tr><th>分项</th><th>满分</th><th>明确计分规则</th><th>数据来源与边界</th></tr></thead><tbody>
+          <tr><td>服务端可用性</td><td>35</td><td>可用 35；尚未验证 12；不可用 0</td><td>Cloudflare 最近一次提供商级探测快照；不是你的本机状态</td></tr>
+          <tr><td>免费证据</td><td>25</td><td>已核验 25；待补证据 10；已过期 5；无结构化记录 5；证据错误 0</td><td>公开目录中的来源、核验状态和有效期；缺失会明确显示“目录未提供”</td></tr>
+          <tr><td>声明功能密度</td><td>30</td><td>注册表功能密度分 × 30%；上下文最高 35、输出长度最高 20、推理 20、工具调用 25</td><td>模型/提供商声明，不是答案质量、智力或编码能力实测</td></tr>
+          <tr><td>最近延迟</td><td>10</td><td>≤1s 10；≤1.5s 9；≤3s 6；≤5s 3；&gt;5s 1；未测 2</td><td>最近提供商级最小请求；同提供商模型目前继承同一快照</td></tr>
+        </tbody></table>
+      </div>
+      <div class="callout-limit"><b>怎么理解这个分数？</b><p>它是“当前接入准备度”，不是模型智力排行榜。当前公开目录以提供商级服务端状态和延迟为主：同一提供商下的模型可能继承同一轮快照，不能把差异很小的分数理解为逐模型质量差异。逐模型真实质量应结合下方独立基准和你的目标任务测试。</p></div>
     </section>
 
     <section class="bench-section external-panel">
       <header><p class="bench-eyebrow"><span></span> EXTERNAL BENCHMARKS</p><h2>第三方分数，<em>带着出处进入。</em></h2></header>
-      <div class="external-status" id="external-status"><b>Artificial Analysis 尚未导入</b><p>已完成安全导入器与页面字段，但当前没有配置 API Key，因此不从图片猜分，也不发布未经 API 核验的数据。</p></div>
+      <div class="external-status" id="external-status"><b>Artificial Analysis 尚未导入</b><p>服务器当前没有 Artificial Analysis 官方 API 快照，所以整组 Intelligence、Coding、Agentic 与任务成本字段显示“未导入”，不是 0 分。已完成安全导入器；只有配置官方 API Key 并通过来源、版本与模型匹配校验后才会发布，不从图片猜分。</p></div>
       <div class="external-scatter-shell" id="external-chart" hidden>
         <div class="external-scatter" id="external-scatter" aria-label="已匹配模型的 Artificial Analysis Intelligence 与任务成本散点图"></div>
         <div class="external-axis"><span>低任务成本</span><b>Cost per Intelligence Index task（USD，对数映射）</b><span>高任务成本</span></div>
@@ -70,10 +79,10 @@
     </section>
 
     <section class="bench-section" id="table">
-      <header><p class="bench-eyebrow"><span></span> MODEL TABLE</p><h2>完整模型评测清单。</h2><p>“外部指数”为空表示尚未匹配或尚未导入，不表示分数为 0。</p></header>
+      <header><p class="bench-eyebrow"><span></span> MODEL TABLE</p><h2>完整模型评测清单。</h2><p>每行任务适配分下方都列出四项得分。外部字段显示“未导入”表示整组官方快照尚未接入；“该记录缺失”才表示已有快照中该模型没有该字段，两者都不等于 0 分。</p></header>
       <div class="bench-controls"><label>搜索模型<input id="bench-search" type="search" placeholder="模型、提供商、家族"></label><label>排序<select id="bench-sort"><option value="readiness">任务适配分</option><option value="latency">实测延迟</option><option value="intelligence">外部 Intelligence</option><option value="context">上下文</option></select></label></div>
       <div class="bench-table-wrap" role="region" aria-label="模型评测表，可横向滚动" tabindex="0"><table class="bench-table"><thead><tr><th>状态</th><th>模型</th><th>任务适配分</th><th>延迟</th><th>免费证据</th><th>功能密度</th><th>AA Intelligence</th><th>AA Coding</th><th>AA Agentic</th><th>AA 任务成本</th><th>匹配</th></tr></thead><tbody id="bench-rows"><tr><td colspan="11">正在加载…</td></tr></tbody></table></div>
-      <p class="bench-note">重要限制：同一模型名可能对应不同推理档位、量化、系统提示或提供商实现。外部分数只作为选择证据之一，不能替代你在目标任务上的真实测试。</p>
+      <p class="bench-note">重要限制：同一模型名可能对应不同推理档位、量化、系统提示或提供商实现。本站状态与延迟来自服务器端探测，和访问者本机无关；外部分数只作为选择证据之一，不能替代你在目标任务上的真实测试。评测口径版本：自由港任务适配分 v1。</p>
     </section>
   </main>
 

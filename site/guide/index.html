@@ -38,7 +38,7 @@
       <header><p class="eyebrow"><span></span> ONE-CLICK INSTALL</p><h2>一键安装</h2><p>脚本会克隆 GitHub 仓库、创建隔离的 Python 虚拟环境、安装 CLI，并可同时生成 Codex profile。</p></header>
       <div class="callout warning"><b>建议先检查脚本</b><p>最稳妥的做法是先下载、阅读，再执行。脚本不会收集或上传 API Key。</p></div>
       <div class="callout warning"><b>当前需要仓库读取权限</b><p>维护仓库目前是私有仓库，安装脚本执行克隆前，请先用 <code>gh auth login</code> 或其他方式为 Git 配置读取权限。公开安装页面与脚本不等于源码仓库已公开；没有权限时克隆会失败。</p></div>
-      <div class="callout"><b>也可以通过 npm 安装</b><p><code>npm install -g open-free-router</code> 已正式可用，要求 Node.js 18+ 与 Python 3.11+。首次运行会在用户缓存目录创建隔离 Python 环境；API Key 仍只保存在本机。</p><p><a href="https://www.npmjs.com/package/open-free-router" rel="noreferrer">查看 npm 包与版本信息 ↗</a></p></div>
+      <div class="callout"><b>也可以通过 npm 安装</b><p><code>npm install -g open-free-router</code> 已正式可用，要求 Node.js 18+ 与 Python 3.11+。首次运行会在用户缓存目录创建隔离 Python 环境；API Key 仍只保存在本机。</p><p><a href="/guide/npm/">查看 npm 安装、Codex 接入、升级卸载与排错完整教程 →</a> · <a href="https://www.npmjs.com/package/open-free-router" rel="noreferrer">核对 npm 包 ↗</a></p></div>
       <div class="code-card"><div><span>npm：安装并运行体检</span><button data-copy="install-npm">复制</button></div><pre id="install-npm"><code>npm install -g open-free-router
 open-free-router doctor</code></pre></div>
       <div class="code-card"><div><span>推荐：下载、检查、安装</span><button data-copy="install-safe">复制</button></div><pre id="install-safe"><code>curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh

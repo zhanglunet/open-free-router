@@ -21,13 +21,31 @@ function latencyPoints(ms) {
   if (ms <= 5000) return 3;
   return 1;
 }
-function readiness(row) {
-  return Math.round(Math.min(100, availabilityPoints(row.provider_status) + evidencePoints(row) + row.capability_score * .3 + latencyPoints(row.latency_ms)));
+function readinessBreakdown(row) {
+  const breakdown = {
+    availability: availabilityPoints(row.provider_status),
+    evidence: evidencePoints(row),
+    capability: Math.round((row.capability_score || 0) * .3),
+    latency: latencyPoints(row.latency_ms),
+  };
+  breakdown.total = Math.round(Math.min(100, breakdown.availability + breakdown.evidence + breakdown.capability + breakdown.latency));
+  return breakdown;
 }
+function readiness(row) { return readinessBreakdown(row).total; }
 function formatLatency(ms) { return ms == null ? "未测" : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`; }
 function formatTokens(value) { return value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1000 ? `${Math.round(value / 1000)}K` : String(value || "—"); }
 function externalKey(providerId, modelId) { return `${providerId}/${modelId}`.toLowerCase(); }
 function formatUsd(value) { return value == null ? "—" : `$${Number(value).toFixed(value < 0.1 ? 3 : 2)}`; }
+function positionClass(prefix, value) {
+  const quantized = Math.max(0, Math.min(100, Math.round(Number(value || 0) / 5) * 5));
+  return `${prefix}-${quantized}`;
+}
+function scoreClass(value) { return positionClass("score", value); }
+function externalValue(row, key, formatter = (value) => value) {
+  if (!row.external) return '<span class="missing-data">未导入</span>';
+  const value = row.external[key];
+  return value == null ? '<span class="missing-data">该记录缺失</span>' : html(formatter(value));
+}
 
 function flatten(catalog) {
   return catalog.providers.flatMap((provider) => provider.models.map((model) => {
@@ -47,7 +65,7 @@ function renderScatter() {
   $("#scatter").innerHTML = '<div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>' + rows.map((row) => {
     const label = row.name || row.id;
     const title = `${label} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
-    return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""}" style="left:${xPosition(row.latency_ms).toFixed(2)}%;bottom:${row.readiness}%" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
+    return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""} ${positionClass("x", xPosition(row.latency_ms))} ${positionClass("y", row.readiness)}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
   }).join("");
 }
 
@@ -65,17 +83,20 @@ function filteredRows() {
 
 function renderRows() {
   const labels = { available: "可用", unverified: "未验证", unavailable: "不可用" };
-  const evidence = { verified: "已核验", unverified: "待补证据", expired: "证据过期", invalid: "证据错误", unknown: "条件未知" };
+  const evidence = { verified: "已核验", unverified: "待补证据", expired: "证据过期", invalid: "证据错误", unknown: "目录未提供" };
   const rows = filteredRows();
-  $("#bench-rows").innerHTML = rows.length ? rows.map((row) => `<tr>
+  $("#bench-rows").innerHTML = rows.length ? rows.map((row) => {
+    const breakdown = readinessBreakdown(row);
+    return `<tr>
     <td><span class="status-pill ${html(row.provider_status)}">${labels[row.provider_status] || "未验证"}</span></td>
     <td><small>${html(row.provider_name)}</small><b>${html(row.name || row.id)}</b><code>${html(row.upstream_id)}</code></td>
-    <td><div class="scorebar"><i style="--score:${row.readiness}%"></i><b>${row.readiness}</b></div></td>
-    <td>${formatLatency(row.latency_ms)}</td><td>${evidence[freeStatus(row)] || "条件未知"}</td>
-    <td><div class="scorebar"><i style="--score:${row.capability_score}%"></i><b>${row.capability_score}</b></div><small>${formatTokens(row.context_window)} ctx</small></td>
-    <td>${row.external?.intelligence ?? "—"}</td><td>${row.external?.coding ?? "—"}</td><td>${row.external?.agentic ?? "—"}</td><td>${formatUsd(row.external?.cost_per_task_usd)}</td>
-    <td>${row.external ? `<b>${html(row.external.match_label || "模型族匹配")}</b><small>${html(row.external.source_name || "Artificial Analysis")}</small>` : "—"}</td>
-  </tr>`).join("") : '<tr><td colspan="11">没有符合搜索条件的模型。</td></tr>';
+    <td><div class="scorebar"><i class="${scoreClass(row.readiness)}"></i><b>${row.readiness}</b></div><small>服务 ${breakdown.availability} · 免费 ${breakdown.evidence} · 能力 ${breakdown.capability} · 延迟 ${breakdown.latency}</small></td>
+    <td>${formatLatency(row.latency_ms)}</td><td>${evidence[freeStatus(row)] || "目录未提供"}</td>
+    <td><div class="scorebar"><i class="${scoreClass(row.capability_score)}"></i><b>${row.capability_score}</b></div><small>${formatTokens(row.context_window)} ctx</small></td>
+    <td>${externalValue(row, "intelligence")}</td><td>${externalValue(row, "coding")}</td><td>${externalValue(row, "agentic")}</td><td>${externalValue(row, "cost_per_task_usd", formatUsd)}</td>
+    <td>${row.external ? `<b>${html(row.external.match_label || "模型族匹配")}</b><small>${html(row.external.source_name || "Artificial Analysis")}</small>` : '<span class="missing-data">AA 快照未导入</span><small>不是 0 分</small>'}</td>
+  </tr>`;
+  }).join("") : '<tr><td colspan="11">没有符合搜索条件的模型。</td></tr>';
 }
 
 function renderExternalScatter(models) {
@@ -85,7 +106,7 @@ function renderExternalScatter(models) {
   const y = (score) => Math.max(4, Math.min(96, ((score - 5) / 60) * 92 + 4));
   $("#external-scatter").innerHTML = '<div class="external-grid g25"></div><div class="external-grid g50"></div><div class="external-grid g75"></div>' + rows.map((item) => {
     const title = `${item.name} · Intelligence ${item.intelligence} · ${formatUsd(item.cost_per_task_usd)}/task`;
-    return `<button class="external-point" style="left:${x(item.cost_per_task_usd).toFixed(2)}%;bottom:${y(item.intelligence).toFixed(2)}%" title="${html(title)}" aria-label="${html(title)}"><span>${html(item.name)}</span></button>`;
+    return `<button class="external-point ${positionClass("x", x(item.cost_per_task_usd))} ${positionClass("y", y(item.intelligence))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(item.name)}</span></button>`;
   }).join("");
   $("#external-chart").hidden = false;
 }
@@ -114,6 +135,7 @@ async function load() {
   state.rows = flatten(catalogResponse);
   $("#evaluated-models").textContent = number.format(state.rows.length);
   $("#live-models").textContent = number.format(state.rows.filter((row) => row.provider_status === "available").length);
+  $("#free-evidence-models").textContent = number.format(state.rows.filter((row) => freeStatus(row) !== "unknown").length);
   renderScatter(); renderRows();
 }
 

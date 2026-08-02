@@ -2,7 +2,7 @@
 
 > **全球免费大模型，一站发现、实测、接入。** 由 Open Free Router 提供技术引擎。
 
-🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装指南](https://oaf.asia/guide/) · [模型雷达](https://oaf.asia/models/) · [模型评测](https://oaf.asia/benchmarks/) · [工具比较](https://oaf.asia/compare/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
+🌐 **项目网站：** [oaf.asia](https://oaf.asia) · [安装指南](https://oaf.asia/guide/) · [npm 完整教程](https://oaf.asia/guide/npm/) · [模型雷达](https://oaf.asia/models/) · [模型评测](https://oaf.asia/benchmarks/) · [工具比较](https://oaf.asia/compare/) · [实时状态](https://oaf.asia/status/) · [系统架构](https://oaf.asia/architecture/) · [全球分布](https://oaf.asia/map/) · [品牌](https://oaf.asia/brand/)
 
 > **来源说明：** 本仓库基于原始项目
 > [`NoelJudeNoel/open-free-router`](https://github.com/NoelJudeNoel/open-free-router)
@@ -96,6 +96,8 @@ ofr serve
 ```
 
 [`open-free-router@0.3.0`](https://www.npmjs.com/package/open-free-router) 是 Python CLI 的薄启动器：检查 Node.js 18+ 与 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。API Key 仍只由本机配置管理，npm 引导器不会读取或上传凭据。
+
+环境检查、首次引导、Codex 接入、缓存位置、升级卸载与常见错误见官网的 [npm 完整教程](https://oaf.asia/guide/npm/)。
 
 ## 命令
 
@@ -390,9 +392,9 @@ Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录
 
 ## 模型评测与第三方基准
 
-[模型评测页](https://oaf.asia/benchmarks/)把证据分成三层：Cloudflare 服务器端真实可用性与延迟、注册表声明的功能密度与免费证据、可选的 Artificial Analysis 外部质量基准。本站“任务适配分”只衡量当前接入就绪度，不等于智力或回答质量。
+[模型评测页](https://oaf.asia/benchmarks/)把证据分成三层：Cloudflare 服务器端真实可用性与延迟、注册表声明的功能密度与免费证据、可选的 Artificial Analysis 外部质量基准。本站“任务适配分”只衡量当前接入就绪度，不等于智力或回答质量；页面已公开四个分项的精确计分规则。当前状态和延迟是提供商级服务端快照，同一提供商模型可能继承同一轮结果，不冒充逐模型质量实测。
 
-外部数据必须通过官方 API 导入；没有 Key 时保持空值，不从截图人工猜分：
+外部数据必须通过官方 API 导入；没有 Key 时明确显示“未导入”，已有快照中的单条字段缺失才显示“该记录缺失”，两者都不是 0 分，也不从截图人工猜分：
 
 ```bash
 ARTIFICIAL_ANALYSIS_API_KEY=... npm run benchmarks:import

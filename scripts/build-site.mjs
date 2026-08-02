@@ -14,6 +14,7 @@ const html = await readFile(resolve(output, "index.html"), "utf8");
 const modelsHtml = await readFile(resolve(output, "models", "index.html"), "utf8");
 const modelsJs = await readFile(resolve(output, "models", "models.js"), "utf8");
 const guideHtml = await readFile(resolve(output, "guide", "index.html"), "utf8");
+const npmGuideHtml = await readFile(resolve(output, "guide", "npm", "index.html"), "utf8");
 const brandHtml = await readFile(resolve(output, "brand", "index.html"), "utf8");
 const architectureHtml = await readFile(resolve(output, "architecture", "index.html"), "utf8");
 const statusHtml = await readFile(resolve(output, "status", "index.html"), "utf8");
@@ -27,6 +28,7 @@ const storyJs = await readFile(resolve(output, "stories", "free-model-port", "ar
 const compareHtml = await readFile(resolve(output, "compare", "index.html"), "utf8");
 const benchmarksHtml = await readFile(resolve(output, "benchmarks", "index.html"), "utf8");
 const benchmarksJs = await readFile(resolve(output, "benchmarks", "benchmarks.js"), "utf8");
+const benchmarksCss = await readFile(resolve(output, "benchmarks", "benchmarks.css"), "utf8");
 const benchmarksData = JSON.parse(await readFile(resolve(output, "data", "benchmarks.json"), "utf8"));
 const devlog = JSON.parse(await readFile(resolve(output, "data", "devlog.json"), "utf8"));
 const navJs = await readFile(resolve(output, "nav.js"), "utf8");
@@ -58,6 +60,11 @@ for (const marker of [
 ]) {
   if (!guideHtml.includes(marker)) {
     throw new Error(`Generated guide is missing required content: ${marker}`);
+  }
+}
+for (const marker of ["npm install -g open-free-router", "Python 3.11+", "OFR_NPM_HOME", "sync --agent codex", "升级、重装与卸载", "常见问题"]) {
+  if (!npmGuideHtml.includes(marker)) {
+    throw new Error(`Generated npm guide is missing required content: ${marker}`);
   }
 }
 if (!modelsJs.includes("key_url") || !modelsJs.includes("key_steps_zh")) {
@@ -113,6 +120,17 @@ for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", 
     throw new Error(`Generated benchmarks page is missing required content: ${marker}`);
   }
 }
+for (const marker of ["明确计分规则", "同提供商模型目前继承同一快照", "目录未提供", "不是 0 分"]) {
+  if (!benchmarksHtml.includes(marker) && !benchmarksJs.includes(marker)) {
+    throw new Error(`Generated benchmarks methodology is missing required content: ${marker}`);
+  }
+}
+if (benchmarksJs.includes('style="') || benchmarksJs.includes("style='")) {
+  throw new Error("Benchmarks dynamic markup must not use inline styles blocked by CSP");
+}
+for (const marker of [".x-100", ".y-100", ".score-100"]) {
+  if (!benchmarksCss.includes(marker)) throw new Error(`Benchmarks CSP-safe chart positioning is missing: ${marker}`);
+}
 if (!benchmarksJs.includes("/data/benchmarks.json?v=")) {
   throw new Error("Benchmarks static snapshot request must be versioned to avoid stale edge 404s");
 }
@@ -127,7 +145,7 @@ if (!Array.isArray(benchmarksData.sources) || !benchmarksData.sources.some((sour
 }
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));
-for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml, compareHtml, benchmarksHtml]) {
+for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml, compareHtml, benchmarksHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }
