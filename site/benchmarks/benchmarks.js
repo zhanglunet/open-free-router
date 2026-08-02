@@ -108,7 +108,7 @@ function indexExternal(snapshot) {
 async function load() {
   const [catalogResponse, benchmarkResponse] = await Promise.all([
     fetch("/api/catalog", { headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : fetch("/data/catalog.json").then((fallback) => fallback.json())).catch(() => fetch("/data/catalog.json").then((response) => response.json())),
-    fetch("/data/benchmarks.json").then((response) => response.json()),
+    fetch("/data/benchmarks.json?v=20260802a").then((response) => response.ok ? response.json() : Promise.reject(new Error(`评测快照 HTTP ${response.status}`))),
   ]);
   indexExternal(benchmarkResponse);
   state.rows = flatten(catalogResponse);
