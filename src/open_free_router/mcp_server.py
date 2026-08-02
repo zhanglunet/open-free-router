@@ -21,11 +21,13 @@ import sys
 import threading
 import urllib.error
 import urllib.request
+from urllib.parse import urlsplit, urlunsplit
 
 from open_free_router import __version__
 from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.config import Config
 from open_free_router.registry import Registry
+from open_free_router.routing import RoutePlanner
 
 PROTOCOL_VERSIONS = {"2024-11-05", "2025-03-26", "2025-06-18"}
 DEFAULT_PROTOCOL_VERSION = "2025-06-18"
@@ -44,16 +46,62 @@ TOOLS = [
                 "tool_calling_only": {"type": "boolean", "description": "only models verified for tool calling"},
             },
         },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
     },
     {
         "name": "list_providers",
         "description": "List upstream providers with model counts and key status (never key values).",
         "inputSchema": {"type": "object", "properties": {}},
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
     },
     {
         "name": "get_status",
         "description": "Router health: config paths, registry stats, and whether the local proxy/UI are reachable.",
         "inputSchema": {"type": "object", "properties": {}},
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "explain_route",
+        "description": "Explain an explicit or virtual route, including candidate filters and configured score factors, without inference.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"model": {"type": "string", "description": "model or virtual model ID"}},
+            "required": ["model"],
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "get_resilience",
+        "description": "Read redacted provider circuit, anonymous credential-slot and model lockout state from the local proxy.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"provider": {"type": "string", "description": "optional provider filter"}},
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "check_quota",
+        "description": "Read verified free-tier claims and normalized runtime quota for anonymous credential slots; never returns key values.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {"provider": {"type": "string", "description": "optional provider filter"}},
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "get_metrics",
+        "description": "Read aggregated privacy-minimized local usage metrics; excludes prompts, responses, headers and request IDs.",
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "days": {"type": "integer", "minimum": 1, "maximum": 365, "default": 30}
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
     },
     {
         "name": "chat",
@@ -71,6 +119,7 @@ TOOLS = [
             },
             "required": ["model", "prompt"],
         },
+        "annotations": {"readOnlyHint": False, "destructiveHint": False, "openWorldHint": True},
     },
     {
         "name": "refresh_models",
@@ -81,6 +130,7 @@ TOOLS = [
                 "source": {"type": "string", "description": "only refresh this provider"},
             },
         },
+        "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
     },
     {
         "name": "sync_clients",
@@ -98,8 +148,11 @@ TOOLS = [
                 },
             },
         },
+        "annotations": {"readOnlyHint": False, "destructiveHint": False, "idempotentHint": False},
     },
 ]
+
+WRITE_TOOL_NAMES = frozenset({"refresh_models", "sync_clients"})
 
 
 def _text_result(payload, is_error: bool = False) -> dict:
@@ -107,6 +160,20 @@ def _text_result(payload, is_error: bool = False) -> dict:
         payload, ensure_ascii=False, indent=2
     )
     return {"content": [{"type": "text", "text": text}], "isError": is_error}
+
+
+def _safe_endpoint(value: str) -> str:
+    """Drop userinfo, query and fragment before placing an endpoint in MCP context."""
+    parsed = urlsplit(value or "")
+    if parsed.scheme not in ("http", "https") or not parsed.hostname:
+        return ""
+    host = f"[{parsed.hostname}]" if ":" in parsed.hostname else parsed.hostname
+    try:
+        port = parsed.port
+    except ValueError:
+        return ""
+    netloc = f"{host}:{port}" if port else host
+    return urlunsplit((parsed.scheme, netloc, parsed.path, "", ""))
 
 
 class McpServer:
@@ -121,7 +188,33 @@ class McpServer:
         return Registry.load(self.cfg.registry_path)
 
     def _proxy_base(self) -> str:
-        return f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}"
+        host = "127.0.0.1" if self.cfg.proxy_host in ("0.0.0.0", "::") else self.cfg.proxy_host
+        return f"http://{host}:{self.cfg.proxy_port}"
+
+    def available_tools(self) -> list[dict]:
+        return [tool for tool in TOOLS if (
+            self.cfg.mcp_allow_write_tools or tool["name"] not in WRITE_TOOL_NAMES
+        )]
+
+    def _proxy_json(self, path: str) -> dict:
+        token = get_or_create_proxy_token(self.cfg.config_dir)
+        request = urllib.request.Request(
+            f"{self._proxy_base()}{path}",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "User-Agent": "open-free-router/mcp",
+            },
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=5) as response:
+                payload = json.loads(response.read())
+        except urllib.error.HTTPError as exc:
+            raise RuntimeError(f"local proxy returned HTTP {exc.code}") from None
+        except (OSError, ValueError, urllib.error.URLError) as exc:
+            raise RuntimeError(f"local proxy unavailable: {exc.__class__.__name__}") from None
+        if not isinstance(payload, dict):
+            raise RuntimeError("local proxy returned an invalid payload")
+        return payload
 
     # ── tool implementations ──
 
@@ -152,7 +245,7 @@ class McpServer:
         providers = [
             {
                 "name": name,
-                "upstream_url": p.upstream_url or p.base_url,
+                "upstream_url": _safe_endpoint(p.upstream_url or p.base_url),
                 "prefix": p.model_prefix,
                 "models": len(p.models),
                 "auto_refresh": p.auto_refresh,
@@ -188,6 +281,91 @@ class McpServer:
             "ui_reachable": self._http_ok(f"http://{self.cfg.ui_host}:{self.cfg.ui_port}/api/status"),
         })
 
+    def tool_explain_route(self, args: dict) -> dict:
+        model = str(args.get("model", "")).strip()
+        if not model:
+            return _text_result("model is required", is_error=True)
+        explanation = RoutePlanner(
+            self._registry(), self.cfg.routing
+        ).plan(model).explain()
+        explanation["runtime_signals_included"] = False
+        explanation["note"] = "Offline explanation uses registry/config only; runtime execution re-evaluates local health, quota and metrics."
+        return _text_result(explanation)
+
+    def tool_get_resilience(self, args: dict) -> dict:
+        try:
+            state = self._proxy_json("/api/resilience")
+        except RuntimeError as exc:
+            return _text_result(str(exc), is_error=True)
+        provider = str(args.get("provider", "")).strip()
+        if not provider:
+            return _text_result(state)
+        return _text_result({
+            "provider": provider,
+            "providers": {name: item for name, item in state.get("providers", {}).items()
+                          if name == provider},
+            "credentials": {name: item for name, item in state.get("credentials", {}).items()
+                            if name.split(":slot-", 1)[0] == provider},
+            "models": {name: item for name, item in state.get("models", {}).items()
+                       if name.split("/", 1)[0] == provider},
+            "persistence": state.get("persistence", {}),
+        })
+
+    def tool_check_quota(self, args: dict) -> dict:
+        provider_filter = str(args.get("provider", "")).strip()
+        reg = self._registry()
+        claims = []
+        for provider_name, provider in reg.providers.items():
+            if provider_filter and provider_name != provider_filter:
+                continue
+            for model in provider.models:
+                evidence = provider.free_tier_for(model)
+                claims.append({
+                    "provider": provider_name,
+                    "model": f"{provider.model_prefix}/{model.id}",
+                    "free_tier": evidence.to_dict(include_status=True),
+                })
+        try:
+            state = self._proxy_json("/api/resilience")
+            runtime_available = True
+            runtime_error = ""
+        except RuntimeError as exc:
+            state = {}
+            runtime_available = False
+            runtime_error = str(exc)
+        slots = []
+        for name, item in state.get("credentials", {}).items():
+            provider_name = name.split(":slot-", 1)[0]
+            if provider_filter and provider_name != provider_filter:
+                continue
+            if item.get("quota") or item.get("state") != "ready":
+                slots.append({
+                    "provider": provider_name,
+                    "slot": name.split(":", 1)[-1],
+                    "state": item.get("state", "ready"),
+                    "reason": item.get("reason", ""),
+                    "quota": item.get("quota", {}),
+                })
+        return _text_result({
+            "claims": claims,
+            "runtime": {
+                "available": runtime_available,
+                "error": runtime_error,
+                "credential_slots": slots,
+            },
+            "notice": "Runtime quota contains normalized numbers/timestamps for anonymous slots only; unknown means no supported header was observed.",
+        })
+
+    def tool_get_metrics(self, args: dict) -> dict:
+        try:
+            days = max(1, min(365, int(args.get("days", 30))))
+        except (TypeError, ValueError):
+            return _text_result("days must be an integer from 1 to 365", is_error=True)
+        try:
+            return _text_result(self._proxy_json(f"/api/metrics?days={days}"))
+        except RuntimeError as exc:
+            return _text_result(str(exc), is_error=True)
+
     def tool_chat(self, args: dict) -> dict:
         model = args.get("model", "")
         prompt = args.get("prompt", "")
@@ -216,14 +394,14 @@ class McpServer:
         try:
             with urllib.request.urlopen(req, timeout=self.cfg.upstream_timeout) as r:
                 response = json.loads(r.read())
+        except urllib.error.HTTPError as exc:
+            return _text_result(f"proxy request failed: HTTP {exc.code}", is_error=True)
         except urllib.error.URLError as e:
-            raw = getattr(e, "read", lambda: b"")()
-            detail = raw.decode(errors="replace") if raw else str(e)
             hint = (
                 " (is `open-free-router serve` running?)"
                 if "refused" in str(e).lower() else ""
             )
-            return _text_result(f"proxy request failed: {detail}{hint}", is_error=True)
+            return _text_result(f"proxy request failed: {e.__class__.__name__}{hint}", is_error=True)
         choices = response.get("choices", [])
         message = choices[0].get("message", {}) if choices else {}
         return _text_result({
@@ -298,16 +476,16 @@ class McpServer:
         if method == "ping":
             return ok({})
         if method == "tools/list":
-            return ok({"tools": TOOLS})
+            return ok({"tools": self.available_tools()})
         if method == "tools/call":
             name = params.get("name", "")
             handler = getattr(self, f"tool_{name}", None)
-            if not handler or not any(t["name"] == name for t in TOOLS):
+            if not handler or not any(t["name"] == name for t in self.available_tools()):
                 return err(-32602, f"Unknown tool: {name}")
             try:
                 return ok(handler(params.get("arguments") or {}))
             except Exception as e:
-                return ok(_text_result(f"{type(e).__name__}: {e}", is_error=True))
+                return ok(_text_result(f"{type(e).__name__}: tool failed", is_error=True))
         return err(-32601, f"Method not found: {method}")
 
     def serve_stdio(self, stdin=None, stdout=None):

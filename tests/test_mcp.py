@@ -14,7 +14,7 @@ def _server(tmp_path) -> McpServer:
     registry = tmp_path / "registry.yaml"
     registry.write_text(yaml.safe_dump({
         "groq": {
-            "upstream_url": "https://api.groq.com/openai/v1",
+            "upstream_url": "https://user:password@api.groq.com/openai/v1?api_key=url-secret",
             "api_key": "upstream-secret",
             "prefix": "gq",
             "models": [
@@ -65,11 +65,26 @@ def test_tools_list_matches_declared_tools(tmp_path):
     server = _server(tmp_path)
     response = _call(server, "tools/list")
     names = [t["name"] for t in response["result"]["tools"]]
-    assert names == [t["name"] for t in TOOLS]
-    assert {"list_models", "list_providers", "get_status", "chat",
-            "refresh_models", "sync_clients"} <= set(names)
+    assert names == [t["name"] for t in TOOLS if t["name"] not in {"refresh_models", "sync_clients"}]
+    assert {"list_models", "list_providers", "get_status", "chat", "explain_route",
+            "get_resilience", "check_quota", "get_metrics"} <= set(names)
+    assert "refresh_models" not in names and "sync_clients" not in names
     for tool in response["result"]["tools"]:
         assert tool["inputSchema"]["type"] == "object"
+    for name in ("explain_route", "get_resilience", "check_quota", "get_metrics"):
+        tool = next(item for item in response["result"]["tools"] if item["name"] == name)
+        assert tool["annotations"]["readOnlyHint"] is True
+
+
+def test_write_tools_require_explicit_config_opt_in(tmp_path):
+    server = _server(tmp_path)
+    response = _call(server, "tools/call", {
+        "name": "refresh_models", "arguments": {},
+    })
+    assert response["error"]["code"] == -32602
+    server.cfg.mcp_allow_write_tools = True
+    names = [tool["name"] for tool in _call(server, "tools/list")["result"]["tools"]]
+    assert "refresh_models" in names and "sync_clients" in names
 
 
 def test_list_models_tool_with_filters(tmp_path):
@@ -93,8 +108,10 @@ def test_list_providers_never_leaks_keys(tmp_path):
     response = _call(server, "tools/call", {"name": "list_providers", "arguments": {}})
     text = response["result"]["content"][0]["text"]
     assert "upstream-secret" not in text
+    assert "url-secret" not in text and "password" not in text
     payload = json.loads(text)
     assert payload["providers"][0]["has_key"] is True
+    assert payload["providers"][0]["upstream_url"] == "https://api.groq.com/openai/v1"
 
 
 def test_get_status_reports_unreachable_proxy(tmp_path):
@@ -116,6 +133,70 @@ def test_chat_tool_fails_cleanly_without_serve(tmp_path):
     result = response["result"]
     assert result["isError"] is True
     assert "proxy request failed" in result["content"][0]["text"]
+
+
+def test_explain_route_is_offline_and_reports_scoring_boundary(tmp_path):
+    server = _server(tmp_path)
+    payload, is_error = _tool_payload(_call(server, "tools/call", {
+        "name": "explain_route", "arguments": {"model": "auto/coding"},
+    }))
+    assert not is_error
+    assert payload["selected"] == "gq/gpt-oss"
+    assert payload["runtime_signals_included"] is False
+    assert payload["strategy"] == "priority"
+
+
+def test_read_only_runtime_tools_filter_and_never_return_keys(tmp_path):
+    server = _server(tmp_path)
+
+    def proxy_json(path):
+        if path == "/api/resilience":
+            return {
+                "providers": {"groq": {"state": "closed"}, "other": {"state": "open"}},
+                "credentials": {
+                    "groq:slot-0": {
+                        "state": "ready", "reason": "",
+                        "quota": {"classification": "available", "requests": {
+                            "limit": 100, "remaining": 50, "reset_at": 200,
+                        }},
+                    },
+                    "other:slot-0": {"state": "terminal", "reason": "credential_invalid"},
+                },
+                "models": {"groq/model": {"reason": "model_unavailable"}},
+                "persistence": {"enabled": True, "healthy": True, "error": ""},
+            }
+        if path.startswith("/api/metrics"):
+            return {
+                "enabled": True, "period_days": 7,
+                "overall": {"requests": 3, "success_rate": 0.666667},
+                "groups": [], "quota_estimates": [],
+            }
+        raise AssertionError(path)
+
+    server._proxy_json = proxy_json
+    resilience, is_error = _tool_payload(_call(server, "tools/call", {
+        "name": "get_resilience", "arguments": {"provider": "groq"},
+    }))
+    assert not is_error
+    assert set(resilience["providers"]) == {"groq"}
+    assert set(resilience["credentials"]) == {"groq:slot-0"}
+
+    quota_response = _call(server, "tools/call", {
+        "name": "check_quota", "arguments": {"provider": "groq"},
+    })
+    quota, is_error = _tool_payload(quota_response)
+    assert not is_error and quota["runtime"]["available"] is True
+    assert quota["runtime"]["credential_slots"][0]["slot"] == "slot-0"
+    assert quota["runtime"]["credential_slots"][0]["quota"]["requests"]["remaining"] == 50
+
+    metrics, is_error = _tool_payload(_call(server, "tools/call", {
+        "name": "get_metrics", "arguments": {"days": 7},
+    }))
+    assert not is_error and metrics["overall"]["requests"] == 3
+    combined = json.dumps({"resilience": resilience, "quota": quota, "metrics": metrics})
+    assert "upstream-secret" not in combined
+    assert "authorization" not in combined.lower()
+    assert "prompt" not in combined.lower()
 
 
 def test_unknown_tool_and_method_errors(tmp_path):

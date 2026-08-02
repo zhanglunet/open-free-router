@@ -22,6 +22,7 @@ def test_config_defaults(tmp_path):
     assert cfg.routing.explicit_model_fallback is False
     assert cfg.routing.scoring.enabled is False
     assert cfg.analytics_retention_days == 30
+    assert cfg.mcp_allow_write_tools is False
 
 
 def test_config_custom_values(tmp_path):
@@ -36,6 +37,7 @@ def test_config_custom_values(tmp_path):
         "routing:\n  fallback:\n    max_attempts: 5\n    explicit_model: true\n"
         "  scoring:\n    enabled: true\n    missing_default: 0.4\n"
         "analytics:\n  retention_days: 14\n"
+        "mcp:\n  allow_write_tools: true\n"
     )
     cfg = Config(config_path=cfg_path)
     assert cfg.proxy_host == "0.0.0.0"
@@ -54,6 +56,7 @@ def test_config_custom_values(tmp_path):
     assert cfg.routing.scoring.enabled is True
     assert cfg.routing.scoring.missing_default == 0.4
     assert cfg.analytics_retention_days == 14
+    assert cfg.mcp_allow_write_tools is True
 
 
 def test_config_registry_relative_path(tmp_path):
