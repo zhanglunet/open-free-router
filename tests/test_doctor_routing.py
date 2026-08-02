@@ -75,4 +75,28 @@ def test_doctor_json_accepts_valid_routing(tmp_path, monkeypatch, capsys):
     cmd_doctor(SimpleNamespace(json=True))
     report = json.loads(capsys.readouterr().out)
     assert report["ok"] is True
-    assert report["routing"] == []
+    assert not [item for item in report["routing"] if item["severity"] == "error"]
+    assert any(item["path"] == "routing.aliases.auto/free" for item in report["routing"])
+
+
+def test_doctor_json_rejects_invalid_free_tier_evidence(tmp_path, monkeypatch, capsys):
+    registry = tmp_path / "registry.yaml"
+    registry.write_text(
+        "provider:\n  prefix: p\n  api_key: test-placeholder\n"
+        "  free_tier:\n    type: recurring_quota\n    limit: many\n"
+        "    evidence_url: http://localhost/private\n"
+        "  models:\n    - id: coder\n      tool_calling: true\n"
+    )
+    config = tmp_path / "config.yaml"
+    config.write_text(
+        "registry: registry.yaml\nproxy:\n  port: 65530\nui:\n  port: 65531\n"
+    )
+    monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
+    with pytest.raises(SystemExit):
+        cmd_doctor(SimpleNamespace(json=True))
+    report = json.loads(capsys.readouterr().out)
+    issue = report["free_tier"]["issues"][0]
+    assert issue["code"] == "invalid_free_tier_evidence"
+    assert issue["path"] == "providers.provider.free_tier"
+    assert "limit must be" in issue["message"]
+    assert "evidence_url" in issue["message"]

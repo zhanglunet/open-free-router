@@ -35,6 +35,10 @@ function formatTime(value) {
 }
 
 function statusLabel(status) { return status === "available" ? "可用" : status === "unavailable" ? "不可用" : "待验证"; }
+function freeStatus(value) { return value?.status || "unknown"; }
+function freeLabel(value) {
+  return ({ verified: "已核验免费", expired: "证据过期", unverified: "待补证据", invalid: "证据错误", unknown: "条件未知" })[freeStatus(value)] || "条件未知";
+}
 function latencyLabel(ms) { return ms == null ? "—" : ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms}ms`; }
 
 function flatten(catalog) {
@@ -57,6 +61,7 @@ function renderProviders(catalog) {
       <div class="provider-tags">${(provider.profile?.strengths_zh || []).map((item) => `<span>${html(item)}</span>`).join("")}</div>
       <p class="provider-caution">${html(provider.profile?.cautions_zh || provider.reason)}</p>
       ${provider.profile?.official_url ? `<a class="provider-source" href="${externalUrl(provider.profile.official_url)}" rel="noreferrer">官方资料 ↗</a>` : ""}
+      <p class="free-evidence ${freeStatus(provider.free_tier)}">免费证据：${freeLabel(provider.free_tier)}${provider.free_tier?.expires_at ? ` · 有效至 ${html(provider.free_tier.expires_at.slice(0, 10))}` : ""}</p>
       ${renderKeyGuide(provider.profile)}
       <footer><b>${provider.model_count}</b><span>模型</span><b>${latencyLabel(provider.latency_ms)}</b><span>最近延迟</span></footer>
     </article>`).join("");
@@ -79,12 +84,14 @@ function filteredRows() {
   const provider = $("#provider-filter").value;
   const status = $("#status-filter").value;
   const feature = $("#feature-filter").value;
+  const free = $("#free-filter").value;
   const sort = $("#sort").value;
   const rows = state.rows.filter((row) => {
     const haystack = `${row.provider_id} ${row.provider_name} ${row.id} ${row.name} ${row.upstream_id} ${row.codex_alias}`.toLowerCase();
     return (!query || haystack.includes(query)) &&
       (provider === "all" || row.provider_id === provider) &&
       (status === "all" || row.provider_status === status) &&
+      (free === "all" || (free === "verified" && freeStatus(row.free_tier) === "verified") || (free === "review" && ["expired", "unverified", "invalid"].includes(freeStatus(row.free_tier))) || (free === "unknown" && freeStatus(row.free_tier) === "unknown")) &&
       (feature === "all" || (feature === "tools" && row.tool_calling) || (feature === "reasoning" && row.reasoning));
   });
   const sorters = {
@@ -104,6 +111,7 @@ function renderRows() {
       <td><span class="status-badge ${row.provider_status}">${statusLabel(row.provider_status)}</span></td>
       <td><small>${html(row.provider_name)}</small><b>${html(row.name)}</b><code>${html(row.upstream_id)}</code></td>
       <td class="model-description"><b>${html(row.family_zh)}</b><span>${html(row.description_zh)}</span><em>适合：${html(row.recommended_for_zh)}</em><small>${html(row.speed_tier_zh)} · ${html(row.benchmark_note_zh)}</small></td>
+      <td><span class="status-badge free-${freeStatus(row.free_tier)}">${freeLabel(row.free_tier)}</span>${row.free_tier?.type && row.free_tier.type !== "unknown" ? `<code>${html(row.free_tier.type)}</code>` : ""}${row.free_tier?.requires_payment_method ? '<small>需要付款方式</small>' : ''}${row.free_tier?.evidence_url ? `<a class="provider-source" href="${externalUrl(row.free_tier.evidence_url)}" rel="noreferrer">证据 ↗</a>` : ""}</td>
       <td data-value="${row.context_window}">${formatTokens(row.context_window)}</td>
       <td data-value="${row.max_tokens}">${formatTokens(row.max_tokens)}</td>
       <td><span class="feature ${row.reasoning ? "yes" : "no"}">${row.reasoning ? "YES" : "—"}</span></td>
@@ -111,7 +119,7 @@ function renderRows() {
       <td><div class="score"><i style="--score:${row.capability_score}%"></i><b>${row.capability_score}</b></div></td>
       <td>${latencyLabel(row.latency_ms)}</td>
       <td><code>${html(row.codex_alias)}</code></td>
-    </tr>`).join("") : `<tr><td colspan="10" class="empty">没有符合当前筛选条件的模型。</td></tr>`;
+    </tr>`).join("") : `<tr><td colspan="11" class="empty">没有符合当前筛选条件的模型。</td></tr>`;
 }
 
 function renderDiscovery(discovery) {
@@ -153,9 +161,9 @@ async function load() {
 document.querySelectorAll(".filters input,.filters select").forEach((control) => control.addEventListener("input", renderRows));
 $("#reset").addEventListener("click", () => {
   $("#search").value = "";
-  ["#provider-filter", "#status-filter", "#feature-filter", "#sort"].forEach((id) => $(id).selectedIndex = 0);
+  ["#provider-filter", "#status-filter", "#free-filter", "#feature-filter", "#sort"].forEach((id) => $(id).selectedIndex = 0);
   renderRows();
 });
 load().catch((error) => {
-  $("#model-rows").innerHTML = `<tr><td colspan="10" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
+  $("#model-rows").innerHTML = `<tr><td colspan="11" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
 });

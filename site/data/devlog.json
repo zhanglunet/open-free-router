@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T05:19:19.000Z",
+  "updated_at": "2026-08-02T05:43:28.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-p1-免费额度证据模型",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P1 开发版",
+      "title": "P1 免费额度证据模型",
+      "summary": "免费声明开始使用可过期、可追溯的结构化证据，目录展示与 auto/free 路由使用同一核验口径。",
+      "items": [
+        "provider 和 model 支持额度类型、限制、地区、付款要求与官方来源",
+        "证据过期或无效后自动变为待复核，不再标记已核验免费",
+        "auto/free 只接收当前证据有效的候选模型",
+        "Doctor、本地仪表盘和公开模型雷达同步展示证据状态"
+      ]
+    },
     {
       "id": "2026-08-02-完成-p0-路由体检与并发验收",
       "date": "2026-08-02",

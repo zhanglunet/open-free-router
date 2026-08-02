@@ -19,6 +19,7 @@ from open_free_router.probe import (
     write_probe_status,
 )
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
+from open_free_router.evidence import FreeTierEvidence
 from open_free_router.proxy import rebuild_proxy_index
 from open_free_router.sync import write_pi_models
 
@@ -210,7 +211,11 @@ class _UIHandler(BaseHTTPRequestHandler):
     def _api_models(self):
         models = {}
         for name, p in (self.reg.providers if self.reg else {}).items():
-            models[name] = [m.to_dict() for m in p.models]
+            models[name] = []
+            for model in p.models:
+                item = model.to_dict()
+                item["free_tier_effective"] = p.free_tier_for(model).to_dict(include_status=True)
+                models[name].append(item)
         self._send_json(200, models)
 
     def _api_config_get(self):
@@ -260,6 +265,7 @@ class _UIHandler(BaseHTTPRequestHandler):
                 "refresh_method": p.refresh_method,
                 "model_count": len(p.models),
                 "models": [m.to_dict() for m in p.models],
+                "free_tier": p.free_tier.to_dict(include_status=True),
             })
         self._send_json(200, {"providers": providers})
 
@@ -320,6 +326,7 @@ class _UIHandler(BaseHTTPRequestHandler):
                     max_tokens=int(m.get("max_tokens", 8192) or 8192),
                     reasoning=bool(m.get("reasoning", False)),
                     tool_calling=bool(m.get("tool_calling", False)),
+                    free_tier=FreeTierEvidence.from_dict(m.get("free_tier")),
                 ))
         p = ProviderConfig(
             name=name,
@@ -331,6 +338,12 @@ class _UIHandler(BaseHTTPRequestHandler):
             auto_refresh=bool(data.get("auto_refresh", False)),
             refresh_method=data.get("refresh_method", "api" if data.get("auto_refresh") else "manual"),
             prefix=data.get("prefix", existing.prefix if existing else ""),
+            free_tier=FreeTierEvidence.from_dict(
+                data.get(
+                    "free_tier",
+                    existing.free_tier.to_dict(preserve_invalid=True) if existing else None,
+                )
+            ),
         )
         self.reg.add_provider(p)
         self.reg.save(self.cfg.registry_path)

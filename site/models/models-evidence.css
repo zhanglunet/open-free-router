@@ -1,0 +1,16 @@
+.filters { grid-template-columns: 2fr repeat(5, 1fr); }
+.model-table { min-width: 1780px; }
+.model-table td:nth-child(11) { min-width: 230px; }
+.status-badge.free-verified, .free-evidence.verified { color: var(--green); border-color: rgba(74, 222, 128, .35); }
+.status-badge.free-expired, .status-badge.free-unverified, .free-evidence.expired, .free-evidence.unverified { color: var(--amber); border-color: rgba(255, 202, 104, .35); }
+.status-badge.free-invalid { color: var(--red); border-color: rgba(255, 122, 133, .35); }
+.status-badge.free-unknown, .free-evidence.unknown { color: var(--dim); border-color: var(--line); }
+.free-evidence { margin: .7rem 0; font: 600 .56rem var(--mono); }
+
+@media (max-width: 980px) {
+  .filters { grid-template-columns: 1fr 1fr; }
+}
+
+@media (max-width: 640px) {
+  .filters { grid-template-columns: 1fr; }
+}

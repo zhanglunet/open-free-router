@@ -247,6 +247,7 @@ def cmd_models(args):
     rows = []
     for name, p in reg.providers.items():
         for m in p.models:
+            free_tier = p.free_tier_for(m).to_dict(include_status=True)
             rows.append({
                 "id": f"{p.model_prefix}/{m.id}",
                 "name": m.name or m.id,
@@ -255,6 +256,7 @@ def cmd_models(args):
                 "max_tokens": m.max_tokens,
                 "reasoning": m.reasoning,
                 "tool_calling": m.tool_calling,
+                "free_tier": free_tier,
             })
     planner = RoutePlanner(reg, cfg.routing)
     for model_id in planner.virtual_model_ids():
@@ -271,6 +273,14 @@ def cmd_models(args):
             ),
             "virtual": True,
             "candidate_count": len(plan.candidates),
+            "free_tier": {
+                "status": (
+                    "verified" if plan.candidates and all(
+                        target.provider.free_tier_for(target.model).status() == "verified"
+                        for target in plan.candidates
+                    ) else "mixed_or_unknown"
+                )
+            },
         })
     if args.json:
         import json as _json
@@ -281,7 +291,8 @@ def cmd_models(args):
             "T" if row["tool_calling"] else "-",
             "R" if row["reasoning"] else "-",
         ])
-        print(f"  {row['id']:42s} {flags}  {row['context_window']:>9,}ctx  {row['provider']}")
+        free_status = row.get("free_tier", {}).get("status", "unknown")
+        print(f"  {row['id']:42s} {flags}  {row['context_window']:>9,}ctx  {row['provider']}  free={free_status}")
     print(f"\n{len(rows)} models (T=tool calling, R=reasoning)")
 
 
@@ -416,6 +427,48 @@ def cmd_doctor(args):
             if issue.fix:
                 print(f"      fix: {issue.fix}")
 
+    from open_free_router.evidence import summarize_evidence
+    effective_evidence = [
+        provider.free_tier_for(model)
+        for provider in registry.providers.values() for model in provider.models
+    ]
+    evidence_summary = summarize_evidence(effective_evidence)
+    evidence_issues = []
+    for provider_name, provider in registry.providers.items():
+        configured = [(f"providers.{provider_name}.free_tier", provider.free_tier)]
+        configured.extend(
+            (f"providers.{provider_name}.models.{model.id}.free_tier", model.free_tier)
+            for model in provider.models if model.free_tier.configured
+        )
+        for path, evidence in configured:
+            if not evidence.configured:
+                continue
+            state = evidence.status()
+            if state == "invalid":
+                evidence_issues.append({
+                    "severity": "error", "code": "invalid_free_tier_evidence", "path": path,
+                    "message": "; ".join(evidence.validation_errors),
+                    "fix": "修正该 free_tier 字段后运行 `open-free-router doctor` 复查",
+                })
+            elif state in ("expired", "unverified"):
+                evidence_issues.append({
+                    "severity": "warning", "code": f"free_tier_{state}", "path": path,
+                    "message": "免费条件证据已过期，必须重新核验。" if state == "expired" else "免费条件缺少有效来源或核验期限。",
+                    "fix": "更新 evidence_url、verified_at 和 expires_at 后运行 `open-free-router doctor` 复查",
+                })
+    failures += sum(issue["severity"] == "error" for issue in evidence_issues)
+    if not json_mode:
+        print("\nfree-tier evidence:")
+        print(
+            "  · model evidence "
+            + ", ".join(f"{name}={count}" for name, count in evidence_summary.items())
+        )
+        for issue in evidence_issues:
+            mark = "✗" if issue["severity"] == "error" else "⚠"
+            print(f"  {mark} {issue['path']}: {issue['message']}")
+            print(f"      fix: {issue['fix']}")
+
+    if not json_mode:
         print("\nclient configs:")
     clients = [
         ("Codex profile", sync_mod.CODEX_PROFILE),
@@ -438,6 +491,7 @@ def cmd_doctor(args):
         "problem_count": failures,
         "checks": checks,
         "routing": [issue.to_dict() for issue in routing_issues],
+        "free_tier": {"summary": evidence_summary, "issues": evidence_issues},
         "clients": [
             {"name": label, "configured": path.exists(), "path": str(path)}
             for label, path in clients

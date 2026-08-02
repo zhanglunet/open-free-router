@@ -14,6 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/models/models.css">
+  <link rel="stylesheet" href="/models/models-evidence.css">
   <script src="/nav.js?v=20260802b" defer></script>
   <script src="/models/models.js" defer></script>
 </head>
@@ -56,20 +57,21 @@
     <section class="catalog-section" id="catalog">
       <div class="catalog-head">
         <div><p class="eyebrow"><span></span> MODEL CATALOG</p><h2>模型参数与能力比较</h2></div>
-        <p>中文说明、适用场景、厂商背景、上下文、输出、推理、工具与实测延迟集中比较。“功能指数”不是智力或质量排名。</p>
+        <p>中文说明、适用场景、厂商背景、免费证据、上下文、输出、推理、工具与实测延迟集中比较。过期证据只标记“待复核”；“功能指数”不是智力或质量排名。</p>
       </div>
       <div class="filters" role="search">
         <label class="search"><span>搜索</span><input id="search" type="search" placeholder="模型、提供商、upstream ID…" autocomplete="off"></label>
         <label><span>提供商</span><select id="provider-filter"><option value="all">全部提供商</option></select></label>
         <label><span>状态</span><select id="status-filter"><option value="all">全部状态</option><option value="available">可用</option><option value="unavailable">不可用</option></select></label>
+        <label><span>免费证据</span><select id="free-filter"><option value="all">全部证据状态</option><option value="verified">已核验免费</option><option value="review">待复核</option><option value="unknown">条件未知</option></select></label>
         <label><span>功能</span><select id="feature-filter"><option value="all">全部功能</option><option value="tools">支持工具</option><option value="reasoning">支持推理</option></select></label>
         <label><span>排序</span><select id="sort"><option value="provider">提供商</option><option value="score">功能指数</option><option value="context">上下文</option><option value="latency">实测延迟</option></select></label>
       </div>
       <div class="result-meta"><b id="result-count">0</b> 个匹配模型 <button id="reset" type="button">重置筛选</button></div>
       <div class="model-table-wrap" tabindex="0" role="region" aria-label="免费模型完整比较表">
         <table class="model-table">
-          <thead><tr><th>状态</th><th>提供商 / 模型</th><th>中文说明 / 适用场景</th><th>上下文</th><th>最大输出</th><th>推理</th><th>工具</th><th>功能指数</th><th>实测延迟</th><th>Codex 别名</th></tr></thead>
-          <tbody id="model-rows"><tr><td colspan="10" class="loading">正在加载模型目录…</td></tr></tbody>
+          <thead><tr><th>状态</th><th>提供商 / 模型</th><th>中文说明 / 适用场景</th><th>免费条件证据</th><th>上下文</th><th>最大输出</th><th>推理</th><th>工具</th><th>功能指数</th><th>实测延迟</th><th>Codex 别名</th></tr></thead>
+          <tbody id="model-rows"><tr><td colspan="11" class="loading">正在加载模型目录…</td></tr></tbody>
         </table>
       </div>
     </section>

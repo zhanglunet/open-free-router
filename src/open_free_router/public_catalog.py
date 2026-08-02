@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import math
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -66,6 +67,7 @@ def build_public_catalog(registry: Registry, status_snapshot: dict, provider_pro
     provider_profiles = provider_profiles or {}
     providers = []
     model_total = 0
+    generated_at = datetime.now(timezone.utc)
     for name, provider in registry.providers.items():
         status = statuses.get(name) or {
             "availability": "unverified",
@@ -73,9 +75,13 @@ def build_public_catalog(registry: Registry, status_snapshot: dict, provider_pro
             "latency_ms": None,
         }
         profile = provider_profiles.get(name) or {}
+        provider_free_tier = provider.free_tier.to_dict(include_status=True, now=generated_at)
         models = []
         for model in provider.models:
             model_total += 1
+            free_tier = provider.free_tier_for(model)
+            free_tier_payload = free_tier.to_dict(include_status=True, now=generated_at)
+            free_status = free_tier_payload["status"]
             models.append({
                 "id": model.id,
                 "upstream_id": model.effective_upstream_id,
@@ -102,6 +108,12 @@ def build_public_catalog(registry: Registry, status_snapshot: dict, provider_pro
                     status.get("availability", "unverified"), status.get("latency_ms")
                 ),
                 "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+                "free_tier": free_tier_payload,
+                "free_availability": (
+                    "verified_free" if free_status == "verified"
+                    else "review_required" if free_status in ("expired", "invalid", "unverified")
+                    else "unknown"
+                ),
             })
         providers.append({
             "id": name,
@@ -115,16 +127,18 @@ def build_public_catalog(registry: Registry, status_snapshot: dict, provider_pro
             "model_count": len(models),
             "models": models,
             "profile": profile,
+            "free_tier": provider_free_tier,
         })
     availability_order = {"available": 0, "unverified": 1, "unavailable": 2}
     providers.sort(key=lambda item: (availability_order.get(item["availability"], 9), item["id"]))
     return {
-        "schema_version": 1,
-        "generated_at": datetime.now(timezone.utc).isoformat(),
+        "schema_version": 2,
+        "generated_at": generated_at.isoformat(),
         "status_as_of": status_snapshot.get("as_of", ""),
         "status_note": (
             "Availability is the latest safe smoke-test snapshot, not an SLA. "
             "Capability score compares declared features only, not model intelligence."
+            " Free-tier claims require unexpired evidence; expired evidence is review_required."
         ),
         "provider_count": len(providers),
         "model_count": model_total,
@@ -135,8 +149,18 @@ def build_public_catalog(registry: Registry, status_snapshot: dict, provider_pro
 def write_public_catalog(catalog: dict, path: Path) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     text = json.dumps(catalog, ensure_ascii=False, indent=2) + "\n"
-    forbidden = ("api_key", "api_keys", "proxy.token", "ui.token", "authorization")
+    forbidden = (
+        "api_key", "api_keys", "proxy.token", "ui.token", "authorization",
+        '"cookie"', '"token_value"', '"prompt"', '"messages"', '"tool_arguments"',
+    )
     lowered = text.lower()
     if any(term in lowered for term in forbidden):
         raise ValueError("Public catalog contains a forbidden credential field")
+    secret_patterns = (
+        r"\bbearer\s+[a-z0-9._~+/=-]{8,}",
+        r"\bsk-[a-z0-9_-]{8,}",
+        r"\bAIza[0-9A-Za-z_-]{20,}",
+    )
+    if any(re.search(pattern, text, re.IGNORECASE) for pattern in secret_patterns):
+        raise ValueError("Public catalog contains a credential-like value")
     path.write_text(text, encoding="utf-8")

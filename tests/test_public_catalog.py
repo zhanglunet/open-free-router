@@ -34,3 +34,17 @@ def test_public_catalog_redacts_keys_and_scores_features(tmp_path):
     assert model["recommended_for_zh"] == "复杂编码、Agent 工具链和多步分析"
     assert model["speed_tier_zh"] == "快"
     assert data["providers"][0]["availability"] == "available"
+    assert data["schema_version"] == 2
+    assert model["free_tier"]["status"] == "unknown"
+    assert model["free_availability"] == "unknown"
+
+
+def test_public_catalog_rejects_credential_like_values(tmp_path):
+    output = tmp_path / "catalog.json"
+    for value in ("Bearer hidden-placeholder", "sk-secretplaceholder123"):
+        try:
+            write_public_catalog({"schema_version": 2, "note": value}, output)
+        except ValueError as exc:
+            assert "credential" in str(exc).lower()
+        else:
+            raise AssertionError("credential-like catalog value was written")
