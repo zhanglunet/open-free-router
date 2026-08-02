@@ -18,6 +18,7 @@
         "验证输出预算调整为 64 tokens，避免推理模型只产生 reasoning_content 而被误判失败",
         "补齐显式 Keyless 端点的发现、注册、路由和探测支持，省略 Authorization 仅限已验证 auth_mode none",
         "专项实测 DeepSeek V4 Flash 五个渠道：NVIDIA、OpenCode、SenseNova 成功，OpenRouter 免费别名和 Gitee 失败",
+        "增加本机与 Cloudflare 双视角：OpenCode 服务器侧 429、NVIDIA 服务器侧 529、SenseNova 双侧 200",
         "新增八道准入闸门流程图、状态机、三层信任边界、命令与默认配置说明"
       ],
       "links": [

@@ -34,7 +34,7 @@
       <div class="verdict-grid">
         <article class="pass"><small>公开目录发现</small><b>有效</b><span>本轮实时发现 44 家 / 322 个显式零单价模型</span></article>
         <article class="pass"><small>安全准入链路</small><b>有效</b><span>58 项聚焦测试全部通过</span></article>
-        <article class="pass"><small>V4 Flash 渠道实调用</small><b>3 成功 / 2 失败</b><span>逐渠道结果见下方专项研究</span></article>
+        <article class="pass"><small>V4 Flash 本机实调用</small><b>3 成功 / 2 失败</b><span>另与 Cloudflare 服务器视角交叉核对</span></article>
         <article class="partial"><small>“永久免费”证明</small><b>不能据此断言</b><span>仍需官方条款、额度和有效期证据</span></article>
       </div>
       <p class="verdict-note"><b>结论：</b>当前机制能有效证明“这个凭据下，这个模型此刻能返回最小 OpenAI Chat 响应”，也能阻止未经测试的候选静默接入；它不能单独证明长期免费、流式输出、工具调用或全部协议能力。</p>
@@ -97,20 +97,20 @@
       <div class="model-facts"><article><small>参数规模</small><b>284B / 13B active</b></article><article><small>上下文</small><b>1M tokens</b></article><article><small>官方最大输出</small><b>384K tokens</b></article><article><small>开放权重</small><b>MIT License</b></article></div>
       <div class="channel-table-wrap" role="region" aria-label="DeepSeek V4 Flash 免费渠道验证表，可横向滚动" tabindex="0">
         <table class="channel-table">
-          <thead><tr><th>渠道</th><th>免费性质</th><th>模型 ID</th><th>2026-08-03 实测</th><th>结论</th></tr></thead>
+          <thead><tr><th>渠道</th><th>免费性质</th><th>模型 ID</th><th>本机 / Cloudflare 双视角</th><th>结论</th></tr></thead>
           <tbody>
-            <tr class="available"><th>NVIDIA NIM</th><td>官方页面标注 Free Endpoint；需 NVIDIA API Key，受试用条款约束</td><td><code>deepseek-ai/deepseek-v4-flash</code></td><td>HTTP 200 · 非空文本 · 约 1.08s</td><td><b>当前可用</b><small>本轮最强的 API 免费渠道证据</small></td></tr>
-            <tr class="available"><th>OpenCode Zen</th><td>官方明确“限时免费”；当前 Keyless</td><td><code>deepseek-v4-flash-free</code></td><td>模型列表 HTTP 200；推理 HTTP 200；探测约 4.27s</td><td><b>当前可用</b><small>限时活动，可能随时结束</small></td></tr>
-            <tr class="conditional"><th>SenseNova</th><td>本机既有账号可调用；未找到 V4 Flash 免费额度的明确官方条款</td><td><code>deepseek-v4-flash</code></td><td>HTTP 200 · 约 9.63s</td><td><b>接口可用，免费性待核</b><small>不能只凭调用成功标成永久免费</small></td></tr>
+            <tr class="conditional"><th>NVIDIA NIM</th><td>官方页面标注 Free Endpoint；需 NVIDIA API Key，受试用条款约束</td><td><code>deepseek-ai/deepseek-v4-flash</code></td><td>本机 HTTP 200 · 非空文本 · 约 1.08s<br>Cloudflare HTTP 529 · 约 0.55s</td><td><b>本机可用，服务器不稳定</b><small>免费资格证据强，但不同网络出口结果不同</small></td></tr>
+            <tr class="conditional"><th>OpenCode Zen</th><td>官方明确“限时免费”；当前 Keyless</td><td><code>deepseek-v4-flash-free</code></td><td>本机模型列表与推理 HTTP 200 · 约 1.38–4.27s<br>Cloudflare HTTP 429 · 约 0.15s</td><td><b>本机可用，服务器被限流</b><small>限时活动，且存在出口限流</small></td></tr>
+            <tr class="conditional"><th>SenseNova</th><td>本机既有账号可调用；未找到 V4 Flash 免费额度的明确官方条款</td><td><code>deepseek-v4-flash</code></td><td>本机 HTTP 200 · 约 9.63s<br>Cloudflare HTTP 200 · 约 3.19s</td><td><b>双视角可用，免费性待核</b><small>不能只凭调用成功标成永久免费</small></td></tr>
             <tr class="unavailable"><th>OpenRouter</th><td>官方索引仍有 <code>:free</code> 页面，但实时模型列表不含该别名</td><td><code>deepseek/deepseek-v4-flash:free</code></td><td>推理 HTTP 404；付费 V4 / 0731 仍在目录</td><td><b>免费别名当前不可用</b><small>网页索引与实时 API 状态冲突</small></td></tr>
-            <tr class="unavailable"><th>Gitee AI</th><td>官方标价为付费；当前账号无可用计费资源</td><td><code>DeepSeek-V4-Flash</code></td><td>HTTP 400 · 要求套餐、资源包或余额</td><td><b>不是可用免费渠道</b></td></tr>
+            <tr class="unavailable"><th>Gitee AI</th><td>官方标价为付费；当前账号无可用计费资源</td><td><code>DeepSeek-V4-Flash</code></td><td>本机与 Cloudflare 均 HTTP 400 · 要求套餐、资源包或余额</td><td><b>不是可用免费渠道</b></td></tr>
             <tr class="conditional"><th>Kenari / UnoRouter</th><td>models.dev 标记零单价，但未核到清晰官方免费条款</td><td><code>deepseek-v4-flash:free</code></td><td>Kenari 无 Key HTTP 401；UnoRouter 模型列表 HTTP 401</td><td><b>候选，尚未验证</b><small>需要专用 Key 与条款证据</small></td></tr>
             <tr class="unavailable"><th>DeepSeek 官方 API</th><td>按 Token 收费；赠送余额不等于永久免费</td><td><code>deepseek-v4-flash</code></td><td>官方价格页明确计费</td><td><b>低价但非免费 API</b></td></tr>
             <tr class="conditional"><th>自托管开放权重</th><td>模型权重 MIT 免费；算力、存储和运维不免费</td><td><code>deepseek-ai/DeepSeek-V4-Flash</code></td><td>官方提供 Transformers / vLLM / SGLang 路径</td><td><b>软件自由，不是免费云算力</b></td></tr>
           </tbody>
         </table>
       </div>
-      <div class="channel-verdict"><b>推荐顺序</b><p><strong>1. NVIDIA NIM</strong>：官方 Free Endpoint + 本轮实测成功；<strong>2. OpenCode Zen</strong>：Keyless 且实测成功，但属于限时活动；<strong>3. SenseNova</strong>：当前账户实测可用，但先核对套餐；其余渠道暂不进入“已验证免费”列表。</p></div>
+      <div class="channel-verdict"><b>分场景结论</b><p><strong>本机 CLI：</strong>NVIDIA NIM 与 OpenCode Zen 当前实测可用，前者需 Key，后者 Keyless 但限时。<strong>Cloudflare 服务器：</strong>两者当前分别遇到 529 与 429，不能标成服务器稳定可用；SenseNova 双视角成功，但免费条款未核实。当前没有一个渠道同时满足“官方免费证据 + 本机成功 + Cloudflare 成功”。</p></div>
       <div class="official-sources">
         <a href="https://api-docs.deepseek.com/news/news260424/" rel="noreferrer"><b>DeepSeek V4 官方发布</b><span>模型身份、参数、1M 上下文与开放权重</span></a>
         <a href="https://api-docs.deepseek.com/quick_start/pricing" rel="noreferrer"><b>DeepSeek 官方价格</b><span>官方 API 按 Token 计费</span></a>
@@ -119,7 +119,7 @@
         <a href="https://openrouter.ai/deepseek/deepseek-v4-flash%3Afree/pricing" rel="noreferrer"><b>OpenRouter 免费索引页</b><span>保留为冲突证据；实时 API 本轮返回 404</span></a>
         <a href="https://huggingface.co/deepseek-ai/DeepSeek-V4-Flash" rel="noreferrer"><b>DeepSeek 官方 Hugging Face</b><span>MIT 权重与本地部署方法</span></a>
       </div>
-      <p class="source-note">延迟均为单次最小请求的客户端观察值，不是性能排名。Key 从本地私有配置读取，页面、日志和测试输出均不包含 Key 或响应正文。渠道政策会变化，本站需要持续复核。</p>
+      <p class="source-note">延迟均为单次最小请求观察值，不是性能排名。本机结果来自开发机直连；Cloudflare 结果来自公开状态 API 最近快照，两者网络出口、地区与限流策略不同。Key 从私有配置读取，页面、日志和测试输出均不包含 Key 或响应正文。渠道政策会变化，本站需要持续复核。</p>
     </section>
 
     <section class="validation-section" id="limits">
