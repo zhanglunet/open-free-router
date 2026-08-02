@@ -12,7 +12,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from open_free_router.proxy import run_proxy
+from open_free_router.proxy import _safe_header_value, run_proxy
 from open_free_router.registry import Registry
 
 
@@ -93,6 +93,9 @@ def _proxy_for(upstream_port: int, models=("m1",)):
 
 
 class TestNewEndpoints:
+    def test_routing_header_values_reject_control_characters(self):
+        assert _safe_header_value("provider\r\nX-Evil: yes") == "provider-X-Evil:-yes"
+
     def test_models_lists_virtual_routes(self):
         upstream = _start(_EchoUpstreamHandler)
         proxy_srv, _ = _proxy_for(upstream.server_address[1])

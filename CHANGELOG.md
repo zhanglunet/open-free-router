@@ -10,6 +10,11 @@
 - Provider/credential/model resilience primitives with scoped failure
   classification, bounded Retry-After parsing, circuit half-open gating,
   credential cooldown/terminal states, model lockout, and redacted snapshots.
+- Shared pre-first-byte fallback execution for Chat Completions, Responses and
+  Anthropic Messages, including multi-key rotation, no replay after stream
+  start, explicit-model isolation, bounded attempts and `X-OFR-*` decision
+  headers.
+- Token-protected resilience status/reset API and matching `resilience` CLI.
 
 ## 0.2.0 - 2026-08-02
 

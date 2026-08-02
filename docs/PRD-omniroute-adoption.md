@@ -11,9 +11,12 @@ Implementation record (2026-08-02):
   models, custom aliases, proxy model-catalog integration and `route explain`;
 - completed: scoped failure classifier and thread-safe provider/credential/model
   resilience state with redacted snapshots;
-- next: connect the shared plan and state to pre-first-byte retry execution for
-  Chat, Responses and Messages; current virtual models select the first candidate
-  but do not yet execute cross-candidate fallback.
+- completed: one shared pre-first-byte executor for Chat, Responses and Messages,
+  including multi-Key rotation, bounded cross-model fallback, explicit-model
+  isolation, no replay after stream start and `X-OFR-*` routing headers;
+- completed: token-protected runtime resilience status/reset API and CLI;
+- next: owner-only atomic runtime-state persistence, dashboard routing panel,
+  bounded route-decision history and concurrency/chaos validation.
 
 ## 1. 结论
 

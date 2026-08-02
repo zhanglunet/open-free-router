@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T03:25:01.591Z",
+  "updated_at": "2026-08-02T04:05:56.985Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-完成首字节前安全-fallback",
+      "date": "2026-08-02",
+      "type": "feature",
+      "version": "P0 开发版",
+      "title": "完成首字节前安全 Fallback",
+      "summary": "Chat、Responses、Messages 已统一接入候选与多 Key 切换，流开始后禁止重放，并开放脱敏韧性状态接口。",
+      "items": [
+        "429、Key 失效、模型下线和 5xx 可在虚拟模型内切换",
+        "显式模型默认不静默换模",
+        "响应增加 X-OFR 路由决策头",
+        "新增 resilience 查询和精确重置 CLI"
+      ]
+    },
     {
       "id": "2026-08-02-启动-omniroute-借鉴专项-p0-开发",
       "date": "2026-08-02",

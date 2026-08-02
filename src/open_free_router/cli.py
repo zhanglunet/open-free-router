@@ -307,6 +307,64 @@ def cmd_route_explain(args):
             print(f"  - {item['model']}: {item['reason']}")
 
 
+def _resilience_request(cfg: Config, method: str = "GET", payload: dict | None = None) -> dict:
+    import json as _json
+    from urllib.request import Request, urlopen
+
+    token = get_or_create_proxy_token(cfg.config_dir)
+    url = f"http://{cfg.proxy_host}:{cfg.proxy_port}/api/resilience"
+    if method == "POST":
+        url += "/reset"
+    data = _json.dumps(payload).encode() if payload is not None else None
+    request = Request(
+        url,
+        data=data,
+        method=method,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+    )
+    with urlopen(request, timeout=5) as response:
+        return _json.loads(response.read())
+
+
+def cmd_resilience(args):
+    """Read the running proxy's redacted resilience state."""
+    cfg = Config()
+    try:
+        payload = _resilience_request(cfg)
+    except Exception as exc:
+        print(f"✗ cannot read proxy resilience state: {exc}", file=sys.stderr)
+        sys.exit(1)
+    if args.json:
+        import json as _json
+        print(_json.dumps(payload, indent=2, ensure_ascii=False))
+        return
+    print("provider circuits:")
+    for name, state in payload.get("providers", {}).items():
+        print(f"  {name:24s} {state.get('state', 'unknown'):10s} failures={state.get('failures', 0)}")
+    print("credential states:")
+    for name, state in payload.get("credentials", {}).items():
+        print(f"  {name:24s} {state.get('state', 'unknown'):10s} {state.get('reason', '')}")
+    print("model lockouts:")
+    for name, state in payload.get("models", {}).items():
+        print(f"  {name:42s} {state.get('reason', '')}")
+
+
+def cmd_resilience_reset(args):
+    """Precisely reset one provider or provider/model runtime state."""
+    cfg = Config()
+    try:
+        payload = _resilience_request(
+            cfg, method="POST", payload={"provider": args.provider, "model": args.model}
+        )
+    except Exception as exc:
+        print(f"✗ cannot reset proxy resilience state: {exc}", file=sys.stderr)
+        sys.exit(1)
+    print(f"✔ reset {payload['provider']}" + (f"/{payload['model']}" if payload.get("model") else ""))
+
+
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     from open_free_router import sync as sync_mod
@@ -451,6 +509,15 @@ def main():
     p_route_explain.add_argument("model")
     p_route_explain.add_argument("--json", action="store_true")
     p_route_explain.set_defaults(func=cmd_route_explain)
+
+    p_resilience = sub.add_parser("resilience", help="inspect or reset runtime failure isolation")
+    p_resilience.add_argument("--json", action="store_true")
+    p_resilience.set_defaults(func=cmd_resilience)
+    resilience_sub = p_resilience.add_subparsers(dest="resilience_command")
+    p_resilience_reset = resilience_sub.add_parser("reset", help="reset one provider or model state")
+    p_resilience_reset.add_argument("--provider", required=True)
+    p_resilience_reset.add_argument("--model")
+    p_resilience_reset.set_defaults(func=cmd_resilience_reset)
 
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
     p_doctor.set_defaults(func=cmd_doctor)
