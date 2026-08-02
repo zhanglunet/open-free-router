@@ -1,9 +1,27 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T15:10:00.000Z",
+  "updated_at": "2026-08-02T22:45:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-npm-v030-正式发布",
+      "date": "2026-08-02",
+      "type": "milestone",
+      "version": "v0.3.0",
+      "title": "npm v0.3.0 正式公开发布",
+      "summary": "open-free-router 已进入 npm 公共注册表，Node 用户可一条命令安装模力自由港 CLI。",
+      "items": [
+        "公开包提供 open-free-router 与 ofr 两个命令",
+        "发布前完成 50 文件 tarball 白名单核对和 Gitleaks 凭据扫描",
+        "从公共注册表全新安装后成功创建隔离 Python 环境并启动 v0.3.0 CLI",
+        "上游 API Key 仍只由本机配置管理，npm 引导器不读取或上传凭据"
+      ],
+      "links": [
+        {"label": "查看 npm 包", "href": "https://www.npmjs.com/package/open-free-router"},
+        {"label": "查看安装指南", "href": "/guide/"}
+      ]
+    },
     {
       "id": "2026-08-02-工具比较模型评测与npm准备",
       "date": "2026-08-02",
