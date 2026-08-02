@@ -7,6 +7,7 @@ import socket
 import time
 import uuid
 from dataclasses import dataclass
+from typing import Callable
 from urllib.parse import urlsplit
 
 from open_free_router.resilience import (
@@ -31,6 +32,9 @@ class OpenedRoute:
     attempts: int
     connection: http.client.HTTPConnection
     response: http.client.HTTPResponse
+    ttfb_ms: float | None = None
+    started_at: float = 0.0
+    completion_callback: Callable[[str, float], None] | None = None
 
     @property
     def fallback_attempts(self) -> int:
@@ -38,6 +42,11 @@ class OpenedRoute:
 
     def close(self) -> None:
         self.connection.close()
+        if self.completion_callback and self.started_at:
+            self.completion_callback(
+                self.request_id, (time.monotonic() - self.started_at) * 1000
+            )
+            self.completion_callback = None
 
 
 @dataclass(frozen=True)
@@ -50,6 +59,8 @@ class RouteFailure:
     attempts: int
     rejected: tuple[dict[str, str], ...]
     last_target: RouteTarget | None = None
+    ttfb_ms: float | None = None
+    total_latency_ms: float | None = None
 
     @property
     def fallback_attempts(self) -> int:
@@ -93,6 +104,8 @@ class UpstreamExecutor:
         requested_model: str,
         strategy: str,
         rejected: list[dict[str, str]],
+        scores=(),
+        attempt_results=(),
     ) -> None:
         if not self.decisions:
             return
@@ -107,6 +120,11 @@ class UpstreamExecutor:
             model=target.canonical_id if target else "",
             attempts=result.attempts,
             rejected=rejected,
+            ttfb_ms=result.ttfb_ms,
+            total_latency_ms=(result.total_latency_ms
+                              if isinstance(result, RouteFailure) else None),
+            scores=scores,
+            attempt_results=attempt_results,
         )
 
     @staticmethod
@@ -146,7 +164,13 @@ class UpstreamExecutor:
 
     def execute(self, requested_model: str, endpoint_suffix: str, payload: dict) -> OpenedRoute | RouteFailure:
         request_id = f"ofr_{uuid.uuid4().hex}"
-        plan = self.planner.plan(requested_model)
+        signals = self.resilience.scoring_signals()
+        for provider_name in self.planner.registry.providers:
+            signals.setdefault(provider_name, {}).setdefault("health", 1.0)
+        if self.decisions:
+            for model, values in self.decisions.scoring_signals().items():
+                signals.setdefault(model, {}).update(values)
+        plan = self.planner.plan(requested_model, signals)
         rejected = list(plan.rejected)
         if not plan.candidates:
             status = 403 if plan.strategy == "explicit" else 503
@@ -159,7 +183,7 @@ class UpstreamExecutor:
                 0,
                 tuple(rejected),
             )
-            self._record(result, requested_model, plan.strategy, rejected)
+            self._record(result, requested_model, plan.strategy, rejected, plan.scores)
             return result
 
         config = self.planner.config
@@ -168,6 +192,7 @@ class UpstreamExecutor:
             or (plan.strategy == "explicit" and config.explicit_model_fallback)
         )
         attempts = 0
+        attempt_results = []
         last_failure: RouteFailure | None = None
         last_decision: FailureDecision | None = None
 
@@ -192,11 +217,13 @@ class UpstreamExecutor:
 
                 attempted_target = True
                 attempts += 1
+                attempt_started = time.monotonic()
                 try:
                     conn, response = self._open(
                         target, credential, endpoint_suffix, payload, self.timeout
                     )
                 except Exception as exc:
+                    elapsed_ms = (time.monotonic() - attempt_started) * 1000
                     decision = classify_failure(0, str(exc))
                     self.resilience.record_failure(
                         target.provider_name,
@@ -214,12 +241,19 @@ class UpstreamExecutor:
                         attempts,
                         tuple(rejected),
                         target,
+                        total_latency_ms=elapsed_ms,
                     )
+                    attempt_results.append({
+                        "provider": target.provider_name, "model": target.canonical_id,
+                        "status": "failed", "status_code": 502,
+                        "total_latency_ms": elapsed_ms,
+                    })
                     break
 
                 # Never follow upstream redirects: provider URLs and auth
                 # destinations are explicit. A 3xx is treated as an upstream
                 # transport failure instead of forwarding credentials elsewhere.
+                ttfb_ms = (time.monotonic() - attempt_started) * 1000
                 if 200 <= response.status < 300:
                     self.resilience.record_success(
                         target.provider_name, target.upstream_model_id, credential_slot
@@ -236,11 +270,23 @@ class UpstreamExecutor:
                         attempts,
                         conn,
                         response,
+                        ttfb_ms,
+                        attempt_started,
+                        self.decisions.complete if self.decisions else None,
                     )
-                    self._record(result, requested_model, plan.strategy, rejected)
+                    attempt_results.append({
+                        "provider": target.provider_name, "model": target.canonical_id,
+                        "status": "success", "status_code": response.status,
+                        "ttfb_ms": ttfb_ms,
+                    })
+                    self._record(
+                        result, requested_model, plan.strategy, rejected,
+                        plan.scores, attempt_results,
+                    )
                     return result
 
                 body = response.read(MAX_ERROR_BODY)
+                total_latency_ms = (time.monotonic() - attempt_started) * 1000
                 content_type = response.getheader("Content-Type", "application/json")
                 retry_after = response.getheader("Retry-After")
                 conn.close()
@@ -282,7 +328,14 @@ class UpstreamExecutor:
                     attempts,
                     tuple(rejected),
                     target,
+                    ttfb_ms=ttfb_ms,
+                    total_latency_ms=total_latency_ms,
                 )
+                attempt_results.append({
+                    "provider": target.provider_name, "model": target.canonical_id,
+                    "status": "failed", "status_code": response.status,
+                    "ttfb_ms": ttfb_ms, "total_latency_ms": total_latency_ms,
+                })
 
                 has_more_credentials = slot_index + 1 < len(slots)
                 if has_more_credentials and (
@@ -312,8 +365,13 @@ class UpstreamExecutor:
                 attempts,
                 tuple(rejected),
                 last_failure.last_target,
+                last_failure.ttfb_ms,
+                last_failure.total_latency_ms,
             )
-            self._record(result, requested_model, plan.strategy, rejected)
+            self._record(
+                result, requested_model, plan.strategy, rejected,
+                plan.scores, attempt_results,
+            )
             return result
         result = RouteFailure(
             request_id,
@@ -324,5 +382,8 @@ class UpstreamExecutor:
             attempts,
             tuple(rejected),
         )
-        self._record(result, requested_model, plan.strategy, rejected)
+        self._record(
+            result, requested_model, plan.strategy, rejected,
+            plan.scores, attempt_results,
+        )
         return result

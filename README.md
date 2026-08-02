@@ -157,6 +157,18 @@ routing:
     enabled: true
     max_attempts: 3
     explicit_model: false  # 显式模型默认不静默换模
+  scoring:
+    enabled: false         # 默认关闭；true 时启用可解释智能评分
+    missing_default: 0.5   # 指标缺失时的明确默认分
+    latency_good_ms: 500
+    latency_bad_ms: 10000
+    weights:
+      health: 0.25
+      success_rate: 0.20
+      latency: 0.20
+      quota: 0.15
+      capability: 0.10
+      free_evidence: 0.10
 ```
 
 内置虚拟模型为 `auto`、`auto/coding`、`auto/fast`、`auto/free`。当前开发
@@ -165,6 +177,12 @@ routing:
 显式模型默认不静默换模。流式响应一旦向客户端发送响应头/事件便不再重放。
 可先运行 `open-free-router route explain auto/coding --json` 检查候选，不会
 消耗免费额度。
+
+开启 `routing.scoring.enabled` 后，虚拟模型候选会按健康状态、近期成功率、
+p95 首字节/总延迟、额度余量、能力匹配和免费证据进行 `[0,1]` 归一化评分。
+权重自动归一化，NaN 和缺失指标使用 `missing_default`，同分时仍保持注册表顺序。
+`open-free-router route explain auto --json` 会给出每项取值、权重、贡献和来源；
+本地仪表盘的最近路由决策也可展开查看。关闭开关后立即恢复原有 priority 顺序。
 
 P1 开始使用注册表中的结构化免费证据。证据可配置在 provider 上供模型继承，
 也可在单个 model 上覆盖：

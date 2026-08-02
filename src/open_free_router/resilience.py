@@ -464,6 +464,47 @@ class ResilienceManager:
                 return (1 if blocked else 0, reset_at, -_safe_float(state.last_success_at), slot)
             return sorted(slots, key=rank)
 
+    def scoring_signals(self, now: float | None = None) -> dict[str, dict[str, float]]:
+        """Return provider-level health/quota factors without credential identity."""
+        now = time.time() if now is None else now
+        with self._lock:
+            providers = set(self._providers)
+            providers.update(provider for provider, _ in self._credentials)
+            result = {}
+            for provider in providers:
+                provider_state = self._providers.get(provider)
+                if provider_state and provider_state.state == "open" and provider_state.open_until > now:
+                    health = 0.0
+                elif provider_state and provider_state.state == "half_open":
+                    health = 0.4
+                else:
+                    health = 1.0
+                credential_states = [state for (name, _), state in self._credentials.items()
+                                     if name == provider]
+                if credential_states:
+                    available = [state for state in credential_states if state.state == "ready" or (
+                        state.state == "cooldown" and state.cooldown_until <= now
+                    )]
+                    if not available:
+                        health = min(health, 0.2)
+                quota_scores = []
+                for state in credential_states:
+                    if state.state == "terminal" or (
+                        state.state == "cooldown" and state.cooldown_until > now
+                    ):
+                        continue
+                    for dimension in ("requests", "tokens"):
+                        values = (state.quota or {}).get(dimension, {})
+                        limit = _safe_float(values.get("limit"), -1.0)
+                        remaining = _safe_float(values.get("remaining"), -1.0)
+                        if limit > 0 and remaining >= 0:
+                            quota_scores.append(min(1.0, remaining / limit))
+                signals = {"health": health}
+                if quota_scores:
+                    signals["quota"] = max(quota_scores)
+                result[provider] = signals
+            return result
+
     def reset(self, provider: str, model: str | None = None) -> None:
         with self._lock:
             if model is None:

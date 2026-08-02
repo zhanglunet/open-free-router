@@ -392,6 +392,17 @@ function quotaSummary(item) {
   return parts.join('；');
 }
 
+function routeScoreDetails(item) {
+  const selected = (item.scores || []).find((score) => score.model === item.model) || (item.scores || [])[0];
+  if (!selected) return '';
+  const labels = { health: '健康', success_rate: '成功率', latency: '延迟', quota: '额度', capability: '能力匹配', free_evidence: '免费证据' };
+  const sources = { runtime: '本机运行态', registry: '本机注册表', missing_default: '缺失默认值', ttfb_p95_ms: '首字节 p95', total_p95_ms: '总耗时 p95', 'ttfb_p95_ms+total_p95_ms': '首字节与总耗时 p95', evidence_verified: '免费证据已核验', evidence_unknown: '免费证据未知', evidence_expired: '免费证据已过期', evidence_invalid: '免费证据无效' };
+  const rows = Object.entries(selected.factors || {}).map(([name, factor]) =>
+    `<span>${esc(labels[name] || name)} ${formatNumber(factor.value)} × ${formatNumber(factor.weight)} = ${formatNumber(factor.contribution)} · ${esc(sources[factor.source] || factor.source || '未知来源')}</span>`
+  ).join('');
+  return `<details class="route-score"><summary>评分 ${formatNumber(selected.total)} · 查看因子与权重</summary><div class="mini-models">${rows}</div></details>`;
+}
+
 function runtimeRow(name, kind, item) {
   const bad = runtimeStateLabel(kind, item) !== '正常';
   const model = kind === 'model' ? name.slice(name.indexOf('/') + 1) : '';
@@ -407,12 +418,14 @@ function renderRouting(data) {
   const credentials = Object.entries(resilience.credentials || {});
   const models = Object.entries(resilience.models || {});
   const quotaObserved = credentials.filter(([, item]) => item.quota?.has_headers).length;
+  const scoredRoutes = (routes.items || []).filter((item) => item.strategy === 'scored').length;
   const active = providers.filter(([, item]) => item.state !== 'closed').length + credentials.filter(([, item]) => item.state !== 'ready').length + models.length;
   byId('routing-summary').innerHTML = [
     metric('保护状态', active, active ? '存在正在生效的隔离策略' : '当前没有隔离', active ? 'warning' : 'accent'),
     metric('提供商熔断', providers.filter(([, item]) => item.state !== 'closed').length, '上游整体故障保护'),
     metric('凭据槽受限', credentials.filter(([, item]) => item.state !== 'ready').length, '仅显示匿名槽位'),
     metric('额度头记录', quotaObserved, '仅保存归一化数字与重置时间'),
+    metric('智能评分决策', scoredRoutes, scoredRoutes ? '可展开查看因子与权重' : '当前使用确定性优先级'),
     metric('最近决策', routes.total || 0, `内存最多保留 ${routes.max_entries || 0} 条`),
   ].join('');
   const rows = [
@@ -421,7 +434,7 @@ function renderRouting(data) {
     ...models.map(([name, item]) => runtimeRow(name, 'model', item)),
   ];
   byId('resilience-list').innerHTML = rows.join('') || '<div class="empty">当前没有熔断、冷却、额度或模型隔离记录。</div>';
-  byId('route-list').innerHTML = (routes.items || []).map((item) => `<div class="runtime-row route-row"><div><strong>${esc(item.requested_model)}</strong><span>${esc(item.request_id)} · ${formatDate(Number(item.timestamp || 0) * 1000)}</span></div><div class="route-result"><span class="status-chip ${item.status === 'success' ? 'ok' : 'bad'}">${item.status === 'success' ? '成功' : `失败 ${item.status_code || ''}`}</span><span>${esc(item.provider || '未选中')} / ${esc(item.model || '—')} · ${item.attempts || 0} 次尝试</span></div></div>`).join('') || '<div class="empty">尚无路由决策；通过代理发送请求后会显示在这里。</div>';
+  byId('route-list').innerHTML = (routes.items || []).map((item) => `<div class="runtime-row route-row"><div><strong>${esc(item.requested_model)}</strong><span>${esc(item.request_id)} · ${formatDate(Number(item.timestamp || 0) * 1000)}</span>${routeScoreDetails(item)}</div><div class="route-result"><span class="status-chip ${item.status === 'success' ? 'ok' : 'bad'}">${item.status === 'success' ? '成功' : `失败 ${item.status_code || ''}`}</span><span>${esc(item.provider || '未选中')} / ${esc(item.model || '—')} · ${item.attempts || 0} 次尝试</span>${item.ttfb_ms == null ? '' : `<span>首字节 ${formatNumber(item.ttfb_ms)} ms${item.total_latency_ms == null ? '' : ` · 总耗时 ${formatNumber(item.total_latency_ms)} ms`}</span>`}</div></div>`).join('') || '<div class="empty">尚无路由决策；通过代理发送请求后会显示在这里。</div>';
   document.querySelectorAll('.resilience-reset').forEach((button) => button.addEventListener('click', () => resetResilience(button.dataset.provider, button.dataset.model)));
 }
 

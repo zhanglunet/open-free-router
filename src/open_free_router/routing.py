@@ -8,9 +8,11 @@ protocol share the same behaviour.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import math
 from typing import Iterable
 
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry, codex_model_alias
+from open_free_router.scoring import CandidateScore, ScoringConfig, score_candidate
 
 
 BUILTIN_ALIASES = ("auto", "auto/coding", "auto/fast", "auto/free")
@@ -48,6 +50,7 @@ class RoutingConfig:
     fallback_enabled: bool = True
     max_attempts: int = 3
     explicit_model_fallback: bool = False
+    scoring: ScoringConfig = field(default_factory=ScoringConfig)
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "RoutingConfig":
@@ -85,6 +88,7 @@ class RoutingConfig:
             fallback_enabled=bool(fallback.get("enabled", True)),
             max_attempts=max_attempts,
             explicit_model_fallback=bool(fallback.get("explicit_model", False)),
+            scoring=ScoringConfig.from_dict(raw.get("scoring", {})),
         )
 
 
@@ -109,6 +113,7 @@ class RoutePlan:
     strategy: str
     candidates: tuple[RouteTarget, ...]
     rejected: tuple[dict[str, str], ...] = ()
+    scores: tuple[CandidateScore, ...] = ()
 
     @property
     def selected(self) -> RouteTarget | None:
@@ -121,6 +126,10 @@ class RoutePlan:
             "candidates": [target.canonical_id for target in self.candidates],
             "selected": self.selected.canonical_id if self.selected else None,
             "rejected": list(self.rejected),
+            "scoring": {
+                "enabled": bool(self.scores),
+                "candidates": [score.to_dict() for score in self.scores],
+            },
         }
 
 
@@ -158,7 +167,7 @@ class RoutePlanner:
                 return target
         return None
 
-    def plan(self, requested_model: str) -> RoutePlan:
+    def plan(self, requested_model: str, signals: dict[str, dict] | None = None) -> RoutePlan:
         if requested_model not in self.virtual_model_ids():
             target = self.resolve_explicit(requested_model)
             return RoutePlan(
@@ -204,14 +213,29 @@ class RoutePlanner:
                 continue
             seen.add(identity)
             candidates.append(target)
-            if len(candidates) >= self.config.max_attempts:
-                break
+
+        scores: tuple[CandidateScore, ...] = ()
+        if self.config.scoring.enabled:
+            scored = []
+            for order, target in enumerate(candidates):
+                target_signals = dict((signals or {}).get(target.provider_name, {}))
+                target_signals.update((signals or {}).get(target.canonical_id, {}))
+                score = score_candidate(
+                    target, requested_model, self.config.scoring, target_signals, require_tools
+                )
+                scored.append((score.total, order, target, score))
+            scored.sort(key=lambda row: (-row[0], row[1]))
+            candidates = [row[2] for row in scored]
+            score_by_model = {row[3].model: row[3] for row in scored}
+            scores = tuple(score_by_model[target.canonical_id]
+                           for target in candidates[:self.config.max_attempts])
 
         return RoutePlan(
             requested_model=requested_model,
-            strategy="priority",
-            candidates=tuple(candidates),
+            strategy="scored" if self.config.scoring.enabled else "priority",
+            candidates=tuple(candidates[:self.config.max_attempts]),
             rejected=tuple(rejected),
+            scores=scores,
         )
 
 
@@ -256,6 +280,61 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
                 "warning", "explicit_fallback_enabled", "routing.fallback.explicit_model",
                 "显式模型允许静默换模，响应能力和数据处理方可能发生变化。",
                 "如不需要显式换模，将 routing.fallback.explicit_model 设置为 false",
+            )
+
+    scoring = raw.get("scoring", {})
+    if not isinstance(scoring, dict):
+        add("error", "scoring_not_mapping", "routing.scoring", "scoring 必须是 YAML 对象。")
+    else:
+        if "enabled" in scoring and not isinstance(scoring["enabled"], bool):
+            add(
+                "error", "invalid_boolean", "routing.scoring.enabled",
+                "enabled 必须写为 true 或 false；无效值会保持关闭。",
+                "把 routing.scoring.enabled 设置为 true 或 false",
+            )
+        weights = scoring.get("weights", {})
+        if not isinstance(weights, dict):
+            add("error", "weights_not_mapping", "routing.scoring.weights", "weights 必须是 YAML 对象。")
+        else:
+            defaults = ScoringConfig().weights
+            total = sum(value for name, value in defaults.items() if name not in weights)
+            for name, value in weights.items():
+                path = f"routing.scoring.weights.{name}"
+                if name not in defaults:
+                    add("warning", "unknown_score_factor", path, f"未知评分因子 {name} 会被忽略。")
+                    continue
+                try:
+                    parsed = float(value)
+                except (TypeError, ValueError, OverflowError):
+                    parsed = -1.0
+                if not math.isfinite(parsed) or parsed < 0:
+                    add("error", "invalid_score_weight", path, "评分权重必须是非负有限数字。")
+                else:
+                    total += parsed
+            if weights and total <= 0:
+                add(
+                    "error", "zero_score_weights", "routing.scoring.weights",
+                    "已配置评分权重的总和必须大于 0。",
+                )
+        if "missing_default" in scoring:
+            try:
+                missing = float(scoring["missing_default"])
+            except (TypeError, ValueError, OverflowError):
+                missing = -1.0
+            if not math.isfinite(missing) or not 0 <= missing <= 1:
+                add(
+                    "error", "invalid_missing_default", "routing.scoring.missing_default",
+                    "缺失值默认分必须在 0 到 1 之间。",
+                )
+        try:
+            good = float(scoring.get("latency_good_ms", 500))
+            bad = float(scoring.get("latency_bad_ms", 10000))
+        except (TypeError, ValueError, OverflowError):
+            good, bad = -1.0, -1.0
+        if not all(math.isfinite(value) for value in (good, bad)) or good < 0 or bad <= good:
+            add(
+                "error", "invalid_latency_bounds", "routing.scoring",
+                "latency_good_ms 必须非负，latency_bad_ms 必须更大。",
             )
 
     aliases = raw.get("aliases", {})

@@ -106,6 +106,23 @@ def test_credential_order_prefers_attemptable_then_recent_success():
     assert [slot for slot, _ in manager.order_credentials("p", slots, now=211)] == [0, 2, 1]
 
 
+def test_scoring_signals_are_provider_level_and_use_best_quota_slot():
+    manager = ResilienceManager(provider_threshold=1, provider_cooldown=100)
+    manager.record_quota(
+        "p", 0,
+        parse_quota_headers({"X-RateLimit-Limit-Requests": "100",
+                             "X-RateLimit-Remaining-Requests": "20"}, 200, now=100),
+    )
+    manager.record_quota(
+        "p", 1,
+        parse_quota_headers({"X-RateLimit-Limit-Requests": "100",
+                             "X-RateLimit-Remaining-Requests": "80"}, 200, now=100),
+    )
+    assert manager.scoring_signals(now=101)["p"] == {"health": 1.0, "quota": 0.8}
+    manager.record_failure("p", "m", classify_failure(503), now=102)
+    assert manager.scoring_signals(now=103)["p"]["health"] == 0.0
+
+
 def test_retry_after_is_bounded():
     assert parse_retry_after("17", now=0) == 17
     assert parse_retry_after("99999", now=0, cap_seconds=30) == 30
