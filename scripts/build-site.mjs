@@ -24,6 +24,7 @@ const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
 const storyHtml = await readFile(resolve(output, "stories", "free-model-port", "index.html"), "utf8");
 const storyJs = await readFile(resolve(output, "stories", "free-model-port", "article.js"), "utf8");
 const devlog = JSON.parse(await readFile(resolve(output, "data", "devlog.json"), "utf8"));
+const navJs = await readFile(resolve(output, "nav.js"), "utf8");
 const required = [
   "NoelJudeNoel/open-free-router",
   "系统架构",
@@ -94,6 +95,14 @@ await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"
 for (const page of [html, modelsHtml, guideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, logsHtml, storyHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
+  }
+  if (!page.includes('src="/nav.js?')) {
+    throw new Error("Every page with the shared header must load the responsive navigation");
+  }
+}
+for (const marker of ["mobile-nav-toggle", "aria-expanded", "Escape", "本页目录"]) {
+  if (!navJs.includes(marker)) {
+    throw new Error(`Responsive navigation is missing required behavior: ${marker}`);
   }
 }
 if (!logsJs.includes("function html(value)") || !logsJs.includes("&lt;")) {

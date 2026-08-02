@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T06:30:00+09:00",
+  "updated_at": "2026-08-02T01:36:10.624Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-全站响应式导航上线",
+      "date": "2026-08-02",
+      "type": "improvement",
+      "version": "站点体验",
+      "title": "全站响应式导航上线",
+      "summary": "修复手机与平板端导航被隐藏的问题，为所有公开页面增加统一的可展开菜单，并保留桌面端横向导航。",
+      "items": [
+        "手机和平板显示清晰的菜单按钮",
+        "统一提供九个全站入口并高亮当前页面",
+        "支持触摸、键盘 Escape 关闭和页面滚动锁定",
+        "指南与模型页保留本页目录快捷入口"
+      ]
+    },
     {
       "id": "2026-08-02-content-hub",
       "date": "2026-08-02",
@@ -17,7 +31,10 @@
         "发布《为什么你需要一座模力自由港》推荐文章与专属分享卡"
       ],
       "links": [
-        { "label": "阅读推荐文章", "url": "/stories/free-model-port/" }
+        {
+          "label": "阅读推荐文章",
+          "url": "/stories/free-model-port/"
+        }
       ]
     },
     {
@@ -50,8 +67,14 @@
       ],
       "commit": "6ae2229",
       "links": [
-        { "label": "查看品牌页面", "url": "/brand/" },
-        { "label": "浏览模型雷达", "url": "/models/" }
+        {
+          "label": "查看品牌页面",
+          "url": "/brand/"
+        },
+        {
+          "label": "浏览模型雷达",
+          "url": "/models/"
+        }
       ]
     },
     {
@@ -69,7 +92,10 @@
       ],
       "commit": "14d95bd",
       "links": [
-        { "label": "查看系统架构", "url": "/architecture/" }
+        {
+          "label": "查看系统架构",
+          "url": "/architecture/"
+        }
       ]
     },
     {
@@ -87,8 +113,14 @@
       ],
       "commit": "30397c5",
       "links": [
-        { "label": "查看实时状态", "url": "/status/" },
-        { "label": "查看全球分布", "url": "/map/" }
+        {
+          "label": "查看实时状态",
+          "url": "/status/"
+        },
+        {
+          "label": "查看全球分布",
+          "url": "/map/"
+        }
       ]
     },
     {

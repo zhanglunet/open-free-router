@@ -16,8 +16,8 @@ if (reduceMotion || !("IntersectionObserver" in window)) {
 }
 
 const sections = [...document.querySelectorAll("main section[id]")];
-const navLinks = [...document.querySelectorAll("nav a")];
-if ("IntersectionObserver" in window) {
+const navLinks = [...document.querySelectorAll('.topbar > nav a[href^="#"]')];
+if (navLinks.length && "IntersectionObserver" in window) {
   const navObserver = new IntersectionObserver((entries) => {
     const current = entries.filter((entry) => entry.isIntersecting)
       .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
