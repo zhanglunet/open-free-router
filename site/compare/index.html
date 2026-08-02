@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#061120">
-  <meta name="description" content="模力自由港与 OmniRoute、9Router、LiteLLM、Free Router 的透明能力比较：免费模型、路由、协议、韧性、评测、隐私和安装方式。">
+  <meta name="description" content="模力自由港与 OmniRoute、9Router、LiteLLM、Free Router 的透明能力比较，以及从 11 家向更多免费模型提供商扩展的候选路线图。">
   <meta property="og:title" content="工具比较 · 模力自由港">
   <meta property="og:description" content="不只列勾叉：按定位、能力、边界和适用人群比较五种 AI 模型路由工具。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
@@ -14,7 +14,7 @@
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/compare/compare.css">
-  <script src="/nav.js?v=20260802c" defer></script>
+  <script src="/nav.js?v=20260803a" defer></script>
 </head>
 <body>
   <div class="site-grid" aria-hidden="true"></div>
@@ -27,21 +27,22 @@
 
   <main>
     <section class="compare-hero">
-      <p class="compare-eyebrow"><span></span> HONEST COMPARISON · 2026.08.02</p>
+      <p class="compare-eyebrow"><span></span> HONEST COMPARISON · 2026.08.03</p>
       <h1>不是谁都要赢，<br><em>而是谁更适合你。</em></h1>
       <p>模力自由港专注“免费模型的发现、证据、实测与本地接入”；其他工具可能在提供商规模、企业治理、多模态或订阅账号整合上更强。下面按公开资料逐项比较，未核实的能力不会写成“没有”。</p>
       <div class="compare-principles"><span>公开来源</span><span>同一时间快照</span><span>未知明确标注</span><span>不把数量当质量</span></div>
     </section>
 
     <section class="compare-section" id="matrix">
-      <header><p class="compare-eyebrow"><span></span> CAPABILITY MATRIX</p><h2>五种工具，<em>一张表看清。</em></h2><p>表格较宽，手机端可横向滑动。所有数字只代表 2026-08-02 核对到的官方资料快照，项目更新后可能变化。</p></header>
+      <header><p class="compare-eyebrow"><span></span> CAPABILITY MATRIX</p><h2>五种工具，<em>一张表看清。</em></h2><p>表格较宽，手机端可横向滑动。所有数字只代表 2026-08-03 核对到的官方资料快照；项目自述与可审计目录口径不一致时会同时列出。</p></header>
       <div class="compare-table-wrap" role="region" aria-label="AI 路由工具比较表，可横向滚动" tabindex="0">
         <table class="compare-table">
           <thead><tr><th>比较维度</th><th class="ours">模力自由港<small>FreeModel Port</small></th><th>OmniRoute</th><th>9Router</th><th>LiteLLM</th><th>Free Router</th></tr></thead>
           <tbody>
             <tr class="group"><th colspan="6">定位与规模</th></tr>
             <tr><th>核心定位</th><td class="ours"><b>免费模型发现、实测与本地路由</b></td><td>全功能多提供商 AI 网关</td><td>订阅账号、低价与免费模型的三层路由</td><td>生产级 LLM Gateway + Python SDK</td><td>面向 OpenCode / OpenClaw 的免费模型 TUI</td></tr>
-            <tr><th>官方资料中的提供商规模</th><td class="ours"><b>11 家登记提供商</b><small>只纳入当前维护与验证范围</small></td><td>268 家</td><td>60+ 家</td><td>100+ LLM API</td><td>2 家主提供商<small>NVIDIA NIM / OpenRouter</small></td></tr>
+            <tr><th>官方资料中的提供商规模</th><td class="ours"><b>11 家已接入</b><small>每家进入统一注册表和探测链路</small></td><td><b>README 自述 290+</b><small>90+ 有免费层；2026-06-15 自动生成目录为 226，两个口径并列展示</small></td><td><b>40+ API Key</b><small>另列 6 个 OAuth、3 个免费入口和自定义兼容端点</small></td><td>100+ LLM API</td><td>2 家主提供商<small>NVIDIA NIM / OpenRouter</small></td></tr>
+            <tr><th>规模统计口径</th><td class="ours"><b>已实现、已登记、可进入探测</b><small>候选提供商不计入 11 家</small></td><td>同时包含 API Key、OAuth、Web Cookie、本地、搜索、音视频、上游代理与系统节点</td><td>API Key / OAuth / 免费入口分别列示</td><td>按 LLM API 集成计数</td><td>按产品当前支持的主提供商计数</td></tr>
             <tr><th>免费资源口径</th><td class="ours"><b>结构化证据 + 有效期 + 待复核状态</b></td><td>免费层 / free forever 分类</td><td>FREE 路由层</td><td>价格表与预算治理，不以免费发现为核心</td><td>免费 Key + 在线 ping</td></tr>
 
             <tr class="group"><th colspan="6">接入、路由与韧性</th></tr>
@@ -68,6 +69,19 @@
       <p class="compare-note">“所核对资料未说明”只表示本次未找到明确官方声明，不等于该项目一定没有。涉及数量、策略和工具数的声明均来自对应项目官方页面或 README，不是模力自由港的独立审计结果。</p>
     </section>
 
+    <section class="compare-section expansion" id="provider-expansion">
+      <header><p class="compare-eyebrow"><span></span> PROVIDER EXPANSION RADAR</p><h2>规模可以扩，<em>但不能拿目录冒充可用。</em></h2><p>OmniRoute 的分类方法值得借鉴：把 API Key、OAuth、本地模型、搜索、音视频和上游代理分开管理。模力自由港会优先扩展“可公开核验免费条件、可由服务器真实测试”的推理提供商，而不是直接复制 290 个名称。</p></header>
+      <div class="expansion-summary"><article><b>11</b><span>当前已接入</span><small>注册表 + 路由 + 探测</small></article><article><b>14</b><span>扩容候选</span><small>尚未计入支持规模</small></article><article><b>25</b><span>阶段目标上限</span><small>逐家通过准入门槛后累加</small></article></div>
+      <div class="expansion-grid">
+        <article class="current"><small>NOW · 已接入</small><h3>11 家维护范围</h3><p>OpenRouter、NVIDIA NIM、OpenCode Zen、SenseNova、阶跃星辰、Google AI Studio、Groq、DeepSeek、Nous、Poolside、Gitee AI。</p><span>公开目录可见 · 状态进入服务器探测</span></article>
+        <article><small>P0 · 直接 API 候选</small><h3>优先验证 6 家</h3><p>Cerebras、SiliconFlow、Together AI、Fireworks AI、SambaNova、DeepInfra。</p><span>先核验免费额度、OpenAI 兼容性和模型列表接口</span></article>
+        <article><small>P1 · 免费/聚合候选</small><h3>评估 4 家</h3><p>Cloudflare Workers AI、Hugging Face Inference、Pollinations、Puter。</p><span>需要单独评估鉴权方式、限额、数据边界与稳定性</span></article>
+        <article><small>P2 · 本地/OAuth 候选</small><h3>评估 4 类</h3><p>Ollama、LM Studio、vLLM、GitHub Models / Copilot。</p><span>本地模型不属于“云端免费提供商”；OAuth 不复用网页 Cookie</span></article>
+      </div>
+      <div class="admission-gate"><b>统一准入门槛</b><span>公开 HTTPS 或明确本地端点</span><i>→</i><span>免费条件有来源和有效期</span><i>→</i><span>凭据只用环境变量/本机配置</span><i>→</i><span>真实文本请求成功</span><i>→</i><span>能力与错误语义测试</span><i>→</i><span>才进入“已接入”数字</span></div>
+      <p class="compare-note">候选名单来自 OmniRoute 当前公开目录和同类网关常见集成，只表示调研优先级，不代表已支持、永久免费或已经通过安全审查。任何提供商的免费政策变化都必须重新核验。</p>
+    </section>
+
     <section class="compare-section decision">
       <header><p class="compare-eyebrow"><span></span> CHOOSE BY NEED</p><h2>按需求选，<em>比按数量选更可靠。</em></h2></header>
       <div class="decision-grid">
@@ -81,12 +95,14 @@
     <section class="compare-section sources">
       <header><p class="compare-eyebrow"><span></span> SOURCES &amp; SNAPSHOT</p><h2>比较依据，<em>全部可追溯。</em></h2></header>
       <div class="source-list">
-        <a href="https://omniroute.online/#compare" rel="noreferrer"><b>OmniRoute 官网 Compare</b><span>提供商、路由、MCP、韧性、npm 与运行栈</span></a>
+        <a href="https://github.com/diegosouzapw/OmniRoute" rel="noreferrer"><b>OmniRoute README</b><span>当前自述 290+ 提供商、90+ 免费层、40+ free forever</span></a>
+        <a href="https://github.com/diegosouzapw/OmniRoute/wiki/Provider-Reference" rel="noreferrer"><b>OmniRoute Provider Reference</b><span>2026-06-15 自动生成目录：226 家及分类口径</span></a>
         <a href="https://9router.com/" rel="noreferrer"><b>9Router 官网与架构文档</b><span>提供商、三层路由、协议、SQLite 与 npm</span></a>
         <a href="https://docs.litellm.ai/" rel="noreferrer"><b>LiteLLM 官方文档</b><span>100+ LLM API、Proxy、SDK、预算、fallback 与可观测</span></a>
         <a href="https://www.npmjs.com/package/@bytonylee/free-router" rel="noreferrer"><b>@bytonylee/free-router npm README</b><span>提供商、TUI、排序、配置位置与安装命令</span></a>
+        <a href="/models/"><b>模力自由港公开模型雷达</b><span>当前 11 家已接入提供商、模型与免费证据</span></a>
       </div>
-      <p class="compare-note">最后核对：2026-08-02。欢迎通过 GitHub Issue 提交来源明确的更正；我们会保留快照日期，不把动态项目事实写成永久结论。</p>
+      <p class="compare-note">最后核对：2026-08-03。欢迎通过 GitHub Issue 提交来源明确的更正；我们会保留快照日期，不把动态项目事实写成永久结论。</p>
     </section>
   </main>
 
