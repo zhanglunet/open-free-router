@@ -78,7 +78,7 @@
     <section class="live-strip" aria-label="实时目录快照">
       <div class="live-title"><span class="live-dot"></span><b>自由港实时航图</b><small>PUBLIC CATALOG</small></div>
       <div><b data-live="providers">11</b><span>已接入提供商</span></div>
-      <div><b data-live="models">51</b><span>正式免费模型</span></div>
+      <div><b data-live="models">55</b><span>登记免费模型</span></div>
       <div><b data-live="candidates">317</b><span>雷达候选模型</span></div>
       <div><b>1</b><span>统一接口</span></div>
     </section>
@@ -93,6 +93,9 @@
         <article class="value-card reveal"><span>01</span><div class="card-icon">⌁</div><h3>持续发现</h3><p>模型雷达定时扫描公开目录，筛选明确零价格、HTTPS 且尚未登记的候选。</p><small>DISCOVER · EVERY 24H</small></article>
         <article class="value-card reveal"><span>02</span><div class="card-icon">◎</div><h3>真实实测</h3><p>候选不会直接上线。只有使用专用凭据完成最小真实请求，才会进入可运行目录。</p><small>VERIFY · LIVE RESPONSE</small></article>
         <article class="value-card reveal"><span>03</span><div class="card-icon">⇄</div><h3>统一接入</h3><p>所有客户端只连接本地单端口代理；提供商差异、协议转换和模型路由由自由港处理。</p><small>ROUTE · ONE ENDPOINT</small></article>
+        <article class="value-card reveal"><span>04</span><div class="card-icon">⌘</div><h3>智能路由</h3><p>虚拟模型按能力、健康、成功率、延迟、额度与免费证据选择候选，每项评分都能解释。</p><small>PLAN · SCORE · EXPLAIN</small></article>
+        <article class="value-card reveal"><span>05</span><div class="card-icon">⛨</div><h3>安全降级</h3><p>Provider、匿名 Key 槽与模型三层隔离；只在首字节前 fallback，流式开始后绝不重放。</p><small>ISOLATE · FALLBACK</small></article>
+        <article class="value-card reveal"><span>06</span><div class="card-icon">▦</div><h3>本机分析</h3><p>统计成功率、p50/p95、Fallback 与 Token，不记录 Prompt、响应正文或工具参数。</p><small>LOCAL · PRIVACY FIRST</small></article>
       </div>
     </section>
 
@@ -122,15 +125,17 @@
       <div class="route-map reveal" role="img" aria-label="九个 AI 客户端通过本地自由港路由到免费模型提供商">
         <div class="route-group clients"><small>YOUR CLIENTS</small><b>Codex · Claude Code</b><b>OpenCode · Kimi · OpenClaw</b><b>WorkBuddy · Hermes · Pi/OMP</b></div>
         <div class="route-line"><span>Responses / Messages / OpenAI / MCP</span><i></i></div>
-        <div class="route-core"><img src="/assets/brand/modelport-mark-192.png" alt=""><small>LOCAL CONTROL PLANE</small><b>模力自由港</b><span>AUTH · ADAPT · ROUTE · SYNC</span><em>127.0.0.1:8337</em></div>
+        <div class="route-core"><img src="/assets/brand/modelport-mark-192.png" alt=""><small>LOCAL CONTROL PLANE</small><b>模力自由港</b><span>AUTH · PLAN · ISOLATE · ADAPT</span><em>127.0.0.1:8337</em></div>
         <div class="route-line outbound"><span>TLS / PROVIDER KEY</span><i></i></div>
         <div class="route-group upstreams"><small>FREE UPSTREAMS</small><b>OpenRouter · NVIDIA</b><b>Google · Groq</b><b>+ 7 providers</b></div>
       </div>
       <div class="architecture-notes">
         <article><span>01</span><h3>发现层</h3><p>公开目录只产生候选，不自动等同“可用”。</p></article>
         <article><span>02</span><h3>验证层</h3><p>公网 HTTPS、协议识别、专用凭据与真实响应四重校验。</p></article>
-        <article><span>03</span><h3>路由层</h3><p>五种模型 ID 格式映射到准确的 provider/upstream_id。</p></article>
-        <article><span>04</span><h3>适配层</h3><p>Responses、Messages、Chat Completions、工具调用与 SSE 转换。</p></article>
+        <article><span>03</span><h3>规划层</h3><p>虚拟模型、能力过滤与六因子评分生成可解释候选。</p></article>
+        <article><span>04</span><h3>韧性层</h3><p>Provider、匿名 Key 槽与 Model 三层隔离，首字节前安全 fallback。</p></article>
+        <article><span>05</span><h3>适配层</h3><p>Responses、Messages、Chat Completions、工具调用与 SSE 转换。</p></article>
+        <article><span>06</span><h3>观测层</h3><p>路由决策与本机指标脱敏记录，不保存 Prompt 和响应正文。</p></article>
       </div>
       <div class="hero-actions"><a class="button secondary" href="/architecture/">查看完整架构图与信息图 →</a></div>
     </section>
@@ -139,7 +144,7 @@
       <div class="quickstart-copy reveal">
         <p class="kicker"><i></i> QUICK START · 快速开始</p>
         <h2>一条命令，<br>让 Codex 驶入自由港。</h2>
-        <p>安装脚本创建独立 Python 环境和 Codex profile，不覆盖正常 OpenAI 配置。</p>
+        <p>安装脚本创建独立 Python 环境和 Codex profile，不覆盖正常 OpenAI 配置。当前维护仓库为私有，执行前需先配置 GitHub 仓库读取权限。</p>
         <div class="quick-links"><a href="/guide/">查看完整安装指南 →</a><a href="/guide/#api">查看 CLI 与 API →</a></div>
       </div>
       <div class="terminal reveal">
@@ -150,7 +155,7 @@
           <div class="terminal-status"><span>✓</span> Codex profile 已同步</div>
           <div class="terminal-status"><span>✓</span> 免费模型雷达已启用</div>
           <p><small>$</small> codex --profile open-free-router</p>
-          <div class="terminal-ready"><i></i> PORT READY · 51 MODELS</div>
+          <div class="terminal-ready"><i></i> PORT READY · 55 REGISTERED MODELS</div>
         </div>
       </div>
     </section>

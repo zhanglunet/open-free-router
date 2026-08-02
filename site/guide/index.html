@@ -30,13 +30,14 @@
     <section class="guide-hero">
       <p class="eyebrow"><span></span> INSTALL & USE</p>
       <h1>把免费大模型，<br><em>接入每个客户端。</em></h1>
-      <p>面向 Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy 与 MCP 宿主的完整航海手册。先启动本地安全代理，再按客户端图示一条命令接入已验证免费模型，不覆盖任何原有配置。</p>
+      <p>面向 Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy 与 MCP 宿主的完整航海手册。先启动本地安全代理，再按客户端图示一条命令接入登记或实测可用的免费模型，不覆盖任何原有配置。</p>
       <div class="path-cards"><article><b>01</b><span>安装路由</span><small>Python 3.11+ · 本地端口</small></article><article><b>02</b><span>配置提供商</span><small>密钥只保存在本机</small></article><article><b>03</b><span>接入客户端</span><small>9 个客户端 · 1 条命令</small></article></div>
     </section>
 
     <section class="guide-section" id="install">
       <header><p class="eyebrow"><span></span> ONE-CLICK INSTALL</p><h2>一键安装</h2><p>脚本会克隆 GitHub 仓库、创建隔离的 Python 虚拟环境、安装 CLI，并可同时生成 Codex profile。</p></header>
       <div class="callout warning"><b>建议先检查脚本</b><p>最稳妥的做法是先下载、阅读，再执行。脚本不会收集或上传 API Key。</p></div>
+      <div class="callout warning"><b>当前需要仓库读取权限</b><p>维护仓库目前是私有仓库，安装脚本执行克隆前，请先用 <code>gh auth login</code> 或其他方式为 Git 配置读取权限。公开安装页面与脚本不等于源码仓库已公开；没有权限时克隆会失败。</p></div>
       <div class="code-card"><div><span>推荐：下载、检查、安装</span><button data-copy="install-safe">复制</button></div><pre id="install-safe"><code>curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
 less /tmp/open-free-router-install.sh
 bash /tmp/open-free-router-install.sh --codex --auto-discovery</code></pre></div>
@@ -246,12 +247,12 @@ model = "gq/gpt-oss-120b"
     <section class="guide-section split" id="mcp">
       <header><p class="eyebrow"><span></span> MCP SERVER</p><h2>MCP 宿主接入</h2></header>
       <div>
-        <p>路由器内置 MCP（Model Context Protocol）stdio 服务器，任何 MCP 宿主（Claude Code、Codex、Kimi CLI 等）都能以标准协议查询模型、发起推理、触发刷新与同步。</p>
+        <p>路由器内置 MCP（Model Context Protocol）stdio 服务器，任何 MCP 宿主（Claude Code、Codex、Kimi CLI 等）都能以标准协议查询模型、发起推理并读取脱敏诊断。会修改状态的刷新与同步工具默认隐藏，避免 Agent 获得不必要的写权限。</p>
         <ol class="timeline">
           <li><b>注册到 Claude Code（用户级）</b><pre><code>claude mcp add --scope user open-free-router \
   -- open-free-router mcp</code></pre></li>
           <li><b>或打印通用配置片段</b><pre><code>open-free-router mcp --print-config</code></pre><p>输出可直接粘贴到 <code>.mcp.json</code> / <code>~/.claude.json</code> 的 <code>mcpServers</code> 条目。</p></li>
-          <li><b>在会话中使用</b><p>例如让 Agent 调用 <code>list_models</code> 挑选空闲免费模型，或用 <code>chat</code> 把子任务转发给免费模型执行。</p></li>
+          <li><b>在会话中使用</b><p>例如让 Agent 调用 <code>list_models</code> 挑选模型，用 <code>explain_route</code> 检查候选原因，或用 <code>chat</code> 把子任务转发给免费模型执行。</p></li>
         </ol>
       </div>
       <aside class="facts"><h3>MCP Tools</h3><dl>
@@ -259,9 +260,11 @@ model = "gq/gpt-oss-120b"
         <dt>list_providers</dt><dd>提供商与密钥状态（不含密钥值）</dd>
         <dt>get_status</dt><dd>代理/仪表盘可达性与注册表统计</dd>
         <dt>chat</dt><dd>经本地代理向免费模型发起真实推理</dd>
-        <dt>refresh_models</dt><dd>刷新免费模型清单并保存</dd>
-        <dt>sync_clients</dt><dd>同步九个客户端配置</dd>
-      </dl><p class="fineprint">传输：stdio · 按行 JSON-RPC 2.0 · 协议版本 2024-11-05 ~ 2025-06-18 · 零第三方依赖</p></aside>
+        <dt>explain_route</dt><dd>离线解释候选、过滤和评分，不消耗额度</dd>
+        <dt>get_resilience</dt><dd>Provider / 匿名 Key 槽 / Model 保护状态</dd>
+        <dt>check_quota</dt><dd>脱敏额度、重置时间与免费证据</dd>
+        <dt>get_metrics</dt><dd>本机成功率、延迟、Fallback 与 Token 聚合</dd>
+      </dl><p class="fineprint">默认 8 个工具。设置 <code>mcp.allow_write_tools: true</code> 后才增加 <code>refresh_models</code>、<code>sync_clients</code>，合计 10 个。传输：stdio · 按行 JSON-RPC 2.0 · 协议版本 2024-11-05 ~ 2025-06-18。</p></aside>
     </section>
 
     <section class="guide-section" id="auto-discovery">
@@ -277,13 +280,14 @@ open-free-router sync --agent codex</code></pre></div>
     <section class="guide-section" id="commands">
       <header><p class="eyebrow"><span></span> CLI REFERENCE</p><h2>完整 CLI 接口</h2></header>
       <div class="command-grid">
-        <article><code>serve</code><p>启动代理、管理页、刷新与发现调度器。</p></article><article><code>setup</code><p>交互式填写已登记供应商密钥。</p></article><article><code>sync --agent claude,codex,…</code><p>同步九个客户端：pi、omp、opencode、hermes、codex、claude、kimi、openclaw、workbuddy。</p></article><article><code>mcp [--print-config]</code><p>MCP stdio 服务器；或打印宿主注册片段。</p></article><article><code>status [--json]</code><p>一屏健康摘要：注册表、密钥、端口可达性。</p></article><article><code>doctor [--json]</code><p>体检安装与路由配置：定位 YAML 路径、错误代码并给出修复命令。</p></article><article><code>models [--json]</code><p>列出全部注册表模型与能力标记。</p></article><article><code>route explain MODEL [--json]</code><p>离线解释候选顺序和过滤原因，不发起推理。</p></article><article><code>resilience [--json]</code><p>查看提供商、凭据槽和模型的运行时保护状态。</p></article><article><code>discover --test --adopt</code><p>只接入真实请求成功的候选模型。</p></article><article><code>refresh [--source NAME]</code><p>刷新已登记供应商模型列表。</p></article><article><code>add NAME --base-url URL</code><p>手工添加提供商和模型。</p></article><article><code>token</code><p>供命令式认证读取本地代理令牌。</p></article><article><code>ui</code><p>单独启动本地管理页。</p></article>
+        <article><code>serve</code><p>启动代理、管理页、刷新与发现调度器。</p></article><article><code>setup</code><p>交互式填写已登记供应商密钥。</p></article><article><code>sync --agent claude,codex,…</code><p>同步九个客户端：pi、omp、opencode、hermes、codex、claude、kimi、openclaw、workbuddy。</p></article><article><code>mcp [--print-config]</code><p>MCP stdio 服务器；或打印宿主注册片段。</p></article><article><code>status [--json]</code><p>一屏健康摘要：注册表、密钥、端口可达性。</p></article><article><code>doctor [--json]</code><p>体检安装与路由配置：定位 YAML 路径、错误代码并给出修复命令。</p></article><article><code>models [--json]</code><p>列出全部注册表模型与能力标记。</p></article><article><code>route explain MODEL [--json]</code><p>离线解释候选顺序、过滤与评分，不发起推理。</p></article><article><code>resilience [--json]</code><p>查看提供商、凭据槽和模型的运行时保护状态。</p></article><article><code>resilience reset --provider NAME</code><p>精确重置提供商或单模型保护状态。</p></article><article><code>metrics [--days 30] [--json]</code><p>查看本机成功率、p50/p95、Fallback 与 Token。</p></article><article><code>metrics --export json|csv</code><p>用字段白名单安全导出本机聚合统计。</p></article><article><code>protocols [--json]</code><p>输出 11 个提供商 × Chat/Responses/Messages 兼容矩阵。</p></article><article><code>discover --test --adopt</code><p>只接入真实请求成功的候选模型。</p></article><article><code>refresh [--source NAME]</code><p>刷新已登记供应商模型列表。</p></article><article><code>add NAME --base-url URL</code><p>手工添加提供商和模型。</p></article><article><code>token</code><p>供命令式认证读取本地代理令牌。</p></article><article><code>ui</code><p>单独启动本地管理页。</p></article>
       </div>
+      <p class="fineprint">架构、状态文件、请求时序和安全边界见 <a href="/architecture/">系统架构页</a>；完整协议验收口径见仓库中的 <code>docs/protocol-capability-matrix.md</code>。</p>
     </section>
 
     <section class="guide-section" id="api">
       <header><p class="eyebrow"><span></span> API SURFACE</p><h2>程序提供的接口</h2><p>推理接口只监听本机并要求 Bearer Token；网站目录 API 不包含上游凭据。</p></header>
-      <div class="api-table"><div><b>GET</b><code>/health</code><span>本地代理健康检查</span></div><div><b>GET</b><code>/v1/models</code><span>可用模型目录（Codex / Claude Code 自动发现）</span></div><div><b>POST</b><code>/v1/chat/completions</code><span>OpenAI Chat Completions</span></div><div><b>POST</b><code>/v1/responses</code><span>Codex Responses API 兼容层</span></div><div><b>POST</b><code>/v1/messages</code><span>Anthropic Messages 兼容层（Claude Code）</span></div><div><b>POST</b><code>/v1/messages/count_tokens</code><span>输入 token 本地估算</span></div><div><b>POST</b><code>/v1/completions</code><span>传统文本补全</span></div><div><b>POST</b><code>/v1/embeddings</code><span>向量接口透传</span></div><div><b>GET</b><code>/api/resilience</code><span>脱敏三层保护状态（需代理 token）</span></div><div><b>GET</b><code>/api/routes</code><span>有界脱敏路由决策历史（需代理 token）</span></div><div><b>GET/POST</b><code>:9057/api/probe</code><span>实时可用性探测（POST 需仪表盘 token）</span></div><div><b>STDIO</b><code>open-free-router mcp</code><span>MCP JSON-RPC：6 个工具</span></div><div><b>GET</b><code>https://oaf.asia/api/install</code><span>一键安装清单与后续命令</span></div><div><b>GET</b><code>https://oaf.asia/api/catalog</code><span>脱敏正式模型、状态与候选</span></div><div><b>GET</b><code>https://oaf.asia/api/discovery</code><span>持续发现候选快照</span></div></div>
+      <div class="api-table"><div><b>GET</b><code>/health</code><span>本地代理健康检查</span></div><div><b>GET</b><code>/v1/models</code><span>可用模型目录（Codex / Claude Code 自动发现）</span></div><div><b>POST</b><code>/v1/chat/completions</code><span>OpenAI Chat Completions</span></div><div><b>POST</b><code>/v1/responses</code><span>Codex Responses API 兼容层</span></div><div><b>POST</b><code>/v1/messages</code><span>Anthropic Messages 兼容层（Claude Code）</span></div><div><b>POST</b><code>/v1/messages/count_tokens</code><span>输入 token 本地估算</span></div><div><b>POST</b><code>/v1/completions</code><span>传统文本补全</span></div><div><b>POST</b><code>/v1/embeddings</code><span>向量接口透传</span></div><div><b>GET/POST</b><code>/api/resilience[/reset]</code><span>脱敏三层保护状态与精确重置（需代理 token）</span></div><div><b>GET</b><code>/api/routes[/ID]</code><span>有界脱敏路由决策历史与单次详情</span></div><div><b>GET</b><code>/api/metrics</code><span>本机成功率、延迟、Fallback 与 Token 聚合</span></div><div><b>GET</b><code>/api/metrics/export</code><span>安全 JSON / CSV 指标导出</span></div><div><b>GET/POST</b><code>:9057/api/probe</code><span>实时可用性探测（POST 需仪表盘 token）</span></div><div><b>STDIO</b><code>open-free-router mcp</code><span>MCP JSON-RPC：默认 8 个、显式开启后 10 个工具</span></div><div><b>GET</b><code>https://oaf.asia/api/install</code><span>一键安装清单与后续命令</span></div><div><b>GET</b><code>https://oaf.asia/api/catalog</code><span>脱敏正式模型、状态与候选</span></div><div><b>GET</b><code>https://oaf.asia/api/discovery</code><span>持续发现候选快照</span></div></div>
     </section>
 
     <section class="guide-section troubleshooting"><header><p class="eyebrow"><span></span> TROUBLESHOOTING</p><h2>常见问题</h2></header><details><summary>Address already in use</summary><p>8337 已被占用通常表示 open-free-router 已经运行。先执行 <code>lsof -nP -iTCP:8337 -sTCP:LISTEN</code>，不要启动第二个实例。</p></details><details><summary>模型出现在列表里，但工具调用失败</summary><p>“可见”不等于“工具已验证”。模型雷达会分别显示推理和工具能力；自动发现接入默认不会宣称工具调用已验证。</p></details><details><summary>Codex 看不到第三方 provider</summary><p>provider 必须放在用户级 profile，不能放项目级 .codex/config.toml。重新执行 <code>open-free-router sync --agent codex</code>，并用 <code>codex --profile open-free-router</code> 启动。</p></details></section>

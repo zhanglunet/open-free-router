@@ -80,6 +80,14 @@
 .fl-anim{stroke-dasharray:5 9;animation:archdash 1.5s linear infinite}
 @keyframes archdash{to{stroke-dashoffset:-14}}
 
+/* ---------- 智能路由与韧性 ---------- */
+.arch-intel{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
+.arch-intel article{padding:1.65rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.68),rgba(7,22,39,.56))}
+.arch-intel article>b{color:var(--cyan);font:750 .58rem var(--mono);letter-spacing:.1em}
+.arch-intel h3{margin:.8rem 0 .45rem;font-size:1rem}
+.arch-intel p{margin:0;color:var(--muted);font-size:.74rem}
+.arch-intel code{color:var(--green);font:650 .68rem var(--mono)}
+
 /* ---------- 请求生命周期 ---------- */
 .arch-steps{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
 .arch-step{position:relative;padding:1.6rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.6),rgba(7,22,39,.5))}
@@ -116,9 +124,9 @@
 .arch-modules td:nth-child(3){color:var(--muted);font-size:.7rem}
 
 /* ---------- 安全边界 ---------- */
-.arch-sec{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line)}
+.arch-sec{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--line);border-left:1px solid var(--line)}
 .arch-sec article{padding:1.7rem;border-right:1px solid var(--line);background:linear-gradient(150deg,rgba(14,37,64,.6),rgba(7,22,39,.5))}
-.arch-sec article:last-child{border-right:0}
+.arch-sec article{border-bottom:1px solid var(--line)}
 .arch-sec span{color:var(--cyan);font:700 .58rem var(--mono)}
 .arch-sec h3{margin:.8rem 0 .35rem;font-size:.95rem}
 .arch-sec p{margin:0;color:var(--muted);font-size:.72rem}
@@ -137,6 +145,7 @@
   .arch-stats{grid-template-columns:repeat(4,1fr)}
   .arch-stats article:nth-child(4){border-right:1px solid var(--line)}
   .arch-steps{grid-template-columns:1fr 1fr}
+  .arch-intel{grid-template-columns:1fr 1fr}
   .arch-fan{grid-template-columns:1fr 1fr}
   .arch-fan::before{left:25%;right:25%}
   .arch-fan article:nth-child(3)::before{display:none}
@@ -159,6 +168,7 @@
   .arch-stats article:nth-child(2n){border-right:1px solid var(--line)}
   .arch-stats article:last-of-type{grid-column:1/-1}
   .arch-steps{grid-template-columns:1fr}
+  .arch-intel{grid-template-columns:1fr}
   .arch-fan{grid-template-columns:1fr}
   .arch-fan::before,.arch-fan article:nth-child(-n+3)::before{display:none}
   .arch-hub::after{display:none}
