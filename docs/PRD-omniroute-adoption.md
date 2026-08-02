@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: P1 in progress — FR-P1-1 through FR-P1-4 implemented
+Status: P1 completed and released in v0.3.0
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -40,7 +40,7 @@ Implementation record (2026-08-02):
   mutating tools are hidden unless the owner explicitly opts in;
 - completed: P1 provider × protocol × capability 可执行矩阵、跨协议兼容修复与
   v0.3.0 发布准备；
-- next: 合并发布候选后创建并验证 v0.3.0 Release。
+- released: v0.3.0 已合并、发布并完成协议矩阵与公开文档收口。
 
 ## 1. 结论
 
@@ -88,10 +88,10 @@ OmniRoute 使用 MIT License。产品思想、交互模式和通用架构可独�
 | 协议兼容 | Chat/Completions/Embeddings/Responses/Messages | 更系统的协议转换与一致性测试 | P1 加固 |
 | 多提供商/多 Key | 已有 provider 和 `api_keys` | 按凭据选择、冷却和恢复 | P0 |
 | 自动发现/实测 | 已有候选发现、模型探测和可选收录 | 探测结果参与路由 | P0 只读接入 |
-| fallback | 当前一次请求只选一个匹配 provider | 有序候选、账号 fallback | P0 |
-| 故障隔离 | 有探测快照，无请求路径断路器 | provider / credential / model 分层 | P0 |
-| 额度管理 | 仅展示上游错误，无统一状态 | Retry-After、重置时间、额度预检 | P1 |
-| 可观测性 | 状态页与探测延迟 | 路由原因、p50/p95、fallback 次数 | P0/P1 |
+| fallback | Chat / Responses / Messages 共用首字节前安全 fallback | 有序候选、账号 fallback | P0，已完成 |
+| 故障隔离 | Provider / credential / model 三层状态与原子恢复 | 分层冷却和恢复 | P0，已完成 |
+| 额度管理 | 限流头归一化、匿名槽额度与重置状态 | Retry-After、重置时间、额度预检 | P1，已完成 |
+| 可观测性 | 脱敏路由历史、SQLite 聚合、p50/p95 与 fallback | 路由原因与本机分析 | P0/P1，已完成 |
 | MCP | 默认 8 个 stdio tools，另有 2 个写工具需显式启用 | route explain、quota、health | P1，小规模扩展已完成 |
 | 安装与体检 | 已有 `sync`、`status`、`doctor` | 更完整的可恢复诊断 | P1 |
 | 本地优先 | 密钥保留在本机，Cloudflare 仅用专用 Secrets | 加密、管理面鉴权 | 保持边界并加固 |
@@ -315,7 +315,7 @@ HTTP-date 重置格式及 402/429 分类。运行时文件只保留归一化字�
 
 #### FR-P1-5 MCP 与诊断
 
-在现有 6 个 MCP tools 基础上最多增加 4 个只读工具：
+在原有 6 个 MCP tools 基础上增加 4 个只读工具；同时把 2 个写工具改为默认隐藏，因此默认目录为 8 个：
 
 - `explain_route`、`get_resilience`、`check_quota`、`get_metrics`。
 

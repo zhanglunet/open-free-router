@@ -47,7 +47,7 @@
         <small>文章目录</small>
         <a href="#problem">01 免费模型的真实难题</a>
         <a href="#what">02 自由港做了什么</a>
-        <a href="#features">03 五项核心服务</a>
+        <a href="#features">03 七项核心服务</a>
         <a href="#who">04 适合哪些人</a>
         <a href="#safety">05 为什么本地优先</a>
         <a href="#start">06 如何开始</a>
@@ -74,14 +74,16 @@
         </section>
 
         <section id="features">
-          <span class="chapter">03 · FIVE CORE SERVICES</span>
-          <h2>五项服务，让免费模型真正进入日常工作流。</h2>
+          <span class="chapter">03 · SEVEN CORE SERVICES</span>
+          <h2>七项服务，让免费模型真正进入日常工作流。</h2>
           <div class="feature-list">
             <article><i>01</i><div><h3>持续发现新的免费提供商</h3><p>模型雷达定时扫描公开目录，筛选明确零价格、公开 HTTPS 且尚未登记的候选。候选不会因为“看起来免费”就直接进入正式路由。</p></div></article>
             <article><i>02</i><div><h3>用真实请求验证可用性</h3><p>Live Status 会向真实上游发送最小请求，只记录成功状态、延迟和脱敏错误。你看到的“可用”，来自实际响应证据，而不是宣传页或静态标签。</p></div></article>
             <article><i>03</i><div><h3>中文比较模型与厂商</h3><p>公开模型雷达集中展示上下文窗口、最大输出、推理能力、工具调用、速度定位、厂商背景和 API Key 获取方法，帮助你根据任务选择，而不是只看模型名字。</p></div></article>
             <article><i>04</i><div><h3>一个端口接入九类客户端</h3><p>Codex、Claude Code、OpenCode、Kimi CLI、OpenClaw、WorkBuddy、Hermes、Pi 和 OMP 都能从同一注册表同步。Responses、Anthropic Messages、OpenAI 兼容接口与 MCP 通道同时可用。</p></div></article>
             <article><i>05</i><div><h3>本地控制台统一管理</h3><p>全中文仪表盘提供运行总览、提供商与模型筛选、真实实测、候选雷达、客户端一键同步和系统配置。最近实测结果在服务重启后仍可查看。</p></div></article>
+            <article><i>06</i><div><h3>可解释智能路由与安全降级</h3><p>虚拟模型按能力、健康、成功率、延迟、额度和免费证据选择候选。Provider、匿名 Key 槽与模型三层隔离，只在首字节前 fallback，流式开始后绝不重放。</p></div></article>
+            <article><i>07</i><div><h3>隐私优先的本机使用分析</h3><p>成功率、p50/p95、Fallback 挽回与 Token 统计只保存在本机；Prompt、响应正文、工具参数、API Key 和原始请求 ID 都不会进入数据库。</p></div></article>
           </div>
         </section>
 
@@ -114,7 +116,7 @@
           </ol>
           <div class="terminal-snippet"><span>$</span><code>curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex --auto-discovery</code></div>
           <div class="story-actions"><a class="button primary" href="/guide/">查看完整安装指南 <span>→</span></a><a class="button secondary" href="/models/">先比较免费模型</a></div>
-          <p class="fineprint">免费额度、账户资格与模型目录可能随提供商政策变化；重要生产任务仍应准备稳定付费通道与降级方案。</p>
+          <p class="fineprint">当前维护仓库为私有仓库，源码安装前需要 GitHub 仓库读取权限。免费额度、账户资格与模型目录可能随提供商政策变化；重要生产任务仍应准备稳定付费通道与降级方案。</p>
         </section>
 
         <section id="share" class="share-section">

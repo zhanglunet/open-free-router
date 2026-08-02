@@ -1,8 +1,8 @@
 # open-free-router 多客户端适配 · MCP 接口 · 架构网页 PRD
 
-Status: P0 implemented and verified
+Status: implemented, verified and extended through v0.3.0
 Owner: open-free-router
-Last updated: 2026-08-01
+Last updated: 2026-08-02
 
 （中文为主文档；术语与配置片段保留英文原文。）
 
@@ -35,7 +35,8 @@ open-free-router 已支持 OpenAI Chat Completions 代理、Codex Responses API
 
 一次 `open-free-router sync`，让 9 个客户端（Pi、OMP、OpenCode、Hermes、
 Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部免费
-模型；MCP 宿主可通过标准协议查询模型、发起推理、触发刷新与同步；网站
+模型；MCP 宿主默认可通过标准协议查询模型、发起推理和读取脱敏诊断；刷新与同步
+必须由所有者显式启用；网站
 完整呈现系统架构、API Key 获取指引、实时可用性与全球分布。
 
 ## 3. P0 范围（已实现）
@@ -86,15 +87,18 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
 
 12. 新增 `open-free-router mcp`：stdio 传输、按行分隔 JSON-RPC 2.0、
     协议版本协商（2024-11-05 / 2025-03-26 / 2025-06-18）、零第三方依赖。
-13. MCP tools：`list_models`（provider / tool_calling 过滤）、
+13. MCP 默认 tools：`list_models`（provider / tool_calling 过滤）、
     `list_providers`（含 has_key，永不含 key 值）、`get_status`
     （代理/仪表盘可达性）、`chat`（经本地代理发起真实推理）、
-    `refresh_models`、`sync_clients`。
+    `explain_route`、`get_resilience`、`check_quota`、`get_metrics`。写工具
+    `refresh_models`、`sync_clients` 仅在 `mcp.allow_write_tools: true` 时暴露，
+    启用后共 10 个工具。
 14. `open-free-router mcp --print-config` 输出 Claude Code
     `claude mcp add` 命令与 `mcpServers` JSON 片段。
 15. 新增 CLI：`status [--json]`（健康摘要）、`models [--json]`
     （模型清单）、`doctor [--json]`（配置/注册表/密钥/端口/九客户端与路由配置体检，
-    输出精确 YAML 路径和修复建议，发现严重问题退出码非 0）；SIGPIPE 优雅退出。
+    输出精确 YAML 路径和修复建议，发现严重问题退出码非 0）、`route explain`、
+    `resilience` / `reset`、`metrics` / `export`、`protocols`；SIGPIPE 优雅退出。
 
 ### 3.4 实时可用性检测
 
@@ -133,8 +137,8 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
   WorkBuddy 桌面协作等）。
 - 图像/文件多模态输入透传（上游为纯文本 Chat Completions；
   Messages 层收到 `image`/`document` block 时返回明确 400 错误）。
-- 公开站点直接实测上游可用性（站点无密钥；实时数据来自本地实例
-  探测快照，页面如实标注时间戳）。
+- 公开站点访问用户本机状态（公开状态改由 Cloudflare Cron 使用专用 Secrets
+  从服务器端分批实测并写入 KV；不会读取用户本机注册表或密钥）。
 - 保证第三方客户端配置格式永不变化；适配器路径常量集中于
   `sync.py` 顶部，格式变化时单点更新。
 

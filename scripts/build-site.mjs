@@ -49,7 +49,8 @@ if (!modelsJs.includes("function html(value)") || !modelsJs.includes("&lt;")) {
 for (const marker of [
   "Codex CLI", "Codex 客户端", "一键安装", "/v1/responses", "discover --test --adopt",
   "Claude Code", "Kimi CLI", "OpenClaw", "WorkBuddy", "/v1/messages",
-  "MCP", "sync --agent claude", "如何获取 API Key",
+  "MCP", "sync --agent claude", "如何获取 API Key", "protocols [--json]",
+  "默认 8 个工具", "当前需要仓库读取权限",
 ]) {
   if (!guideHtml.includes(marker)) {
     throw new Error(`Generated guide is missing required content: ${marker}`);
@@ -58,7 +59,10 @@ for (const marker of [
 if (!modelsJs.includes("key_url") || !modelsJs.includes("key_steps_zh")) {
   throw new Error("Model radar must render provider API-key guidance");
 }
-for (const marker of ["系统架构", "8337", "Claude Code", "/v1/messages", "MCP", "registry.yaml"]) {
+for (const marker of [
+  "系统架构", "8337", "Claude Code", "/v1/messages", "MCP", "registry.yaml",
+  "三层故障隔离", "首字节前安全 fallback", "usage.db", "二十四个功能模块",
+]) {
   if (!architectureHtml.includes(marker)) {
     throw new Error(`Generated architecture page is missing required content: ${marker}`);
   }

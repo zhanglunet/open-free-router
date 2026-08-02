@@ -1,9 +1,27 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T07:42:53.000Z",
+  "updated_at": "2026-08-02T14:05:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-v030-文档与架构收口",
+      "date": "2026-08-02",
+      "type": "improvement",
+      "version": "v0.3.0",
+      "title": "v0.3.0 文档与系统架构全面收口",
+      "summary": "README、详细技术文档与官网同步反映智能路由、三层韧性、额度、指标、协议矩阵和 MCP 最小权限边界。",
+      "items": [
+        "新增组件图、请求时序、进程拓扑、本地文件权限与 Cloudflare 公开站边界",
+        "官网架构页补齐虚拟模型、六因子评分、首字节前 Fallback 和本机使用分析",
+        "安装指南更新 16 个顶层 CLI 命令、运行时 API 与默认 8 个 MCP 工具",
+        "明确 55 个登记模型不等同全部在线可用，并说明私有维护仓库的安装权限要求"
+      ],
+      "links": [
+        {"label": "查看系统架构", "href": "/architecture/"},
+        {"label": "查看安装指南", "href": "/guide/"}
+      ]
+    },
     {
       "id": "2026-08-02-p1-协议兼容矩阵",
       "date": "2026-08-02",

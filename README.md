@@ -9,7 +9,11 @@
 > 继续开发，遵循 MIT License。当前版本由 `zhanglunet` 独立维护，新增
 > Codex Responses API、Anthropic Messages API（Claude Code）、九客户端
 > 同步、MCP 服务器、实时可用性探测、安全鉴权、第三方模型目录、
-> Gemini 工具调用兼容、扩展测试与项目文档网站。详见 [`NOTICE.md`](NOTICE.md)。
+> Gemini 工具调用兼容、虚拟模型与首字节前安全 fallback、三层故障隔离、
+> 可解释智能评分、本机使用分析、协议兼容矩阵、扩展测试与项目文档网站。
+> 详见 [`NOTICE.md`](NOTICE.md)。
+
+**当前稳定版：v0.3.0** · Python 3.11+ · MIT · 275 个 Python 测试 + 10 个网站测试
 
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
@@ -19,7 +23,7 @@ less /tmp/open-free-router-install.sh
 bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
-追踪 11 个 LLM 提供商的免费模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 路由到对应上游，自动刷新模型列表。一次配置，**9 个客户端**共享模型：Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy、Pi、OMP；另有内置 MCP 服务器供任意 MCP 宿主调用。
+追踪 11 个 LLM 提供商的 55 个登记模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 或虚拟模型智能路由到可尝试上游，并自动刷新模型列表。一次配置，**9 个客户端**共享模型：Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy、Pi、OMP；另有内置 MCP 服务器供任意 MCP 宿主调用。
 
 ## 网站预览
 
@@ -59,9 +63,13 @@ bash /tmp/open-free-router-install.sh --codex --auto-discovery
 
 ## 安装
 
+> **仓库访问说明：** 当前维护仓库为私有仓库。一键脚本会克隆该仓库，执行前需先为 Git 配置仓库读取权限（例如 `gh auth login`）；没有读取权限的用户暂时无法完成源码安装。脚本与网站公开不代表源码仓库已公开。
+
 **方式一：一键安装（推荐）**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
+curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
+less /tmp/open-free-router-install.sh
+bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
 安装后打开 systemd 开机自启：
@@ -152,6 +160,9 @@ discovery:
 analytics:
   retention_days: 30    # 仅保存最小化本机元数据；设为 0 完全关闭并不创建数据库
 
+mcp:
+  allow_write_tools: false  # 默认只暴露 8 个查询、推理与只读诊断工具
+
 routing:
   aliases:
     auto/coding:
@@ -177,8 +188,8 @@ routing:
       free_evidence: 0.10
 ```
 
-内置虚拟模型为 `auto`、`auto/coding`、`auto/fast`、`auto/free`。当前开发
-版本已完成确定性候选计划，以及 Chat、Responses、Messages 共用的首字节前
+内置虚拟模型为 `auto`、`auto/coding`、`auto/fast`、`auto/free`。v0.3.0
+已完成确定性候选计划，以及 Chat、Responses、Messages 共用的首字节前
 安全 fallback：虚拟模型可在 Key 失效、429、模型下线或上游 5xx 时切换候选；
 显式模型默认不静默换模。流式响应一旦向客户端发送响应头/事件便不再重放。
 可先运行 `open-free-router route explain auto/coding --json` 检查候选，不会
@@ -245,16 +256,26 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 
 ## 架构
 
+完整组件图、请求时序、进程拓扑、文件权限和 Cloudflare 公开站边界见
+[`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)。
+
 | 模块 | 职责 |
 |---|---|
 | `proxy.py` | 单端口代理(8337)，按模型 ID 路由到对应 upstream；支持 Chat Completions、Codex Responses API 与 Anthropic Messages API |
+| `routing.py` | 虚拟模型、能力过滤与确定性候选计划 |
+| `scoring.py` | 健康、成功率、延迟、额度、能力与免费证据的可解释评分 |
+| `executor.py` | 多凭据执行、首字节前 fallback 与上游错误分类 |
+| `resilience.py` | Provider / 匿名 Key 槽 / Model 三层故障隔离与原子恢复 |
 | `responses.py` | Responses ↔ Chat Completions 消息、function tool 与 SSE 事件转换 |
 | `anthropic.py` | Messages ↔ Chat Completions 转换（Claude Code）：content blocks、tool_use/tool_result、类型化 SSE 事件流 |
 | `probe.py` | 实时可用性探测：每模型一次真实 1-token 请求，输出延迟与状态快照 |
 | `quota.py` | 额度与限流响应头归一化：请求/Token 余量、重置时间和安全分类 |
+| `telemetry.py` | 有界脱敏路由决策历史，不记录 Prompt、响应或原始请求 ID |
 | `analytics.py` | 本机 SQLite 最小化统计、保留清理、聚合与安全 JSON/CSV 导出 |
+| `evidence.py` | 免费额度证据、继承、有效期和待复核状态 |
 | `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，默认 8 个工具，写工具需显式启用） |
 | `protocol_matrix.py` | 生成 11 个提供商 × 3 个客户端协议的声明能力矩阵与配置诊断 |
+| `discovery.py` / `public_catalog.py` | 候选发现、可信接入与公开目录脱敏导出 |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |
 | `refresh.py` | 轮询提供商 API 获取免费模型变化，支持 pluggable sources |
@@ -276,6 +297,8 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 
 ## API 端点
 
+以下运行时接口由本地代理提供，除健康检查和模型目录外均按各自用途执行本地鉴权：
+
 | 路径 | 方法 | 说明 |
 |---|---|---|
 | `/v1/models` | GET | 获取所有免费模型列表（Codex / Claude Code 启动时自动发现） |
@@ -284,6 +307,16 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 | `/v1/messages` | POST | Claude Code 使用的 Anthropic Messages 兼容端点，支持 SSE 与 tool_use |
 | `/v1/messages/count_tokens` | POST | 输入 token 数本地估算 |
 | `/v1/completions` · `/v1/embeddings` | POST | 传统补全 / 向量接口透传 |
+| `/api/resilience` | GET | Provider / 匿名 Key 槽 / Model 三层保护状态 |
+| `/api/resilience/reset` | POST | 精确重置运行时保护状态 |
+| `/api/routes` · `/api/routes/{id}` | GET | 有界脱敏路由决策摘要 / 单次详情 |
+| `/api/metrics` | GET | 本机聚合成功率、延迟、fallback 与 Token 统计 |
+| `/api/metrics/export` | GET | 字段白名单保护的 JSON / CSV 导出 |
+
+以下接口由本地仪表盘 `127.0.0.1:9057` 提供：
+
+| 路径 | 方法 | 说明 |
+|---|---|---|
 | `/api/status` | GET | 仪表盘状态 |
 | `/api/providers` | GET / POST | Provider 列表 / 增删改 |
 | `/api/models` | GET | 按 provider 分组的模型详情 |
@@ -351,7 +384,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖（216 例）：registry/config、刷新源、九客户端同步（含
+当前测试覆盖 **275 个 Python 用例 + 10 个网站用例**：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
 MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、

@@ -8,17 +8,21 @@
 > This version adds the Codex Responses API bridge, the Anthropic Messages
 > API bridge (Claude Code), nine-client config sync, a built-in MCP server,
 > live availability probing, secure proxy auth, a third-party model catalog,
-> Gemini tool-call compatibility, expanded tests, and the project
+> virtual models, safe pre-first-byte fallback, three-level failure isolation,
+> explainable scoring, local analytics, a protocol matrix, expanded tests, and the project
 > documentation site. See [`NOTICE.md`](NOTICE.md).
+
+**Current stable release: v0.3.0** · Python 3.11+ · MIT · 275 Python tests + 10 web tests
 
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
-open-free-router serve
+curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
+less /tmp/open-free-router-install.sh
+bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
-Tracks free models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy routing by model ID to the correct upstream, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
+Tracks 55 registered models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy that routes explicit or virtual model IDs to eligible upstreams, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
 
 ## Website preview
 
@@ -56,9 +60,13 @@ Every client receives only the **local proxy token** — upstream API keys never
 
 ## Install
 
+> **Repository access:** the maintained repository is currently private. The installer clones it, so configure GitHub read access first (for example with `gh auth login`). Publishing the installer and website does not make the source repository public.
+
 **Option 1: One-liner (recommended)**
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/zhanglunet/open-free-router/main/scripts/install.sh)
+curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
+less /tmp/open-free-router-install.sh
+bash /tmp/open-free-router-install.sh --codex --auto-discovery
 ```
 
 Install with systemd auto-start:
@@ -87,7 +95,13 @@ pip install -e .
 | `open-free-router mcp [--print-config]` | Built-in MCP stdio server; print host registration snippets |
 | `open-free-router status [--json]` | One-shot health summary |
 | `open-free-router models [--json]` | List registry models with capability flags |
-| `open-free-router doctor` | Diagnose install: config, keys, ports, 9 client config files |
+| `open-free-router route explain MODEL [--json]` | Explain virtual/explicit model candidates without inference |
+| `open-free-router resilience [--json]` | Inspect provider / anonymous key-slot / model runtime protection |
+| `open-free-router resilience reset --provider NAME [--model ID]` | Precisely reset runtime protection state |
+| `open-free-router metrics [--days 30] [--json]` | Local success rate, p50/p95, fallback, and token analytics |
+| `open-free-router metrics --export json\|csv` | Export allowlisted, redacted local analytics |
+| `open-free-router protocols [--json]` | Provider × Chat/Responses/Messages declared capability matrix |
+| `open-free-router doctor [--json]` | Diagnose config, keys, ports, clients, routing, and evidence with repair paths |
 | `open-free-router token` | Print the local inference proxy token for command auth |
 | `open-free-router ui` | Web dashboard standalone (debug) |
 
@@ -125,6 +139,20 @@ ui:
   port: 9057
 
 refresh_interval_hours: 12
+
+analytics:
+  retention_days: 30
+
+mcp:
+  allow_write_tools: false
+
+routing:
+  fallback:
+    enabled: true
+    max_attempts: 3
+    explicit_model: false
+  scoring:
+    enabled: false
 ```
 
 First `serve` auto-creates config + registry from defaults — no manual setup needed.
@@ -138,13 +166,20 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 
 ## Architecture
 
+See [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for component and sequence diagrams, process topology, file permissions, request boundaries, and the separation between the local runtime and the Cloudflare public site.
+
 | Module | Purpose |
 |---|---|
 | `proxy.py` | Single-port proxy(8337), model-ID routing, Chat Completions, Codex Responses API, and Anthropic Messages API |
+| `routing.py` / `scoring.py` | Virtual models, capability filtering, deterministic plans, and explainable six-factor scoring |
+| `executor.py` / `resilience.py` | Multi-key execution, pre-first-byte fallback, and provider/key/model isolation |
+| `quota.py` / `telemetry.py` | Rate-limit normalization and bounded redacted route decisions |
+| `analytics.py` / `evidence.py` | Owner-only SQLite aggregates and expiring free-tier evidence |
 | `responses.py` | Responses ↔ Chat messages, function tools, and SSE event conversion |
 | `anthropic.py` | Messages ↔ Chat conversion (Claude Code): content blocks, tool_use/tool_result, typed SSE events |
 | `probe.py` | Live availability probing: one real 1-token request per model |
-| `mcp_server.py` | MCP stdio server (line-delimited JSON-RPC 2.0, 6 tools) |
+| `mcp_server.py` | MCP stdio server (8 tools by default; 10 when write tools are explicitly enabled) |
+| `protocol_matrix.py` | Declared capability diagnostics for 11 providers × 3 client protocols |
 | `serve.py` | Daemon: proxy + UI + scheduler + auto-write Pi models.json |
 | `ui.py` | Web dashboard(9057): status, provider CRUD, model refresh, live config editor |
 | `refresh.py` | Poll provider APIs for free model changes. Pluggable sources |
@@ -172,6 +207,15 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 | `/v1/responses` | POST | Codex Responses-compatible endpoint with SSE and function tools |
 | `/v1/messages` | POST | Anthropic Messages-compatible endpoint (Claude Code) with SSE and tool_use |
 | `/v1/messages/count_tokens` | POST | Local input-token estimate |
+| `/v1/completions` · `/v1/embeddings` | POST | Legacy completions / embeddings passthrough |
+| `/api/resilience` · `/api/resilience/reset` | GET / POST | Redacted three-level protection status / precise reset |
+| `/api/routes` · `/api/routes/{id}` | GET | Bounded redacted route history / detail |
+| `/api/metrics` · `/api/metrics/export` | GET | Local aggregates / safe JSON or CSV export |
+
+The dashboard on `127.0.0.1:9057` separately exposes:
+
+| Path | Method | Description |
+|---|---|---|
 | `/api/status` | GET | Dashboard status |
 | `/api/providers` | GET / POST | Provider list / CRUD |
 | `/api/models` | GET | Model details grouped by provider |
@@ -186,7 +230,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-144 tests covering registry/config, refresh sources, nine-client sync (incl. Claude/Kimi/OpenClaw/WorkBuddy adapters), proxy authentication (Bearer + x-api-key), Responses and Messages conversion, streaming, live probing, MCP handshake/tools, and Codex profiles.
+275 Python tests plus 10 web tests cover registry/config, refresh sources, nine-client sync, proxy authentication, all three client protocols, streaming/tool behavior, virtual routing, safe fallback, three-level resilience, quota, explainable scoring, analytics/export guards, MCP permissions, protocol diagnostics, live probing, and the Cloudflare catalog/status site.
 
 ## Claude Code integration
 
@@ -204,11 +248,11 @@ claude mcp add --scope user open-free-router -- open-free-router mcp
 open-free-router mcp --print-config
 ```
 
-Six tools over stdio JSON-RPC: `list_models`, `list_providers`, `get_status`, `chat`, `refresh_models`, `sync_clients`.
+Eight tools are exposed by default over stdio JSON-RPC: `list_models`, `list_providers`, `get_status`, `chat`, `explain_route`, `get_resilience`, `check_quota`, and `get_metrics`. Set `mcp.allow_write_tools: true` to additionally expose `refresh_models` and `sync_clients` (10 total).
 
 ## Live availability
 
-The dashboard's **Live Status** tab fires one real 1-token request per model and shows status, latency, and failure reasons. Aggregated snapshots drive the public [status page](https://oaf.asia/status/) (auto-refreshing every 60 s). Per-provider **API-key acquisition steps** live on each provider card of the [model radar](https://oaf.asia/models/#providers).
+The dashboard's **Live Status** tab fires one real 1-token request per model using your local keys and network. The public [status page](https://oaf.asia/status/) is fully separate: Cloudflare Cron probes a rotating server-side batch every 15 minutes using dedicated Secrets and stores the snapshot in KV. It never reads your machine. Per-provider **API-key acquisition steps** live on each provider card of the [model radar](https://oaf.asia/models/#providers).
 
 ## Codex integration
 
