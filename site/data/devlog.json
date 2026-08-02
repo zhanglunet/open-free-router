@@ -1,9 +1,27 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T22:45:00.000Z",
+  "updated_at": "2026-08-02T21:59:50.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-03-站点地图与提供商扩容雷达",
+      "date": "2026-08-03",
+      "type": "improvement",
+      "version": "v0.3.0",
+      "title": "首页导航、站点地图与提供商扩容雷达",
+      "summary": "把 npm 教程与站点地图加入首页主导航，公开全部页面关系，并按最新官方资料更新工具规模和提供商扩容路线。",
+      "items": [
+        "新增覆盖 13 个公开页面的站点地图、四类信息架构和三条推荐访问路径",
+        "首页桌面与移动导航增加 npm 安装和站点地图入口",
+        "OmniRoute 规模同时展示 README 当前自述与自动生成 Provider Reference 口径",
+        "新增 14 个扩容候选及统一准入门槛，候选不计入当前 11 家已接入规模"
+      ],
+      "links": [
+        {"label": "查看站点地图", "href": "/sitemap/"},
+        {"label": "查看提供商扩容雷达", "href": "/compare/#provider-expansion"}
+      ]
+    },
     {
       "id": "2026-08-02-npm教程与评测证据修复",
       "date": "2026-08-02",

@@ -49,6 +49,9 @@
 
 ## 4. 后续 P1
 
+- 提供商扩容按公开免费证据、协议兼容、凭据隔离、真实文本请求和错误语义五道门槛逐家准入；候选不计入已支持规模。
+- 第一批直接 API 候选：Cerebras、SiliconFlow、Together AI、Fireworks AI、SambaNova、DeepInfra；第二批评估 Cloudflare Workers AI、Hugging Face Inference、Pollinations、Puter。
+- 本地模型（Ollama、LM Studio、vLLM）与 OAuth 账号连接单列能力域，不把本地运行或网页会话包装成“云端免费提供商”。
 - 获得并配置 Cloudflare 专用评测 API Secret，按供应方限额定时刷新外部快照。
 - 增加模型版本/推理档位人工复核队列，显示 exact / family / unreviewed 匹配置信度。
 - 增加用户自定义任务集的本地评测命令，默认不上传 Prompt 或答案。

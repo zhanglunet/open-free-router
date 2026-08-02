@@ -10,9 +10,11 @@ if (header) {
     ["系统架构", "/architecture/"],
     ["全球分布", "/map/"],
     ["安装指南", "/guide/"],
+    ["npm 安装", "/guide/npm/"],
     ["推荐文章", "/stories/free-model-port/"],
     ["开发日志", "/logs/"],
     ["品牌页面", "/brand/"],
+    ["站点地图", "/sitemap/"],
   ];
   const currentPath = window.location.pathname.replace(/\/index\.html$/, "/");
   const pageLinks = [...header.querySelectorAll(":scope > nav a")]
