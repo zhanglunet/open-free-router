@@ -4,6 +4,15 @@
 
 ### Added
 
+- P1 privacy-minimized SQLite analytics with owner-only files, configurable
+  30-day retention (`0` disables storage), safe upserts and inference-isolated
+  database failures.
+- Buffered and streaming Chat/Responses/Messages usage now feeds provider/model
+  success rate, p50/p95 latency, fallback recovery, circuit-block, Token coverage
+  and explicitly estimated free-quota metrics.
+- Authenticated metrics/JSON/CSV APIs, a `metrics` CLI and Chinese dashboard
+  expose allowlisted aggregates; exports reject secret-like values and CSV
+  formulas, and exclude raw request IDs, prompts, responses and tool arguments.
 - Optional P1 explainable scoring for virtual routes with normalized health,
   recent success, p95 latency, quota, capability and free-evidence factors.
 - `route explain --json`, redacted route history and the Chinese dashboard now

@@ -411,9 +411,30 @@ function runtimeRow(name, kind, item) {
   return `<div class="runtime-row"><div><strong>${esc(name)}</strong><span>${esc(detail)}</span></div><div class="runtime-actions"><span class="status-chip ${bad ? 'bad' : 'ok'}">${runtimeStateLabel(kind, item)}</span>${bad ? `<button class="text-button resilience-reset" data-provider="${esc(provider)}" data-model="${esc(model)}">重置</button>` : ''}</div></div>`;
 }
 
+function renderAnalytics(metrics) {
+  if (!metrics?.enabled) {
+    byId('analytics-summary').innerHTML = metric('本地分析', '已关闭', 'analytics.retention_days: 0');
+    byId('analytics-list').innerHTML = '<div class="empty">本地使用分析已关闭，不会创建 SQLite 数据库。</div>';
+    return;
+  }
+  const overall = metrics.overall || {};
+  byId('analytics-summary').innerHTML = [
+    metric('请求数', formatNumber(overall.requests), `${metrics.period_days || 30} 天本机观测`),
+    metric('成功率', `${formatNumber(Number(overall.success_rate || 0) * 100)}%`, `${formatNumber(overall.successes)} 次成功`, 'accent'),
+    metric('Fallback 率', `${formatNumber(Number(overall.fallback_rate || 0) * 100)}%`, `挽回 ${formatNumber(overall.saved_failed_requests)} 次前序失败`),
+    metric('p95 总耗时', overall.total_p95_ms == null ? '未知' : `${formatNumber(overall.total_p95_ms)} ms`, `首字节 p95 ${overall.ttfb_p95_ms == null ? '未知' : `${formatNumber(overall.ttfb_p95_ms)} ms`}`),
+    metric('Token 用量', formatNumber(Number(overall.input_tokens || 0) + Number(overall.output_tokens || 0)), `输入 ${formatNumber(overall.input_tokens)} / 输出 ${formatNumber(overall.output_tokens)}`),
+    metric('Token 覆盖率', `${formatNumber(Number(overall.token_coverage_rate || 0) * 100)}%`, '仅统计上游返回 usage 的请求'),
+  ].join('');
+  const groups = (metrics.groups || []).map((group) => `<div class="runtime-row"><div><strong>${esc(group.provider || '未选中')} / ${esc(group.model || '—')}</strong><span>${formatNumber(group.requests)} 次 · 成功率 ${formatNumber(Number(group.success_rate || 0) * 100)}% · Fallback ${formatNumber(Number(group.fallback_rate || 0) * 100)}%</span></div><div class="route-result"><span>p50 ${group.total_p50_ms == null ? '未知' : `${formatNumber(group.total_p50_ms)} ms`}</span><span>p95 ${group.total_p95_ms == null ? '未知' : `${formatNumber(group.total_p95_ms)} ms`}</span><span>Token ${formatNumber(Number(group.input_tokens || 0) + Number(group.output_tokens || 0))}</span></div></div>`);
+  const estimates = (metrics.quota_estimates || []).map((item) => `<div class="runtime-row"><div><strong>额度估算 · ${esc(item.model)}</strong><span>本机观测 ${formatNumber(item.observed_usage)} / 官方证据限额 ${formatNumber(item.limit)} ${esc(item.unit || '')}</span></div><div class="route-result"><span class="status-chip warn">估算</span><span>${item.estimated_ratio == null ? '比例未知' : `${formatNumber(Number(item.estimated_ratio) * 100)}%`} · ${formatNumber(item.period_days)} 天窗口</span></div></div>`);
+  byId('analytics-list').innerHTML = [...groups, ...estimates].join('') || '<div class="empty">尚无本机请求记录。</div>';
+}
+
 function renderRouting(data) {
   const resilience = data.resilience || {};
   const routes = data.routes || {};
+  renderAnalytics(data.metrics || {});
   const providers = Object.entries(resilience.providers || {});
   const credentials = Object.entries(resilience.credentials || {});
   const models = Object.entries(resilience.models || {});

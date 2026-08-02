@@ -110,6 +110,15 @@ class UpstreamExecutor:
         if not self.decisions:
             return
         target = result.target if isinstance(result, OpenedRoute) else result.last_target
+        if isinstance(result, RouteFailure):
+            error_kind = (
+                "route_unavailable" if result.attempts == 0
+                else classify_failure(
+                    result.status, result.body.decode("utf-8", errors="replace")
+                ).kind
+            )
+        else:
+            error_kind = ""
         self.decisions.record(
             request_id=result.request_id,
             requested_model=requested_model,
@@ -125,6 +134,7 @@ class UpstreamExecutor:
                               if isinstance(result, RouteFailure) else None),
             scores=scores,
             attempt_results=attempt_results,
+            error_kind=error_kind,
         )
 
     @staticmethod

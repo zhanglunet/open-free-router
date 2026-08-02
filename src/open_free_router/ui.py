@@ -123,10 +123,11 @@ class _UIHandler(BaseHTTPRequestHandler):
         try:
             resilience = self._proxy_request("/api/resilience")
             routes = self._proxy_request("/api/routes")
+            metrics = self._proxy_request("/api/metrics?days=30")
         except (OSError, ValueError, urllib.error.URLError, RuntimeError) as exc:
             self._send_json(503, {"error": f"本地代理运行状态不可读取：{exc.__class__.__name__}"})
             return
-        self._send_json(200, {"resilience": resilience, "routes": routes})
+        self._send_json(200, {"resilience": resilience, "routes": routes, "metrics": metrics})
 
     def _api_routing_reset(self):
         length = int(self.headers.get("Content-Length", 0))

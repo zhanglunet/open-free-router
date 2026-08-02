@@ -24,6 +24,7 @@ from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecuto
 from open_free_router.resilience import ResilienceManager
 from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.auth import check_auth
+from open_free_router.analytics import AnalyticsStore, ExportSecurityError
 from open_free_router.anthropic import (
     AnthropicConversionError,
     AnthropicStreamAdapter,
@@ -93,6 +94,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     route_planner: ClassVar[RoutePlanner | None] = None
     resilience_manager: ClassVar[ResilienceManager] = ResilienceManager()
     decision_store: ClassVar[RouteDecisionStore] = RouteDecisionStore()
+    analytics_store: ClassVar[AnalyticsStore | None] = None
 
     def handle(self):
         """Ignore normal client disconnects without hiding server failures."""
@@ -158,6 +160,58 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _send_content(self, code: int, content: str, content_type: str,
+                      filename: str | None = None):
+        body = content.encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(body)))
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def _record_usage(self, opened: OpenedRoute, usage: dict | None) -> None:
+        self.decision_store.set_usage(opened.request_id, usage)
+
+    def _quota_estimates(self, days: int) -> list[dict]:
+        """Compare local observations with verified registry claims; never call billing APIs."""
+        if not self.analytics_store or not self.registry:
+            return []
+        windows = {"daily": 1, "weekly": 7, "monthly": 30}
+        summaries = {}
+        estimates = []
+        for provider_name, provider in self.registry.providers.items():
+            for model in provider.models:
+                evidence = provider.free_tier_for(model)
+                if evidence.status() != "verified" or evidence.limit is None:
+                    continue
+                period_days = windows.get(evidence.reset_period.lower(), max(1, days))
+                if period_days not in summaries:
+                    summary = self.analytics_store.summary(period_days)
+                    summaries[period_days] = {
+                        (row["provider"], row["model"]): row for row in summary.get("groups", [])
+                    }
+                canonical = f"{provider.model_prefix}/{model.id}"
+                observed = summaries[period_days].get((provider_name, canonical), {})
+                token_unit = "token" in evidence.unit.lower()
+                used = (
+                    int(observed.get("input_tokens", 0)) + int(observed.get("output_tokens", 0))
+                    if token_unit else int(observed.get("requests", 0))
+                )
+                estimates.append({
+                    "provider": provider_name,
+                    "model": canonical,
+                    "limit": evidence.limit,
+                    "unit": evidence.unit,
+                    "reset_period": evidence.reset_period,
+                    "period_days": period_days,
+                    "observed_usage": used,
+                    "estimated_ratio": round(used / evidence.limit, 6) if evidence.limit > 0 else None,
+                    "estimated": True,
+                })
+        return estimates
+
     @staticmethod
     def _route_headers(result: OpenedRoute | RouteFailure) -> dict[str, str]:
         headers = {
@@ -212,11 +266,16 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         try:
             try:
                 body = opened.response.read()
+                parsed = None
+                if transform or "json" in opened.response.getheader("Content-Type", "").lower():
+                    parsed = json.loads(body)
+                    self._record_usage(opened, parsed.get("usage"))
                 if transform:
-                    body = json.dumps(transform(json.loads(body))).encode()
+                    body = json.dumps(transform(parsed)).encode()
                 elif normalize_reasoning and "json" in opened.response.getheader("Content-Type", "").lower():
                     body = _normalise_reasoning_content(body)
             except Exception as exc:
+                self.decision_store.mark_failure(opened.request_id, 502, "invalid_upstream_response")
                 message = f"Invalid upstream response: {exc}"
                 self._send_json(
                     502,
@@ -240,8 +299,10 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             opened.close()
 
     def do_GET(self):
-        from urllib.parse import urlparse
-        path = urlparse(self.path).path
+        from urllib.parse import parse_qs, urlparse
+        parsed_url = urlparse(self.path)
+        path = parsed_url.path
+        query = parse_qs(parsed_url.query)
         if path == "/api/resilience":
             if not self.auth_token or not check_auth(self.headers, self.auth_token):
                 self._send_json(401, {"error": "unauthorized"})
@@ -253,6 +314,33 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 self._send_json(401, {"error": "unauthorized"})
                 return
             self._send_json(200, self.decision_store.snapshot())
+            return
+        if path in ("/api/metrics", "/api/metrics/export"):
+            if not self.auth_token or not check_auth(self.headers, self.auth_token):
+                self._send_json(401, {"error": "unauthorized"})
+                return
+            if not self.analytics_store:
+                self._send_json(200, {"enabled": False, "retention_days": 0})
+                return
+            try:
+                days = int((query.get("days") or [30])[0])
+            except (TypeError, ValueError):
+                days = 30
+            if path == "/api/metrics":
+                summary = self.analytics_store.summary(days)
+                summary["quota_estimates"] = self._quota_estimates(days)
+                self._send_json(200, summary)
+                return
+            format_name = str((query.get("format") or ["json"])[0]).lower()
+            try:
+                content, content_type = self.analytics_store.export(format_name, days)
+            except (ValueError, ExportSecurityError) as exc:
+                self._send_json(400, {"error": str(exc)})
+                return
+            self._send_content(
+                200, content, content_type,
+                f"open-free-router-usage.{format_name}",
+            )
             return
         if path.startswith("/api/routes/"):
             if not self.auth_token or not check_auth(self.headers, self.auth_token):
@@ -537,6 +625,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
 
     def _relay_responses_streaming(self, opened: OpenedRoute, requested_model: str):
         started = False
+        adapter = None
         try:
             self.send_response(opened.response.status)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -573,6 +662,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             if started:
                 print(f"  ⚠ Responses stream ended early: {exc}", file=sys.stderr)
         finally:
+            if adapter is not None:
+                self._record_usage(opened, adapter.usage)
             opened.close()
 
     def _handle_count_tokens(self, body: str):
@@ -619,6 +710,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     def _relay_messages_streaming(self, opened: OpenedRoute, requested_model: str):
         """Translate an accepted Chat SSE response to Anthropic Messages SSE."""
         started = False
+        adapter = None
         try:
             self.send_response(opened.response.status)
             self.send_header("Content-Type", "text/event-stream; charset=utf-8")
@@ -652,6 +744,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             if started:
                 print(f"  ⚠ Messages stream ended early: {exc}", file=sys.stderr)
         finally:
+            if adapter is not None:
+                self._record_usage(opened, adapter.usage)
             opened.close()
 
     def _relay_openai_stream(self, opened: OpenedRoute):
@@ -663,6 +757,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
         """
         response = opened.response
         started = False
+        usage = None
         try:
             self.send_response(response.status)
             self.send_header(
@@ -678,6 +773,13 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                 line = response.readline()
                 if not line:
                     break
+                if line.startswith(b"data:"):
+                    try:
+                        chunk = json.loads(line[5:].strip())
+                        if isinstance(chunk.get("usage"), dict):
+                            usage = chunk["usage"]
+                    except (json.JSONDecodeError, UnicodeDecodeError, AttributeError):
+                        pass
                 self.wfile.write(f"{len(line):x}\r\n".encode("ascii"))
                 self.wfile.write(line)
                 self.wfile.write(b"\r\n")
@@ -690,6 +792,7 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             if started:
                 print(f"  ⚠ Upstream stream ended early: {exc}", file=sys.stderr)
         finally:
+            self._record_usage(opened, usage)
             opened.close()
 
     def log_message(self, format, *args):
@@ -705,14 +808,19 @@ def run_proxy(
     routing: RoutingConfig | dict | None = None,
     resilience: ResilienceManager | None = None,
     decisions: RouteDecisionStore | None = None,
+    analytics: AnalyticsStore | None = None,
 ):
+    decision_store = decisions or RouteDecisionStore(analytics=analytics)
+    if analytics is not None:
+        decision_store.analytics = analytics
     handler = type("Handler", (_ProxyHandler,), {
         "registry": registry,
         "_upstream_timeout": upstream_timeout,
         "auth_token": auth_token,
         "routing_config": routing if isinstance(routing, RoutingConfig) else RoutingConfig.from_dict(routing),
         "resilience_manager": resilience or ResilienceManager(),
-        "decision_store": decisions or RouteDecisionStore(),
+        "decision_store": decision_store,
+        "analytics_store": analytics,
     })
     handler.rebuild_index()
     with _ACTIVE_HANDLERS_LOCK:

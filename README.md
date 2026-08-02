@@ -95,6 +95,8 @@ pip install -e .
 | `open-free-router route explain MODEL [--json]` | 离线解释虚拟/显式模型的候选顺序，不发起推理 |
 | `open-free-router resilience [--json]` | 查看运行中代理的 Provider/Key 槽位/模型故障隔离状态 |
 | `open-free-router resilience reset --provider NAME [--model ID]` | 精确重置 Provider 或单模型运行时状态 |
+| `open-free-router metrics [--days 30] [--json]` | 查看本机最小化使用分析：成功率、p50/p95、Fallback 与 Token |
+| `open-free-router metrics --export json\|csv [--output PATH]` | 导出经过字段白名单与敏感值检查的本机统计 |
 | `open-free-router doctor [--json]` | 安装与路由体检：定位 YAML 路径并给出修复命令；支持结构化输出 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
@@ -146,6 +148,9 @@ discovery:
   max_providers_per_cycle: 5
   max_models_per_provider: 3
 
+analytics:
+  retention_days: 30    # 仅保存最小化本机元数据；设为 0 完全关闭并不创建数据库
+
 routing:
   aliases:
     auto/coding:
@@ -183,6 +188,14 @@ p95 首字节/总延迟、额度余量、能力匹配和免费证据进行 `[0,1
 权重自动归一化，NaN 和缺失指标使用 `missing_default`，同分时仍保持注册表顺序。
 `open-free-router route explain auto --json` 会给出每项取值、权重、贡献和来源；
 本地仪表盘的最近路由决策也可展开查看。关闭开关后立即恢复原有 priority 顺序。
+
+本地使用分析使用 Python 标准库 SQLite，默认保存到
+`~/.local/share/open-free-router/usage.db` 并保留 30 天。数据库只含内部事件摘要、
+时间、provider/model、状态码、首字节/总延迟、输入/输出 Token、Fallback 次数和
+分类后错误；原始 request_id 只生成不可逆内部事件键，导出时也不会出现。Prompt、
+响应正文、工具参数、完整请求头和 API Key 均不进入数据库。设置
+`analytics.retention_days: 0` 可完全关闭。仪表盘和 `open-free-router metrics`
+显示成功率、p50/p95、Fallback 挽回、Token 覆盖率及带“估算”标记的免费额度比例。
 
 P1 开始使用注册表中的结构化免费证据。证据可配置在 provider 上供模型继承，
 也可在单个 model 上覆盖：
@@ -238,6 +251,7 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 | `anthropic.py` | Messages ↔ Chat Completions 转换（Claude Code）：content blocks、tool_use/tool_result、类型化 SSE 事件流 |
 | `probe.py` | 实时可用性探测：每模型一次真实 1-token 请求，输出延迟与状态快照 |
 | `quota.py` | 额度与限流响应头归一化：请求/Token 余量、重置时间和安全分类 |
+| `analytics.py` | 本机 SQLite 最小化统计、保留清理、聚合与安全 JSON/CSV 导出 |
 | `mcp_server.py` | MCP stdio 服务器（按行 JSON-RPC 2.0，6 个工具，零第三方依赖） |
 | `serve.py` | 守护进程：拉起 proxy + UI + scheduler，启动时自动写入 Pi models.json |
 | `ui.py` | Web 仪表盘（9057）：状态查看、Provider 增删改、模型刷新、实时配置编辑、Live Status 实测面板 |

@@ -62,6 +62,14 @@ class Config:
         from open_free_router.routing import RoutingConfig
         self.routing = RoutingConfig.from_dict(self._raw.get("routing", {}))
 
+        analytics = self._raw.get("analytics", {})
+        if not isinstance(analytics, dict):
+            analytics = {}
+        try:
+            self.analytics_retention_days = min(365, max(0, int(analytics.get("retention_days", 30))))
+        except (TypeError, ValueError):
+            self.analytics_retention_days = 30
+
         # ui
         self.ui_host = self._raw.get("ui", {}).get("host", "127.0.0.1")
         self.ui_port = int(self._raw.get("ui", {}).get("port", 9057))
@@ -99,6 +107,10 @@ class Config:
     @property
     def discovery_path(self) -> Path:
         return self.data_dir / "discovery.json"
+
+    @property
+    def analytics_path(self) -> Path:
+        return self.data_dir / "usage.db"
 
 
 def load_registry(registry_path: Path):
