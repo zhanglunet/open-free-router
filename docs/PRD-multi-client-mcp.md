@@ -93,8 +93,8 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
 14. `open-free-router mcp --print-config` 输出 Claude Code
     `claude mcp add` 命令与 `mcpServers` JSON 片段。
 15. 新增 CLI：`status [--json]`（健康摘要）、`models [--json]`
-    （模型清单）、`doctor`（配置/注册表/密钥/端口/九客户端配置体检，
-    发现严重问题退出码非 0）；SIGPIPE 优雅退出。
+    （模型清单）、`doctor [--json]`（配置/注册表/密钥/端口/九客户端与路由配置体检，
+    输出精确 YAML 路径和修复建议，发现严重问题退出码非 0）；SIGPIPE 优雅退出。
 
 ### 3.4 实时可用性检测
 

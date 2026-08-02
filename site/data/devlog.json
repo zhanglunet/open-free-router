@@ -1,9 +1,23 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T04:35:53.000Z",
+  "updated_at": "2026-08-02T05:19:19.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-完成-p0-路由体检与并发验收",
+      "date": "2026-08-02",
+      "type": "milestone",
+      "version": "P0 完成版",
+      "title": "完成 P0 路由体检与并发验收",
+      "summary": "新增可执行修复建议和结构化 doctor 输出，并完成并发惊群、凭据隔离与路由性能验收。",
+      "items": [
+        "doctor --json 定位无效类型、别名、候选模型和凭据缺口",
+        "100 组重复失败不再反复延长熔断或冷却时间",
+        "HALF_OPEN 并发恢复仅允许一个真实探测请求",
+        "无凭据候选在网络请求前跳过，路由计划 p95 小于 5 毫秒"
+      ]
+    },
     {
       "id": "2026-08-02-路由状态持久化与中文运维面板",
       "date": "2026-08-02",

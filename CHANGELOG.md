@@ -21,6 +21,12 @@
   and a Chinese dashboard panel for routes, fallback and three-layer isolation.
 - Restart recovery, concurrent-write, credential-redaction, history-bound and
   dashboard proxy-auth regression coverage.
+- Actionable routing diagnostics in `doctor [--json]`, including exact YAML
+  paths, stable issue codes, invalid aliases/candidates/types and repair hints.
+- Concurrency hardening prevents duplicate in-flight failures from extending
+  active provider, credential or model penalties; only one half-open probe wins.
+- Virtual routes now skip credential-less providers before network I/O, and
+  regression tests verify provider-specific authorization and sub-5ms p95 plans.
 
 ## 0.2.0 - 2026-08-02
 

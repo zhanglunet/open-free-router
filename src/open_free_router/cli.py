@@ -12,7 +12,7 @@ from open_free_router.ui import run_ui
 from open_free_router.serve import Daemon
 from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
-from open_free_router.routing import RoutePlanner
+from open_free_router.routing import RoutePlanner, diagnose_routing_config
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -367,10 +367,13 @@ def cmd_resilience_reset(args):
 
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
+    import json as _json
     from open_free_router import sync as sync_mod
     cfg = Config()
     payload = _status_payload(cfg)
     failures = 0
+    json_mode = bool(getattr(args, "json", False))
+    checks: list[dict] = []
 
     def check(ok: bool, label: str, detail: str = "", warn_only: bool = False):
         nonlocal failures
@@ -378,9 +381,17 @@ def cmd_doctor(args):
         if not ok and not warn_only:
             failures += 1
         suffix = f" — {detail}" if detail else ""
-        print(f"  {mark} {label}{suffix}")
+        checks.append({
+            "ok": ok,
+            "severity": "warning" if warn_only and not ok else ("error" if not ok else "ok"),
+            "label": label,
+            "detail": detail,
+        })
+        if not json_mode:
+            print(f"  {mark} {label}{suffix}")
 
-    print("open-free-router doctor")
+    if not json_mode:
+        print("open-free-router doctor")
     check(cfg.path is not None and cfg.path.exists(), "config.yaml found",
           str(cfg.path) if cfg.path else "run `open-free-router serve` once to create it", warn_only=True)
     check(cfg.registry_path.exists(), "registry.yaml found", str(cfg.registry_path))
@@ -392,7 +403,20 @@ def cmd_doctor(args):
           + ("" if payload["proxy_reachable"] else " — run `open-free-router serve`"), warn_only=True)
     check(payload["ui_reachable"], "dashboard reachable", payload["ui_url"], warn_only=True)
 
-    print("\nclient configs:")
+    registry = Registry.load(cfg.registry_path) if cfg.registry_path.exists() else Registry({})
+    routing_issues = diagnose_routing_config(cfg._raw.get("routing"), registry)
+    failures += sum(issue.severity == "error" for issue in routing_issues)
+    if not json_mode:
+        print("\nrouting config:")
+        if not routing_issues:
+            print("  ✓ deterministic routing configuration is valid")
+        for issue in routing_issues:
+            mark = "✗" if issue.severity == "error" else "⚠"
+            print(f"  {mark} {issue.path}: {issue.message}")
+            if issue.fix:
+                print(f"      fix: {issue.fix}")
+
+        print("\nclient configs:")
     clients = [
         ("Codex profile", sync_mod.CODEX_PROFILE),
         ("Claude Code settings", sync_mod.CLAUDE_SETTINGS),
@@ -406,12 +430,28 @@ def cmd_doctor(args):
     ]
     for label, path in clients:
         mark = "✓" if path.exists() else "·"
-        print(f"  {mark} {label:22s} {path}")
+        if not json_mode:
+            print(f"  {mark} {label:22s} {path}")
+
+    report = {
+        "ok": failures == 0,
+        "problem_count": failures,
+        "checks": checks,
+        "routing": [issue.to_dict() for issue in routing_issues],
+        "clients": [
+            {"name": label, "configured": path.exists(), "path": str(path)}
+            for label, path in clients
+        ],
+    }
+    if json_mode:
+        print(_json.dumps(report, indent=2, ensure_ascii=False))
 
     if failures:
-        print(f"\n✗ {failures} problem(s) found")
+        if not json_mode:
+            print(f"\n✗ {failures} problem(s) found")
         sys.exit(1)
-    print("\n✔ no critical problems found")
+    if not json_mode:
+        print("\n✔ no critical problems found")
 
 
 def cmd_discover(args):
@@ -520,6 +560,7 @@ def main():
     p_resilience_reset.set_defaults(func=cmd_resilience_reset)
 
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
+    p_doctor.add_argument("--json", action="store_true", help="print structured diagnostics")
     p_doctor.set_defaults(func=cmd_doctor)
 
     p_discover = sub.add_parser("discover", help="find review-only candidate free-model providers")

@@ -95,7 +95,7 @@ pip install -e .
 | `open-free-router route explain MODEL [--json]` | 离线解释虚拟/显式模型的候选顺序，不发起推理 |
 | `open-free-router resilience [--json]` | 查看运行中代理的 Provider/Key 槽位/模型故障隔离状态 |
 | `open-free-router resilience reset --provider NAME [--model ID]` | 精确重置 Provider 或单模型运行时状态 |
-| `open-free-router doctor` | 安装体检：配置、密钥、端口与 9 个客户端配置状态 |
+| `open-free-router doctor [--json]` | 安装与路由体检：定位 YAML 路径并给出修复命令；支持结构化输出 |
 | `open-free-router token` | 输出本地推理代理 token，供命令式鉴权使用 |
 | `open-free-router ui` | 单独启动 Web 仪表盘（调试用） |
 
@@ -267,11 +267,11 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖（198 例）：registry/config、刷新源、九客户端同步（含
+当前测试覆盖（206 例）：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
 MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、
-三层故障隔离、原子状态恢复和有界路由决策历史。
+三层故障隔离、原子状态恢复、有界路由决策历史、并发惊群保护和路由性能验收。
 
 ## Codex 集成
 

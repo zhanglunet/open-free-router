@@ -61,7 +61,8 @@ def _credentials(target: RouteTarget) -> list[tuple[int, str]]:
         slots = [(index, value) for index, value in enumerate(provider.api_keys) if value]
         if slots:
             return slots
-    return [(0, provider.effective_key)]
+    effective = provider.effective_key
+    return [(0, effective)] if effective else []
 
 
 def _error_body(message: str) -> bytes:
@@ -170,6 +171,9 @@ class UpstreamExecutor:
 
         for target_index, target in enumerate(plan.candidates):
             slots = _credentials(target)
+            if not slots:
+                rejected.append({"model": target.canonical_id, "reason": "credential_missing"})
+                continue
             attempted_target = False
             last_decision = None
             for slot_index, (credential_slot, credential) in enumerate(slots):

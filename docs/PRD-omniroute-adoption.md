@@ -1,6 +1,6 @@
 # OmniRoute 能力借鉴与 open-free-router 演进 PRD
 
-Status: In progress — P0 routing and resilience foundation implemented independently
+Status: P0 implemented and verified independently
 Owner: open-free-router
 Last updated: 2026-08-02
 Reference snapshot: OmniRoute `release/v3.8.50` at `fc35dc248f46354e80fdcdaa551e6598abcf5124`
@@ -21,7 +21,11 @@ Implementation record (2026-08-02):
   proxy API and Chinese dashboard routing/resilience panel;
 - completed: restart recovery, concurrent atomic-write, redaction, API and UI
   regression tests;
-- next: broader failure-matrix chaos validation and `doctor` repair guidance.
+- completed: actionable `doctor --json` diagnostics for routing types, aliases,
+  candidates, credential readiness and exact YAML repair paths;
+- completed: 100-way duplicate-failure and HALF_OPEN concurrency validation,
+  provider-specific credential isolation and route-plan p95 performance gate;
+- next: P1 quota evidence, optional explainable scoring and local usage analysis.
 
 ## 1. 结论
 
