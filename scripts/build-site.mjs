@@ -18,6 +18,7 @@ const brandHtml = await readFile(resolve(output, "brand", "index.html"), "utf8")
 const architectureHtml = await readFile(resolve(output, "architecture", "index.html"), "utf8");
 const statusHtml = await readFile(resolve(output, "status", "index.html"), "utf8");
 const statusJs = await readFile(resolve(output, "status", "status.js"), "utf8");
+const statusCss = await readFile(resolve(output, "status", "status.css"), "utf8");
 const mapHtml = await readFile(resolve(output, "map", "index.html"), "utf8");
 const logsHtml = await readFile(resolve(output, "logs", "index.html"), "utf8");
 const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
@@ -66,6 +67,9 @@ for (const marker of ["实时", "/api/catalog"]) {
   if (!statusHtml.includes(marker) && !statusJs.includes(marker)) {
     throw new Error(`Generated status page is missing required content: ${marker}`);
   }
+}
+if (!statusCss.includes(".st-error[hidden]") || !statusCss.includes("display:none")) {
+  throw new Error("Status error banner must remain hidden after a successful refresh");
 }
 for (const marker of ["全球", "world-dots.svg"]) {
   if (!mapHtml.includes(marker)) {

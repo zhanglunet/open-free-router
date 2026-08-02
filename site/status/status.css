@@ -22,6 +22,7 @@ body.st-loading .st-pulse{background:var(--amber);box-shadow:0 0 0 5px rgba(255,
 
 /* ---- 错误条 ---- */
 .st-error{display:flex;flex-wrap:wrap;align-items:baseline;gap:.7rem;width:min(var(--max),calc(100% - 48px));margin:1rem auto 0;padding:.85rem 1.1rem;border:1px solid rgba(255,122,133,.45);background:rgba(255,122,133,.07)}
+.st-error[hidden]{display:none}
 .st-error b{color:var(--red);font:750 .68rem var(--mono);letter-spacing:.08em}
 .st-error span{color:var(--text);font-size:.78rem}
 .st-error em{color:var(--muted);font-size:.7rem;font-style:normal}

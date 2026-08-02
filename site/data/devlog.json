@@ -1,9 +1,22 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-02T01:36:10.624Z",
+  "updated_at": "2026-08-02T01:49:31.760Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-02-修复实时状态页错误提示误显示",
+      "date": "2026-08-02",
+      "type": "improvement",
+      "version": "站点体验",
+      "title": "修复实时状态页错误提示误显示",
+      "summary": "修复状态数据成功加载后仍显示‘网络请求失败’的样式冲突，并加入构建回归检查。",
+      "items": [
+        "错误条遵循 hidden 属性正确隐藏",
+        "保留真实请求失败时的错误提示",
+        "新增构建检查防止同类回归"
+      ]
+    },
     {
       "id": "2026-08-02-全站响应式导航上线",
       "date": "2026-08-02",
