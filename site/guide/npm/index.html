@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="模力自由港 npm 安装完整指南：环境要求、首次启动、Codex 接入、升级卸载、安全边界与故障排查。">
+  <meta property="og:title" content="npm 安装完整指南 · 模力自由港">
+  <meta property="og:description" content="不用读取私有 GitHub 仓库，一条 npm 命令安装模力自由港。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <title>npm 安装完整指南 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/guide/guide.css">
+  <link rel="stylesheet" href="/guide/npm/npm.css">
+  <script src="/nav.js?v=20260802c" defer></script>
+  <script src="/guide/guide.js" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <a class="skip-link" href="#quickstart">跳到 npm 安装</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="npm 指南导航"><a href="#quickstart">快速安装</a><a href="#how">工作原理</a><a href="#codex">Codex</a><a href="#upgrade">升级卸载</a><a href="#troubleshooting">排错</a></nav>
+    <a class="repo-link" href="/guide/">完整指南 ←</a>
+  </header>
+  <main>
+    <section class="guide-hero npm-hero">
+      <p class="eyebrow"><span></span> NPM INSTALL · COMPLETE GUIDE</p>
+      <h1>一条命令，<br><em>驶入自由港。</em></h1>
+      <p>npm 是公开分发入口，不需要 GitHub 私有仓库读取权限。它不是另一套 JavaScript 路由器，而是把同版本 Python CLI 放进独立环境后原样启动。</p>
+      <div class="path-cards"><article><b>18+</b><span>Node.js</span><small>负责安装与引导</small></article><article><b>3.11+</b><span>Python</span><small>运行完整 CLI</small></article><article><b>0.3.0</b><span>当前 npm 版本</span><small>公开包 · MIT</small></article></div>
+    </section>
+    <section class="guide-section" id="quickstart">
+      <header><p class="eyebrow"><span></span> QUICK START</p><h2>安装与首次启动</h2><p>先确认两个运行时，再安装公开 npm 包。首次运行会安装内置的同版本 Python 源码，通常比后续启动慢。</p></header>
+      <div class="code-card"><div><span>1 · 环境检查</span><button data-copy="npm-prereq">复制</button></div><pre id="npm-prereq"><code>node --version
+python3 --version
+npm --version</code></pre></div>
+      <div class="callout warning"><b>Python 命令必须可被找到</b><p>macOS 自带 Python 可能仍是 3.9。当前 npm 引导器会依次查找 <code>python3</code>、<code>python</code>（Windows 还支持 <code>py -3</code>），其中至少一个必须是 Python 3.11 或更新版本并已加入 PATH。</p></div>
+      <div class="code-card"><div><span>2 · 全局安装并体检</span><button data-copy="npm-install">复制</button></div><pre id="npm-install"><code>npm install -g open-free-router
+open-free-router --version
+open-free-router doctor</code></pre></div>
+      <div class="steps"><article><b>1</b><h3>保存提供商密钥</h3><pre><code>open-free-router setup</code></pre><p>密钥写入本机配置，不交给 npm，也不会上传本站。</p></article><article><b>2</b><h3>启动代理与仪表盘</h3><pre><code>open-free-router serve</code></pre><p>代理监听 127.0.0.1:8337，中文仪表盘位于 127.0.0.1:9057。</p></article><article><b>3</b><h3>查看模型</h3><pre><code>open-free-router models</code></pre><p>也可运行短命令 <code>ofr models</code>。</p></article></div>
+    </section>
+    <section class="guide-section split" id="how">
+      <header><p class="eyebrow"><span></span> HOW IT WORKS</p><h2>npm 到底安装了什么？</h2></header>
+      <div>
+        <div class="npm-flow"><span>npm 公共包</span><i>→</i><span>检查 Python 3.11+</span><i>→</i><span>版本隔离虚拟环境</span><i>→</i><span>完整 Python CLI</span></div>
+        <ol class="timeline"><li><b>薄启动器</b><p>Node 只负责环境检查、首次引导和参数透传；路由、协议、注册表、探测与客户端适配仍只有一份 Python 实现。</p></li><li><b>按版本隔离</b><p>macOS/Linux 默认位于 <code>~/.cache/open-free-router/npm/0.3.0</code>；Windows 默认位于 <code>%LOCALAPPDATA%\open-free-router\npm\0.3.0</code>。可用 <code>OFR_NPM_HOME</code> 指定其他位置。</p></li><li><b>后续复用</b><p>版本标记和 CLI 可执行文件完整时直接复用，不会每次重新安装。升级 npm 包后，新版本使用新的隔离目录。</p></li></ol>
+      </div>
+      <aside class="facts"><h3>安全边界</h3><dl><dt>包来源</dt><dd>npm 公共注册表</dd><dt>Python 源码</dt><dd>随 npm tarball 同版本打包</dd><dt>API Key</dt><dd>只由本机 registry.yaml 管理</dd><dt>监听地址</dt><dd>默认仅 127.0.0.1</dd><dt>实现关系</dt><dd>npm 薄封装，不复制路由逻辑</dd></dl><a href="https://www.npmjs.com/package/open-free-router" rel="noreferrer">核对 npm 包与版本 ↗</a></aside>
+    </section>
+    <section class="guide-section" id="codex">
+      <header><p class="eyebrow"><span></span> CODEX READY</p><h2>接入 Codex CLI 与客户端</h2><p>先让自由港运行，再生成隔离的 Codex profile；正常 OpenAI 配置不会被覆盖。</p></header>
+      <div class="code-card"><div><span>完整 Codex 接入流程</span><button data-copy="npm-codex">复制</button></div><pre id="npm-codex"><code>npm install -g @openai/codex
+open-free-router setup
+open-free-router serve
+# 新开一个终端
+open-free-router sync --agent codex
+codex --profile open-free-router</code></pre></div>
+      <div class="callout"><b>Codex 客户端</b><p>完成 profile 同步后，可运行 <code>codex --profile open-free-router app .</code> 从当前项目打开客户端。第三方模型走本机 <code>/v1/responses</code> 兼容接口。</p><p><a href="/guide/#codex-cli">查看 Codex 图文细节 →</a></p></div>
+    </section>
+    <section class="guide-section split" id="upgrade">
+      <header><p class="eyebrow"><span></span> LIFECYCLE</p><h2>升级、重装与卸载</h2></header>
+      <div><div class="code-card"><div><span>升级到最新公开版本</span><button data-copy="npm-upgrade">复制</button></div><pre id="npm-upgrade"><code>npm install -g open-free-router@latest
+open-free-router --version
+open-free-router doctor</code></pre></div><div class="code-card"><div><span>只卸载全局命令</span><button data-copy="npm-remove">复制</button></div><pre id="npm-remove"><code>npm uninstall -g open-free-router</code></pre></div></div>
+      <aside class="callout warning"><b>卸载不会自动删除用户数据</b><p>提供商配置通常保存在 <code>~/.config/open-free-router</code>，npm 运行环境保存在上述缓存目录。这样重装不会丢失配置；如确需彻底清理，请先备份并手工确认目标目录，尤其不要误删整个 <code>~/.config</code> 或 <code>~/.cache</code>。</p></aside>
+    </section>
+    <section class="guide-section troubleshooting" id="troubleshooting">
+      <header><p class="eyebrow"><span></span> TROUBLESHOOTING</p><h2>常见问题</h2><p>先运行 <code>open-free-router doctor</code>，它会检查配置、端口、密钥状态与客户端文件。</p></header>
+      <details open><summary>提示“未找到 Python 3.11+”</summary><p>运行 <code>python3 --version</code>。若版本低于 3.11，请从 Python 官方安装新版，并确认新终端里的 <code>python3</code> 指向新版；仅安装但未加入 PATH 仍会失败。</p></details>
+      <details><summary>npm 安装成功，但找不到 open-free-router</summary><p>运行 <code>npm prefix -g</code> 检查全局安装位置，并确认其可执行目录在 PATH 中；也可以先用 <code>npx open-free-router doctor</code> 验证包本身。</p></details>
+      <details><summary>首次运行安装失败或被中断</summary><p>重新执行原命令即可。引导器用锁避免并发写入，失败时会清理未完成的版本环境；网络恢复后会重新创建。</p></details>
+      <details><summary>8337 或 9057 端口已被占用</summary><p>这通常表示服务已经运行。先执行 <code>open-free-router status</code>，不要反复启动；若不是本程序，再用系统端口工具确认占用进程。</p></details>
+      <details><summary>npm 包会读取或上传 API Key 吗？</summary><p>不会。Node 启动器只创建虚拟环境并启动 Python CLI；密钥由本机配置管理。公开模型状态来自服务器端独立探测，与访问者本机配置无关。</p></details>
+    </section>
+  </main>
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · npm Guide</small></span></div><p>公开分发，隔离运行，本机持钥。</p><div class="footer-links"><a href="/guide/">完整指南</a><a href="/benchmarks/">模型评测</a><a href="/status/">实时状态</a><a href="https://www.npmjs.com/package/open-free-router" rel="noreferrer">npm</a></div></footer>
+</body>
+</html>

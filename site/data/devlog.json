@@ -5,6 +5,24 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-08-02-npm教程与评测证据修复",
+      "date": "2026-08-02",
+      "type": "improvement",
+      "version": "v0.3.0",
+      "title": "npm 完整教程与模型评测证据修复",
+      "summary": "新增 npm 独立安装手册，修复严格 CSP 下评测图点位堆叠，并把计分依据与数据缺失原因逐项公开。",
+      "items": [
+        "新增 npm 环境检查、首次引导、Codex 接入、升级卸载和故障排查页面",
+        "散点图与分数条改用 CSP 安全的静态样式类，不再依赖被浏览器拦截的内联样式",
+        "公开任务适配分四个分项的精确计分规则、来源和提供商级快照边界",
+        "区分 Artificial Analysis 未导入、单条记录缺失和 0 分，拒绝从截图猜测评测数据"
+      ],
+      "links": [
+        {"label": "查看 npm 教程", "href": "/guide/npm/"},
+        {"label": "查看模型评测", "href": "/benchmarks/"}
+      ]
+    },
+    {
       "id": "2026-08-02-npm-v030-正式发布",
       "date": "2026-08-02",
       "type": "milestone",
