@@ -4,6 +4,7 @@ import threading
 import time
 
 from open_free_router.resilience import ResilienceManager, classify_failure
+from open_free_router.quota import parse_quota_headers
 
 
 def test_runtime_state_is_owner_only_atomic_and_restored(tmp_path):
@@ -39,6 +40,22 @@ def test_corrupt_runtime_state_is_quarantined_and_recovered(tmp_path):
 
     manager.record_failure("p", "m", classify_failure(401))
     assert json.loads(path.read_text())["schema_version"] == 1
+
+
+def test_ready_quota_state_is_persisted_restored_and_sanitized(tmp_path):
+    path = tmp_path / "runtime-state.json"
+    manager = ResilienceManager(state_path=path)
+    manager.record_success("p", "m", credential_slot=2, now=100)
+    manager.record_quota(
+        "p", 2,
+        parse_quota_headers({"X-RateLimit-Remaining-Requests": "7"}, 200, now=100),
+    )
+    restored = ResilienceManager(state_path=path)
+    state = restored.snapshot()["credentials"]["p:slot-2"]
+    assert state["state"] == "ready"
+    assert state["last_success_at"] == 100
+    assert state["quota"]["requests"]["remaining"] == 7
+    assert restored.order_credentials("p", [(2, "secret")], now=101)[0][0] == 2
 
 
 def test_expired_runtime_state_is_not_restored(tmp_path):

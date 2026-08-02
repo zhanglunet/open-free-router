@@ -13,7 +13,7 @@ from pathlib import Path
 import tempfile
 import threading
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 from datetime import timezone
 
 
@@ -94,6 +94,38 @@ class CredentialState:
     state: str = "ready"
     cooldown_until: float = 0.0
     reason: str = ""
+    quota: dict = field(default_factory=dict)
+    last_success_at: float = 0.0
+
+
+def _safe_float(value, default: float = 0.0) -> float:
+    try:
+        parsed = float(value)
+        return parsed if parsed == parsed and abs(parsed) != float("inf") else default
+    except (TypeError, ValueError, OverflowError):
+        return default
+
+
+def _safe_quota(value) -> dict:
+    """Accept only the normalized quota shape written by quota.py."""
+    if not isinstance(value, dict):
+        return {}
+    result = {
+        "classification": str(value.get("classification", "unknown"))[:64],
+        "observed_at": _safe_float(value.get("observed_at")),
+        "retry_at": _safe_float(value.get("retry_at")),
+        "has_headers": bool(value.get("has_headers", False)),
+    }
+    for name in ("requests", "tokens"):
+        source = value.get(name, {})
+        if not isinstance(source, dict):
+            source = {}
+        result[name] = {
+            "limit": None if source.get("limit") is None else _safe_float(source.get("limit")),
+            "remaining": None if source.get("remaining") is None else _safe_float(source.get("remaining")),
+            "reset_at": _safe_float(source.get("reset_at")),
+        }
+    return result
 
 
 @dataclass
@@ -141,6 +173,8 @@ class ResilienceManager:
                 {"provider": provider, "slot": slot, **asdict(state)}
                 for (provider, slot), state in self._credentials.items()
                 if state.state != "ready"
+                or state.quota
+                or state.last_success_at
             ],
             "models": [
                 {"provider": provider, "model": model, **asdict(state)}
@@ -217,9 +251,17 @@ class ResilienceManager:
             for item in raw.get("credentials", []):
                 state = str(item.get("state", "ready"))
                 until = float(item.get("cooldown_until", 0.0))
-                if state == "terminal" or (state == "cooldown" and until > now):
+                quota = _safe_quota(item.get("quota", {})) if item.get("quota") else {}
+                last_success_at = _safe_float(item.get("last_success_at", 0.0))
+                active = state == "terminal" or (state == "cooldown" and until > now)
+                if active or quota or last_success_at:
+                    if not active:
+                        state, until = "ready", 0.0
                     credentials[(str(item["provider"]), int(item.get("slot", 0)))] = (
-                        CredentialState(state, until, str(item.get("reason", "")))
+                        CredentialState(
+                            state, until, str(item.get("reason", "")),
+                            quota, last_success_at,
+                        )
                     )
             models: dict[tuple[str, str], ModelState] = {}
             for item in raw.get("models", []):
@@ -318,8 +360,12 @@ class ResilienceManager:
 
             if decision.credential_terminal:
                 key = (provider, credential_slot)
+                current = self._credentials.get(key)
                 new_state = CredentialState(
-                    state="terminal", reason=decision.kind
+                    state="terminal",
+                    reason=decision.kind,
+                    quota=current.quota if current else {},
+                    last_success_at=current.last_success_at if current else 0.0,
                 )
                 if self._credentials.get(key) != new_state:
                     self._credentials[key] = new_state
@@ -332,7 +378,9 @@ class ResilienceManager:
                     not current or current.state != "cooldown" or current.cooldown_until <= now
                 ):
                     self._credentials[key] = CredentialState(
-                        state="cooldown", cooldown_until=now + delay, reason=decision.kind
+                        state="cooldown", cooldown_until=now + delay, reason=decision.kind,
+                        quota=current.quota if current else {},
+                        last_success_at=current.last_success_at if current else 0.0,
                     )
                     changed = True
 
@@ -348,7 +396,11 @@ class ResilienceManager:
             if changed:
                 self._persist_locked()
 
-    def record_success(self, provider: str, model: str, credential_slot: int = 0) -> None:
+    def record_success(
+        self, provider: str, model: str, credential_slot: int = 0,
+        now: float | None = None,
+    ) -> None:
+        now = time.time() if now is None else now
         with self._lock:
             changed = False
             provider_state = self._providers.get(provider)
@@ -361,8 +413,13 @@ class ResilienceManager:
                 provider_state.open_until = 0.0
                 provider_state.probe_in_flight = False
                 changed = True
-            credential = self._credentials.get((provider, credential_slot))
-            if credential and credential.state != "terminal":
+            credential = self._credentials.setdefault(
+                (provider, credential_slot), CredentialState()
+            )
+            credential.last_success_at = now
+            if credential.state != "terminal" and (
+                credential.state != "ready" or credential.cooldown_until or credential.reason
+            ):
                 credential.state = "ready"
                 credential.cooldown_until = 0.0
                 credential.reason = ""
@@ -371,6 +428,41 @@ class ResilienceManager:
                 changed = True
             if changed:
                 self._persist_locked()
+
+    def record_quota(self, provider: str, credential_slot: int, observation) -> None:
+        """Store normalized numeric quota state, never raw upstream headers."""
+        if not getattr(observation, "has_headers", False) and observation.classification == "unknown":
+            return
+        with self._lock:
+            credential = self._credentials.setdefault(
+                (provider, credential_slot), CredentialState()
+            )
+            payload = _safe_quota(observation.to_dict())
+            if credential.quota != payload:
+                credential.quota = payload
+                self._persist_locked()
+
+    def order_credentials(
+        self, provider: str, slots: list[tuple[int, str]], now: float | None = None
+    ) -> list[tuple[int, str]]:
+        """Prefer attemptable slots, then earlier reset and more recent success."""
+        now = time.time() if now is None else now
+        with self._lock:
+            def rank(item: tuple[int, str]):
+                slot, _ = item
+                state = self._credentials.get((provider, slot))
+                if not state:
+                    return (0, float("inf"), 0.0, slot)
+                blocked = state.state == "terminal" or (
+                    state.state == "cooldown" and state.cooldown_until > now
+                )
+                quota = state.quota or {}
+                resets = [_safe_float(quota.get(dimension, {}).get("reset_at", 0.0))
+                          for dimension in ("requests", "tokens")]
+                positive = [value for value in resets if value > now]
+                reset_at = min(positive) if positive else float("inf")
+                return (1 if blocked else 0, reset_at, -_safe_float(state.last_success_at), slot)
+            return sorted(slots, key=rank)
 
     def reset(self, provider: str, model: str | None = None) -> None:
         with self._lock:

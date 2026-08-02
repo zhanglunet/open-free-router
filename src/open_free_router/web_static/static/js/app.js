@@ -376,11 +376,28 @@ function runtimeStateLabel(kind, item) {
   return item.lockout_until ? '临时隔离' : '正常';
 }
 
+function quotaSummary(item) {
+  const quota = item.quota || {};
+  const parts = [];
+  const add = (label, dimension) => {
+    if (!dimension || (dimension.limit == null && dimension.remaining == null && !dimension.reset_at)) return;
+    const amount = dimension.remaining == null ? '余量未知' : `剩余 ${formatNumber(dimension.remaining)}`;
+    const limit = dimension.limit == null ? '' : ` / ${formatNumber(dimension.limit)}`;
+    const reset = dimension.reset_at ? `，重置 ${formatDate(Number(dimension.reset_at) * 1000)}` : '';
+    parts.push(`${label}${amount}${limit}${reset}`);
+  };
+  add('请求：', quota.requests);
+  add('Token：', quota.tokens);
+  if (!parts.length && quota.classification && quota.classification !== 'unknown') parts.push(`额度状态：${quota.classification}`);
+  return parts.join('；');
+}
+
 function runtimeRow(name, kind, item) {
   const bad = runtimeStateLabel(kind, item) !== '正常';
   const model = kind === 'model' ? name.slice(name.indexOf('/') + 1) : '';
   const provider = kind === 'model' ? name.slice(0, name.indexOf('/')) : name.split(':slot-')[0];
-  return `<div class="runtime-row"><div><strong>${esc(name)}</strong><span>${esc(item.reason || (kind === 'provider' ? `${item.failures || 0} 次连续故障` : '运行时保护'))}</span></div><div class="runtime-actions"><span class="status-chip ${bad ? 'bad' : 'ok'}">${runtimeStateLabel(kind, item)}</span>${bad ? `<button class="text-button resilience-reset" data-provider="${esc(provider)}" data-model="${esc(model)}">重置</button>` : ''}</div></div>`;
+  const detail = kind === 'credential' && quotaSummary(item) ? quotaSummary(item) : (item.reason || (kind === 'provider' ? `${item.failures || 0} 次连续故障` : '运行时保护'));
+  return `<div class="runtime-row"><div><strong>${esc(name)}</strong><span>${esc(detail)}</span></div><div class="runtime-actions"><span class="status-chip ${bad ? 'bad' : 'ok'}">${runtimeStateLabel(kind, item)}</span>${bad ? `<button class="text-button resilience-reset" data-provider="${esc(provider)}" data-model="${esc(model)}">重置</button>` : ''}</div></div>`;
 }
 
 function renderRouting(data) {
@@ -389,11 +406,13 @@ function renderRouting(data) {
   const providers = Object.entries(resilience.providers || {});
   const credentials = Object.entries(resilience.credentials || {});
   const models = Object.entries(resilience.models || {});
+  const quotaObserved = credentials.filter(([, item]) => item.quota?.has_headers).length;
   const active = providers.filter(([, item]) => item.state !== 'closed').length + credentials.filter(([, item]) => item.state !== 'ready').length + models.length;
   byId('routing-summary').innerHTML = [
     metric('保护状态', active, active ? '存在正在生效的隔离策略' : '当前没有隔离', active ? 'warning' : 'accent'),
     metric('提供商熔断', providers.filter(([, item]) => item.state !== 'closed').length, '上游整体故障保护'),
     metric('凭据槽受限', credentials.filter(([, item]) => item.state !== 'ready').length, '仅显示匿名槽位'),
+    metric('额度头记录', quotaObserved, '仅保存归一化数字与重置时间'),
     metric('最近决策', routes.total || 0, `内存最多保留 ${routes.max_entries || 0} 条`),
   ].join('');
   const rows = [
@@ -401,7 +420,7 @@ function renderRouting(data) {
     ...credentials.map(([name, item]) => runtimeRow(name, 'credential', item)),
     ...models.map(([name, item]) => runtimeRow(name, 'model', item)),
   ];
-  byId('resilience-list').innerHTML = rows.join('') || '<div class="empty">当前没有熔断、冷却或模型隔离。</div>';
+  byId('resilience-list').innerHTML = rows.join('') || '<div class="empty">当前没有熔断、冷却、额度或模型隔离记录。</div>';
   byId('route-list').innerHTML = (routes.items || []).map((item) => `<div class="runtime-row route-row"><div><strong>${esc(item.requested_model)}</strong><span>${esc(item.request_id)} · ${formatDate(Number(item.timestamp || 0) * 1000)}</span></div><div class="route-result"><span class="status-chip ${item.status === 'success' ? 'ok' : 'bad'}">${item.status === 'success' ? '成功' : `失败 ${item.status_code || ''}`}</span><span>${esc(item.provider || '未选中')} / ${esc(item.model || '—')} · ${item.attempts || 0} 次尝试</span></div></div>`).join('') || '<div class="empty">尚无路由决策；通过代理发送请求后会显示在这里。</div>';
   document.querySelectorAll('.resilience-reset').forEach((button) => button.addEventListener('click', () => resetResilience(button.dataset.provider, button.dataset.model)));
 }

@@ -357,7 +357,16 @@ def cmd_resilience(args):
         print(f"  {name:24s} {state.get('state', 'unknown'):10s} failures={state.get('failures', 0)}")
     print("credential states:")
     for name, state in payload.get("credentials", {}).items():
-        print(f"  {name:24s} {state.get('state', 'unknown'):10s} {state.get('reason', '')}")
+        quota = state.get("quota") or {}
+        requests = quota.get("requests") or {}
+        tokens = quota.get("tokens") or {}
+        details = []
+        if requests.get("remaining") is not None:
+            details.append(f"requests={requests['remaining']}/{requests.get('limit', '?')}")
+        if tokens.get("remaining") is not None:
+            details.append(f"tokens={tokens['remaining']}/{tokens.get('limit', '?')}")
+        suffix = " ".join(filter(None, [state.get("reason", ""), *details]))
+        print(f"  {name:24s} {state.get('state', 'unknown'):10s} {suffix}")
     print("model lockouts:")
     for name, state in payload.get("models", {}).items():
         print(f"  {name:42s} {state.get('reason', '')}")

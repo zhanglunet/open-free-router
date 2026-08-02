@@ -4,6 +4,14 @@
 
 ### Added
 
+- P1 quota awareness normalizes common `RateLimit-*`, `X-RateLimit-*` and
+  `Retry-After` response headers into redacted per-credential request/token
+  limits, remaining values and reset timestamps.
+- Recurring quota exhaustion with a declared reset uses a bounded credential
+  cooldown; unknown/credit exhaustion stays terminal, while multi-key routing
+  prefers attemptable slots, earlier resets and recent successes.
+- Quota state survives restart, is visible through the resilience CLI/API and
+  Chinese dashboard, and never persists raw upstream headers or credentials.
 - P1 free-tier evidence model at provider/model scope with typed quota claims,
   public HTTPS sources, verification/expiry timestamps, region/payment warnings,
   strict validation and backward-compatible registry serialization.
