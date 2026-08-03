@@ -51,9 +51,17 @@ PRD 写的是「静态兜底数据已经两天没更新」。实际核实后发�
 
 - 55 个模型、11 张提供商卡片**全部**显示「条件未知」
 - 「已核验免费」筛选项匹配不到任何一行
-- 同时 `/validation/` 页面正在宣称这些提供商的免费层已经过核验
 
-**一个数据快照过期，直接让一整列和一个筛选器在生产环境失效，并让站点自相矛盾。**
+**【实施期修正】** 重新导出后重跑同一脚本，输出**逐字未变**。原因是
+`registry.default.yaml` 里一条 free_tier 证据都没有（`grep -c` = 0），因此重新
+导出后每个 `free_tier.status` 都是 `"unknown"`；而前端读的是
+`row.free_tier?.status || "unknown"`，字段缺失时本来就回落到同一个值。
+**字段缺失与字段存在但为 unknown，用户可见输出完全相同。**
+
+所以本节的准确结论是：schema 漂移是真实的（门禁必须断言形状，否则今天 1.54 天的
+年龄门禁会绿着通过），但它**不是**那一列显示「条件未知」的原因。真正的原因是
+注册表里确实没有任何免费证据——一个独立的内容准确性问题（`/validation/` 页面
+在宣称这些免费层已核验），记入 §5.3 接受清单，M2 不修。
 
 ### 2.3 时间戳被无判断地渲染
 
@@ -148,4 +156,129 @@ $ grep -rn "@import\|url(.*\.css" site/ --include="*.css"    # 无输出
 
 ## 5. 设计定稿
 
-> 待评审返回后补齐。
+评审结论：以「YAGNI 最小改动」方案的**形态**为底（面积最小、不要提交回仓库的
+机器人、把可复现性 diff 当作真正的完整性检查），它被扣分的三处都是**遗漏**，
+补进来很便宜；另两个方案被扣分的是**增项**，删起来很贵。从「数据诚实性」方案
+嫁接 Worker 时效闸门、`benchmarks.js` 与 `status.js:65`；从「运维可行性」方案
+嫁接提交时刻锚定、形状断言与线上产物监控。
+
+### 5.0 一条重新定义里程碑的事实
+
+**今天的快照年龄是 1.54 天。** 一个只看年龄的 7 天门禁**今天就是绿的**——它会
+在什么都没修的情况下宣告通过。真正的缺陷不是「旧了两天」，而是**已发布产物是
+上一代 schema**。因此门禁断言的是**形状，不只是年龄**，且 `schema_version === 2`
+让门禁**第一天就是红的**，强制完成那次重新导出——那才是真正的交付物。
+
+### 5.1 四层架构，每层做一件别层结构上做不到的事
+
+| 层 | 保护对象 | 做法 |
+|---|---|---|
+| **L1 Worker** | 实时访客 | 提供商结论从**通过 `recent()` 存活下来的模型证据**推导，两者永不矛盾；`status_source` / `status_note` 以 `live` 存在为条件。这是**减少**一个时钟，不是新增 |
+| **L2 前端** | 访客（不依赖重新构建、CI 或 Worker） | 每个兜底分支**无条件**降级。`catch` 分支本来就知道自己是兜底，无条件降级是「超过阈值」的严格超集——**因此任何前端文件里都不存在年龄常量** |
+| **L3 构建** | 仓库 | `scripts/data-freshness.mjs` 一个纯函数：年龄（**锚定到 `min(now, HEAD 提交时刻)`**）、未来偏移 > 24h、`schema_version === 2`、计数自洽 |
+| **L4 数据** | 让门禁不可伪造 | 用 `--now` 钉住已提交的 `generated_at` 重新导出并 `git diff --no-index`，跑在已有 `pip install -e ".[dev]"` 的 CI job 里。捕获年龄门禁结构上抓不到的东西：schema 漂移、空注册表 fail-open、Google `api` 变更 |
+
+L2 的无条件降级把「四份常量互相镜像」的问题**从构造上消除**，而不是靠纪律维持。
+L4 意味着维护者**无法靠手改一个时间戳把红色构建改绿**。
+
+### 5.2 有争议的决定及其结论
+
+**两条时钟仍然不对称执行，但理由被修正了。** 草案的前提（「只有持有密钥的维护者
+能刷新 `status_as_of`」）是**错的**（§C2 已实测证伪）。但结论换个理由仍然成立：
+构建按项目非目标不联网，且 `ci.yml` 的 node job 里没有 Python，所以构建期的
+`status_as_of` 门禁**没法被构建自己清掉**；而针对陈旧可用性的访客侧保护现在在
+L1、L2 已经是无条件的。**`status_as_of` 年龄只作为构建期信息行打印，永不使构建失败**，
+改在能被处理的地方执行（§5.4）。
+
+**提交时刻锚定，因此不需要逃生舱。** `staleness = min(now, HEAD 提交时刻) − generated_at`。
+`git bisect` 把退出码 1 读成「坏」，而构建永远不会返回 125，所以用墙钟的门禁会
+**静默污染一次与之无关的 bisect**；打 tag 重建、在旧提交上重跑 CI 同理。锚定之后：
+一个 30 天前的提交带着 30 天前的目录，delta ≈ 0，通过；今天的 PR 带着 30 天前的
+目录，delta = 30 天，失败——**正是 PRD 的验收用例**。这消除了逃生舱存在的全部
+理由，所以 `OFR_ALLOW_STALE_CATALOG` **不做**。git 元数据缺失时回落到墙钟，
+那是**更严格**的方向，失败安全；实际使用的锚点会被打印出来。
+
+**刷新任务开 PR，绝不直接提交。** 对抗性评审证明了「只在 diff 超过时间戳行时才
+提交」会自爆：输入全是仓库内静态文件，连续两次导出**只有** `generated_at` 不同，
+于是这条规则会把时钟冻住，7 天后主干对每个无关 PR 都变红。两处修正：
+(a) 内容变化**或** `generated_at` 超过 `REFRESH_MAX_AGE_DAYS = 3` 时都提交，
+该常量由 `data-freshness.mjs` 导出并**用单元测试断言严格小于 `MAX_CATALOG_AGE_DAYS`**
+——续期永远跑在门禁前面，且有测试保证；
+(b) 开 PR 而不是 push，因为用默认 `GITHUB_TOKEN` 的 push **不会触发** `ci.yml` /
+`site.yml`，直接提交会成为唯一没有任何检查的变更。开 PR 也让 `api` 字段或 schema
+变化必须经人过目。
+
+**状态投影必须单调安全。** 刷新任务可以把 `/api/status` 投影成
+`docs/provider-status.json`，但只有一条规则：`available` 原样通过；**其余一律变成
+`unverified`**，保留观测到的 reason。实测证明这条必要——此刻 `/api/status` 就把
+google-ai-studio 和 openrouter 报成 `unavailable`，原因纯粹是**限流我们自己的探测**；
+且 `PROBE_BATCHES = 2` 意味着任何单次快照里约一半模型没有证据。静态兜底数据
+**绝不能**凭一次采样宣称某提供商挂了。
+
+**导出期降级（草案 B.1）删除，不是推迟。** 没有任何消费者信任静态 `availability`：
+`probe.js` 无新鲜证据时强制 `unverified`，`status.js` 在 `metadataOnly()` 里覆盖它，
+L2 之后 `models.js` 与 `benchmarks.js` 也一样。它会引入第二个墙钟依赖，破坏 L4 的
+可复现性 diff，还会变成 `tests/test_public_catalog.py` 里的日历定时炸弹。
+它唯一真正坏掉的子部分**单独修**（W1）：`_speed_tier` 对 `unverified` 返回
+**当前不可用**——一个肯定性的假陈述，且 `probe.js:235` 会把它泄漏到**实时**
+`/api/catalog` 上。实测确认：
+
+```
+unverified   latency=None  -> 当前不可用
+unverified   latency=800   -> 当前不可用
+```
+
+**不要拍脑袋的计数下限。** 「`provider_count >= 8`」这类数字离 `registry.default.yaml`
+太远，掉了三个提供商也能静默通过。改为**内部自洽**（`provider_count === providers.length`、
+`model_count === Σ models.length`，且都 > 0），它能抓住已实测的 fail-open：
+
+```
+$ python scripts/export-public-catalog.py --registry <不存在的路径> ...
+Exported 0 providers / 0 models      ← 退出码 0，generated_at 崭新
+```
+
+**重新导出与探测修复必须在同一个提交里。** 实测三个 Google 端点：
+
+```
+400  /v1beta/models/gemini-2.5-flash:generateContent          ← 存在
+404  /v1beta/openai/models/gemini-2.5-flash:generateContent   ← 不存在
+400  /v1beta/openai/chat/completions                          ← 存在
+```
+
+重新导出会把 `google-ai-studio.api` 改成 `/v1beta/openai`，而 `worker/probe.js:42-59`
+的 Google 特判会拼出中间那个 404，`failureReason(404)` 把它变成「模型或接口在
+提供商侧不存在」→ `unavailable`。**只提交数据刷新会让 Google 在 M2 要修的那块
+看板上变黑，而且看起来像提供商挂了。** 删掉这个特判也正好是正确的终局：
+`/v1beta/openai/chat/completions` 存在，`proxy.py:410` 生产环境用的就是它，
+而且这样就不必让手写逻辑耦合一个**生成文件**里的字段。
+
+### 5.3 明确接受、本轮不修的
+
+- **逐模型可用性是伪造的**（`public_catalog.py:95` 把提供商结论盖到全部 55 个模型上）。
+  M2 范围外。新知的路径：`/api/status` **确实**带有以 `provider/model` 为键的逐模型
+  证据，所以它不再卡在凭据上，而是卡在 `docs/provider-status.json` 的 schema 变更上。记入 M3。
+- **没有部署工作流。** M2 内无法修复。用 §5.4 的线上监控缓解，并写进 PRD，
+  这样 M2 不能在访客侧问题仍然存在时被标记为完成。
+- **七个互不协调的陈旧度常量**（`recent()` 45 分、`statusIsStale()` 20 分、
+  探测 15 分、discovery 7 小时、`/api/catalog` 300 秒、7 天、3 天）。
+  M2 在 `probe.js` 加一段注释把七个都点名并交叉引用 `data-freshness.mjs`；
+  统一它们是 M3。
+- **指纹排序隐患**（`build-site.mjs` 先哈希后重写引用）。目前休眠——没有已发布的
+  JS 引用被哈希的资源，且三个页面都用经典 `<script defer>` 加载，`import` 会先
+  报 SyntaxError。加注释，不修。**这也是 L2 在三个文件里重复约 12 行
+  `degradeCatalog()` 而不共享模块的正当理由**：`_headers` 把 `/*.js` 标为一年
+  immutable，JS→JS 引用一旦漂移就是**硬 404 打死整页**，不是外观瑕疵。
+
+### 5.4 `status_as_of` 真正被执行的地方
+
+不在构建里，而在两个都不需要凭据的定时工作流：
+
+1. `data-refresh.yml` —— 单调安全地投影 `/api/status` 并开 PR；探测卡住会表现为
+   一个 `status_as_of` 不再前进的 PR。
+2. `deployed-freshness.yml` —— 拉取 `https://oaf.asia/data/catalog.json`，
+   `generated_at` 超过 14 天则失败。**这是唯一一个测量访客实际收到什么的检查**；
+   构建期门禁测量的是 git。
+
+外加 `site/_headers` 增加 `/data/*.json` 规则（`max-age=300, must-revalidate`）——
+今天 `/data/*.json` 既没被指纹化也没有任何缓存规则，于是即便部署是崭新的，
+访客也可能拿到比门禁阈值本身还旧的目录。

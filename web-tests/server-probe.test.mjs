@@ -46,10 +46,16 @@ test("server probe sends a minimal authenticated OpenAI-compatible request", asy
   assert.equal(body.max_tokens, 1);
 });
 
-test("Google server probe uses the native endpoint and secret header", async () => {
+test("Google server probe uses the OpenAI-compatible endpoint the catalog advertises", async () => {
+  // The published catalog's api field is generated from registry.default.yaml
+  // and reads .../v1beta/openai. A hand-written special case that appended
+  // /models/X:generateContent to it produced a 404 (verified live), which
+  // failureReason maps to unavailable — Google would go dark on the status
+  // board for a reason that looks like a provider outage. The generic path
+  // .../v1beta/openai/chat/completions exists and is what proxy.py uses.
   const provider = {
     id: "google-ai-studio",
-    api: "https://generativelanguage.googleapis.com/v1beta",
+    api: "https://generativelanguage.googleapis.com/v1beta/openai",
     models: [{ id: "gemini-test", upstream_id: "gemini-test" }],
   };
   let captured;
@@ -60,9 +66,10 @@ test("Google server probe uses the native endpoint and secret header", async () 
     return new Response("{}", { status: 200 });
   });
   assert.equal(result.availability, "available");
-  assert.equal(captured.url, "https://generativelanguage.googleapis.com/v1beta/models/gemini-test:generateContent");
-  assert.equal(captured.options.headers["X-Goog-Api-Key"], "google-private-key");
-  assert.equal(captured.options.headers.Authorization, undefined);
+  assert.equal(captured.url, "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions");
+  assert.equal(captured.options.headers.Authorization, "Bearer google-private-key");
+  assert.equal(captured.options.headers["X-Goog-Api-Key"], undefined);
+  assert.equal(JSON.parse(captured.options.body).model, "gemini-test");
 });
 
 test("rotating server snapshot stays below one half of the model catalog", async () => {

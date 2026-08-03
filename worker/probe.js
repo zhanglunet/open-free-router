@@ -39,24 +39,12 @@ function requestFor(provider, model, credential, signal) {
   const base = safeEndpoint(provider.api);
   if (!base) throw new Error("invalid_endpoint");
   const upstreamModel = model.upstream_id || model.id;
-  if (provider.id === "google-ai-studio") {
-    return [
-      `${base}/models/${encodeURIComponent(upstreamModel)}:generateContent`,
-      {
-        method: "POST",
-        signal,
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": credential,
-          "User-Agent": "open-free-router-cloudflare/0.3",
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts: [{ text: "ping" }] }],
-          generationConfig: { maxOutputTokens: 1 },
-        }),
-      },
-    ];
-  }
+  // Google used to get a hand-written :generateContent path here. The catalog's
+  // `api` field is generated from registry.default.yaml and reads
+  // .../v1beta/openai, against which that path is a 404 (verified live), and
+  // failureReason maps 404 to unavailable — the provider would go dark for a
+  // reason indistinguishable from a real outage. The generic OpenAI-compatible
+  // path below is what proxy.py already uses in production.
   const headers = {
     "Content-Type": "application/json",
     "User-Agent": "open-free-router-cloudflare/0.3",
