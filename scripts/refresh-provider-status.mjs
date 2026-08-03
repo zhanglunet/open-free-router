@@ -42,11 +42,18 @@ const METHOD =
   "仅 available 原样通过，其余一律降级为 unverified，避免把一次采样的限流或未覆盖当成提供商故障发布。";
 
 /**
+ * Matches worker/probe.js STATUS_STALE_MS. Evidence older than this no longer
+ * speaks for a model there, so carrying it into the published file would give
+ * the static fallback a longer memory than the live path.
+ */
+export const MODEL_EVIDENCE_STALE_MS = 45 * 60 * 1000;
+
+/**
  * @param {unknown} snapshot parsed /api/status payload
- * @param {{catalogProviderIds: string[], nowMs: number}} options
+ * @param {{catalogProviderIds: string[], catalogModelKeys?: string[], nowMs: number}} options
  * @returns {{ok: boolean, errors: string[], status: object|null}}
  */
-export function projectProbeSnapshot(snapshot, { catalogProviderIds, nowMs }) {
+export function projectProbeSnapshot(snapshot, { catalogProviderIds, catalogModelKeys = [], nowMs }) {
   const errors = [];
 
   if (snapshot?.schema_version !== 2) {
@@ -89,10 +96,54 @@ export function projectProbeSnapshot(snapshot, { catalogProviderIds, nowMs }) {
     };
   }
 
+  /* Per-model evidence, keyed exactly as /api/status keys it. Same monotone-safe
+     rule as the provider level, applied independently: `available` passes
+     through, everything else becomes `unverified` with the observed reason kept.
+     Iterating the CATALOG's keys rather than the snapshot's is deliberate — a
+     model removed from the registry must not survive as an orphan, and a model
+     the rotating batch did not reach must appear as uncovered rather than
+     silently absent. `upstream_error` is never copied: write_public_catalog
+     rejects text containing "messages" or "prompt", so an echoed request body
+     would fail the build, and it is a diagnostic for maintainers, not a public
+     claim. */
+  const snapshotModels = snapshot.models && typeof snapshot.models === "object" ? snapshot.models : {};
+  const models = {};
+  let covered = 0;
+  for (const key of catalogModelKeys) {
+    const evidence = snapshotModels[key];
+    const checkedAt = Date.parse(evidence?.checked_at ?? "");
+    const fresh = Number.isFinite(checkedAt) && nowMs - checkedAt <= MODEL_EVIDENCE_STALE_MS;
+    if (!evidence || !fresh) {
+      models[key] = {
+        availability: "unverified",
+        latency_ms: null,
+        checked_at: "",
+        status: "no_recent_evidence",
+        reason: evidence ? "该模型的探测证据已过期" : "本次快照未覆盖该模型",
+      };
+      continue;
+    }
+    covered += 1;
+    const available = evidence.availability === "available";
+    models[key] = {
+      availability: available ? "available" : "unverified",
+      latency_ms: available && Number.isFinite(evidence.latency_ms) ? evidence.latency_ms : null,
+      checked_at: evidence.checked_at,
+      status: evidence.status || (available ? "http_200" : "unknown"),
+      reason: evidence.reason || (available ? "Cloudflare 服务器探测通过" : "本次快照未取得可用证据"),
+    };
+  }
+
   return {
     ok: true,
     errors: [],
-    status: { as_of: new Date(asOf).toISOString(), method: METHOD, providers: projected },
+    status: {
+      as_of: new Date(asOf).toISOString(),
+      method: METHOD,
+      model_evidence: { covered, total: catalogModelKeys.length },
+      providers: projected,
+      models,
+    },
   };
 }
 
@@ -105,6 +156,8 @@ async function main() {
   const catalog = JSON.parse(await readFile(CATALOG_PATH, "utf8"));
   const catalogProviderIds = (catalog.providers || []).map((provider) => provider.id);
   if (!catalogProviderIds.length) throw new Error("本地目录里没有提供商，先修好 site/data/catalog.json");
+  const catalogModelKeys = (catalog.providers || []).flatMap((provider) =>
+    (provider.models || []).map((model) => `${provider.id}/${model.id}`));
 
   const response = await fetch(source, { headers: { Accept: "application/json" } });
   if (!response.ok) throw new Error(`${source} 返回 HTTP ${response.status}`);
@@ -112,6 +165,7 @@ async function main() {
 
   const { ok, errors, status } = projectProbeSnapshot(snapshot, {
     catalogProviderIds,
+    catalogModelKeys,
     nowMs: Date.now(),
   });
   if (!ok) {
@@ -125,6 +179,9 @@ async function main() {
     const latency = entry.latency_ms == null ? "—" : `${entry.latency_ms}ms`;
     console.log(`  ${id.padEnd(width)}  ${entry.availability.padEnd(10)} ${latency.padStart(7)}  ${entry.reason}`);
   }
+
+  console.log(`  逐模型证据覆盖 ${status.model_evidence.covered}/${status.model_evidence.total}` +
+    `（轮换批次每轮只探测约一半，未覆盖的按 unverified 发布）`);
 
   if (dryRun) {
     console.log("\n--dry-run：没有写入任何文件。");

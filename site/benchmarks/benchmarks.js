@@ -25,7 +25,7 @@ function latencyPoints(ms) {
 }
 function readinessBreakdown(row) {
   const breakdown = {
-    availability: availabilityPoints(row.provider_status),
+    availability: availabilityPoints(row.model_status),
     evidence: evidencePoints(row),
     capability: Math.round((row.capability_score || 0) * .3),
     latency: latencyPoints(row.latency_ms),
@@ -51,7 +51,11 @@ function externalValue(row, key, formatter = (value) => value) {
 
 function flatten(catalog) {
   return catalog.providers.flatMap((provider) => provider.models.map((model) => {
-    const row = { ...model, provider_id: provider.id, provider_name: provider.name, provider_status: provider.availability, latency_ms: provider.latency_ms };
+    /* 45% of the 100-point scale comes from availability (35) and latency (10).
+       Taking the provider's verdict and its Math.min latency meant every model
+       of a provider scored identically on both terms regardless of its own
+       evidence. */
+    const row = { ...model, provider_id: provider.id, provider_name: provider.name, provider_availability: provider.availability, model_status: model.availability ?? "unverified", latency_ms: model.latency_ms ?? null };
     row.readiness = readiness(row);
     row.external = state.external.get(externalKey(provider.id, model.id)) || state.external.get(externalKey(provider.id, model.upstream_id));
     return row;
@@ -68,12 +72,12 @@ function renderScatter() {
   const labelledBins = new Set();
   $("#scatter").innerHTML = '<div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>' + rows.map((row, index) => {
     const label = row.name || row.id;
-    const title = `${label} · ${STATUS_LABELS[row.provider_status] || "状态未知"} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
+    const title = `${label} · ${STATUS_LABELS[row.model_status] || "状态未知"} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
     const x = xPosition(row.latency_ms);
     const labelBin = `${Math.round(x / 16)}-${Math.round(row.readiness / 12)}`;
     const labelled = labelledBins.size < 14 && !labelledBins.has(labelBin);
     if (labelled) labelledBins.add(labelBin);
-    return `<button class="point ${html(row.provider_status)} ${row.external ? "external-match" : ""} ${labelled ? "labelled" : ""} jitter-${index % 8} ${positionClass("x", x)} ${positionClass("y", yPosition(row.readiness))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
+    return `<button class="point ${html(row.model_status)} ${row.external ? "external-match" : ""} ${labelled ? "labelled" : ""} jitter-${index % 8} ${positionClass("x", x)} ${positionClass("y", yPosition(row.readiness))}" title="${html(title)}" aria-label="${html(title)}"><span>${html(label)}</span></button>`;
   }).join("");
   const viewport = document.querySelector(".scatter-viewport");
   if (viewport && window.matchMedia("(max-width: 900px)").matches) {
@@ -104,7 +108,7 @@ function renderRows() {
   $("#bench-rows").innerHTML = rows.length ? rows.map((row) => {
     const breakdown = readinessBreakdown(row);
     return `<tr>
-    <td><span class="status-pill ${html(row.provider_status)}">${labels[row.provider_status] || "未验证"}</span></td>
+    <td><span class="status-pill ${html(row.model_status)}">${labels[row.model_status] || "未验证"}</span></td>
     <td><small>${html(row.provider_name)}</small><b>${html(row.name || row.id)}</b><code>${html(row.upstream_id)}</code></td>
     <td><div class="scorebar"><i class="${scoreClass(row.readiness)}"></i><b>${row.readiness}</b></div><small>服务 ${breakdown.availability} · 免费 ${breakdown.evidence} · 能力 ${breakdown.capability} · 延迟 ${breakdown.latency}</small></td>
     <td>${formatLatency(row.latency_ms)}</td><td>${evidence[freeStatus(row)] || "目录未提供"}</td>
@@ -198,7 +202,7 @@ async function load() {
   liveModels.classList.toggle("qualitative", degraded);
   liveModels.textContent = degraded
     ? "未验证"
-    : number.format(state.rows.filter((row) => row.provider_status === "available").length);
+    : number.format(state.rows.filter((row) => row.model_status === "available").length);
   $("#free-evidence-models").textContent = number.format(state.rows.filter((row) => freeStatus(row) !== "unknown").length);
   $("#bench-freshness").textContent = degraded
     ? `静态兜底数据 · 目录生成于 ${relativeDays(catalog.generated_at)} · 服务端可用性与延迟两项未做实测，任务适配分据此按未验证计分`

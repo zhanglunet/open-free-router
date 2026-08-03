@@ -72,6 +72,118 @@ test("Google server probe uses the OpenAI-compatible endpoint the catalog advert
   assert.equal(JSON.parse(captured.options.body).model, "gemini-test");
 });
 
+test("a failing probe keeps a scrubbed slice of the upstream error", async () => {
+  // Every non-2xx result currently carries a locally synthesised reason and
+  // zero upstream information, because the body is cancelled before the status
+  // is examined. That is the one artefact that separates "our credential is
+  // malformed" from "the account lacks entitlement" — gitee-ai returns 400 for
+  // all 16 models and we cannot tell which without it.
+  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: "k" }, async () =>
+    new Response(JSON.stringify({ error: { code: "400", message: "该模型需要开通资源包" } }), { status: 400 }));
+  assert.equal(result.availability, "unavailable");
+  assert.equal(result.status, "http_400");
+  assert.equal(result.upstream_error, "该模型需要开通资源包");
+});
+
+test("a successful probe carries no upstream_error", async () => {
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+    new Response(JSON.stringify({ choices: [] }), { status: 200 }));
+  assert.equal(result.availability, "available");
+  assert.equal(result.upstream_error, undefined);
+});
+
+test("a credential echoed back by the provider is scrubbed out of upstream_error", async () => {
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "gsk_abcdef123456" }, async () =>
+    new Response(JSON.stringify({ error: { message: "invalid key gsk_abcdef123456 supplied" } }), { status: 401 }));
+  assert.ok(!result.upstream_error.includes("gsk_abcdef123456"), result.upstream_error);
+  assert.match(result.upstream_error, /redacted-credential/);
+});
+
+test("a credential with no recognised prefix is still redacted", async () => {
+  // The pattern list only knows the key formats we have seen. credentialFor
+  // accepts an arbitrary secret string — a Gitee private token has no sk_/gsk_
+  // style prefix — and upstream_error is served by the unauthenticated
+  // /api/status and spread into /api/catalog, so a prefix allowlist alone
+  // publishes the key the moment a provider echoes it back.
+  const secret = "9f3c1ba77e0d4e2b8c5a6f10d2e94b77";
+  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: secret }, async () =>
+    new Response(JSON.stringify({ error: { message: `token ${secret} is not authorized` } }), { status: 400 }));
+  assert.ok(!result.upstream_error.includes(secret), result.upstream_error);
+  assert.match(result.upstream_error, /redacted-credential/);
+});
+
+test("a percent-encoded echo of the credential is redacted too", async () => {
+  const secret = "tok/en+with=specials";
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: secret }, async () =>
+    new Response(JSON.stringify({ error: { message: `bad key ${encodeURIComponent(secret)} here` } }), { status: 401 }));
+  assert.ok(!result.upstream_error.includes(encodeURIComponent(secret)), result.upstream_error);
+});
+
+test("upstream_error is bounded so a hostile body cannot bloat the KV snapshot", async () => {
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+    new Response(JSON.stringify({ error: { message: "x".repeat(5000) } }), { status: 500 }));
+  assert.ok(result.upstream_error.length <= 300, `length ${result.upstream_error.length}`);
+});
+
+test("a whitespace-only secret reports no_server_credential instead of sending an empty Bearer", async () => {
+  // ai.gitee.com returns 400 — not 401 — for `Authorization: Bearer ` with an
+  // empty credential (verified live). Without trimming, a blank Cloudflare
+  // secret is indistinguishable from a valid one in our own output.
+  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
+  let called = false;
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: "   " }, async () => {
+    called = true;
+    return new Response("{}", { status: 400 });
+  });
+  assert.equal(result.status, "no_server_credential");
+  assert.equal(result.availability, "unverified");
+  assert.equal(called, false, "no request may be sent with a blank credential");
+});
+
+test("speed_tier_zh is recomputed from the merged per-model evidence", () => {
+  // public_catalog.py derives it from the PROVIDER's availability and latency
+  // at export time, and mergeServerStatus spreads evidence objects that contain
+  // no such key — so the frozen provider-derived string survives onto the live
+  // catalog. Measured on production: 17 models advertised 中等/较慢 while
+  // unavailable, and 2 advertised 当前不可用 while responding in under a second.
+  const now = Date.parse("2026-08-03T00:00:00Z");
+  const checkedAt = new Date(now - 60_000).toISOString();
+  const catalog = {
+    providers: [{
+      id: "p",
+      models: [
+        { id: "fast", speed_tier_zh: "当前不可用" },
+        { id: "slow", speed_tier_zh: "快" },
+        { id: "down", speed_tier_zh: "中等" },
+        { id: "nostatus", speed_tier_zh: "快" },
+      ],
+    }],
+  };
+  const snapshot = {
+    schema_version: 2,
+    as_of: checkedAt,
+    providers: {},
+    models: {
+      "p/fast": { availability: "available", latency_ms: 800, checked_at: checkedAt },
+      "p/slow": { availability: "available", latency_ms: 4000, checked_at: checkedAt },
+      "p/down": { availability: "unavailable", latency_ms: 12000, checked_at: checkedAt },
+    },
+  };
+  const models = mergeServerStatus(catalog, snapshot, now).providers[0].models;
+  const tier = (id) => models.find((m) => m.id === id).speed_tier_zh;
+  assert.equal(tier("fast"), "快");
+  assert.equal(tier("slow"), "较慢");
+  assert.equal(tier("down"), "当前不可用");
+  // No surviving evidence: not a speed claim at all.
+  assert.equal(tier("nostatus"), "未测");
+});
+
 /* The KV provider summary is written once at probe time and never decays. The
    model evidence beside it does decay, through recent()/STATUS_STALE_MS. Serving
    the frozen summary therefore rendered a green provider card sitting directly

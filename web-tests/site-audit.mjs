@@ -245,6 +245,51 @@ export async function staticAudit() {
     }
   }
 
+  // ── advertised model aliases must resolve in the published catalog ──
+  //
+  // A visitor copies `gq/llama-3.1-8b` out of the install guide and pastes it
+  // into their client. If the registry never had that id, the request 404s and
+  // the failure looks like the provider's. This has regressed before —
+  // gq/llama-8b, nv/nemotron-ultra and or/gpt-oss-20b-free all shipped, and
+  // production is serving them right now because the fix is merged but
+  // undeployed.
+  //
+  // Offline on purpose. A networked tier backed by models.dev would not help:
+  // it still lists gemini-2.5-flash-lite (which 404s upstream), covers neither
+  // gitee-ai, nous nor sensenova, and checking gitee's own /v1/models is
+  // circular — refresh_sources/gitee_ai.py builds the registry from exactly
+  // that endpoint.
+  const catalogFile = join(SITE, "data", "catalog.json");
+  if (existsSync(catalogFile)) {
+    const catalog = JSON.parse(await readFile(catalogFile, "utf8"));
+    const prefixes = [...new Set((catalog.providers || []).map((p) => p.prefix).filter(Boolean))];
+    const aliases = new Set(
+      (catalog.providers || []).flatMap((p) => (p.models || []).map((m) => `${p.prefix}/${m.id}`)),
+    );
+    if (prefixes.length && aliases.size) {
+      // The leading group excludes URL paths: without it, the upstream URL
+      // https://opencode.ai/zen/v1 reads as the alias `zen/v1`.
+      const aliasPattern = new RegExp(
+        `(^|[^/A-Za-z0-9._-])((?:${prefixes.join("|")})\\/[A-Za-z0-9._:-]+)`,
+        "g",
+      );
+      const scanned = [
+        ...(await listPages()),
+        ...[join(ROOT, "README.md"), join(ROOT, "README.en.md")].filter((f) => existsSync(f)),
+      ];
+      for (const file of scanned) {
+        const text = await readFile(file, "utf8");
+        const route = file.endsWith(".md") ? `/${relative(ROOT, file)}` : routeOf(file);
+        for (const match of new Set([...text.matchAll(aliasPattern)].map((m) => m[2]))) {
+          if (!aliases.has(match)) {
+            add("critical", route, "宣传了注册表里不存在的模型别名",
+              `${match} 无法在已发布目录中解析；访客复制过去会直接失败，且看起来像提供商的问题。`);
+          }
+        }
+      }
+    }
+  }
+
   return findings;
 }
 

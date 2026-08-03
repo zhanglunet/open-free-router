@@ -83,6 +83,84 @@ test("the refresh workflow opens a pull request and never pushes to the branch u
   assert.match(workflow, /gh workflow run/);
 });
 
+/* Per-model evidence. public_catalog.py stamps the provider's verdict onto
+   every one of its models, so the published catalog's per-model availability
+   carries zero per-model information — 7 models are published available with
+   no evidence of their own behind them. /api/status has carried the real thing
+   all along, keyed "provider/model". */
+const MODEL_KEYS = ["groq/a", "groq/b", "google-ai-studio/c"];
+
+function snapshotWithModels(overrides = {}) {
+  const asOf = new Date(NOW - 5 * 60 * 1000).toISOString();
+  return {
+    ...snapshot(),
+    models: {
+      "groq/a": { availability: "available", status: "http_200", reason: "实测成功", latency_ms: 42, checked_at: asOf },
+      "groq/b": { availability: "unavailable", status: "http_429", reason: "提供商对服务器探测请求限流", latency_ms: 88, checked_at: asOf, upstream_error: "rate limited" },
+      "google-ai-studio/c": { availability: "unavailable", status: "http_404", reason: "模型或接口在提供商侧不存在", latency_ms: 180, checked_at: asOf },
+      ...overrides,
+    },
+  };
+}
+
+const projectModels = (snap) =>
+  projectProbeSnapshot(snap, { catalogProviderIds: IDS, catalogModelKeys: MODEL_KEYS, nowMs: NOW });
+
+test("per-model evidence is projected monotone-safely, like the provider level", () => {
+  const { ok, status } = projectModels(snapshotWithModels());
+  assert.equal(ok, true);
+  assert.deepEqual(status.models["groq/a"], {
+    availability: "available",
+    latency_ms: 42,
+    checked_at: new Date(NOW - 5 * 60 * 1000).toISOString(),
+    status: "http_200",
+    reason: "实测成功",
+  });
+  // A 429 is our own probe being throttled. It must not publish an outage into
+  // a file nothing revisits for a day.
+  assert.equal(status.models["groq/b"].availability, "unverified");
+  assert.equal(status.models["groq/b"].latency_ms, null);
+  assert.match(status.models["groq/b"].reason, /限流/);
+  assert.equal(status.models["google-ai-studio/c"].availability, "unverified");
+});
+
+test("upstream_error never reaches the published status file", () => {
+  // write_public_catalog rejects text containing "messages" or "prompt", and an
+  // echoed request body would fail the build. It stays in the Worker/KV only.
+  const { status } = projectModels(snapshotWithModels());
+  assert.equal(JSON.stringify(status).includes("upstream_error"), false);
+  assert.equal(JSON.stringify(status).includes("rate limited"), false);
+});
+
+test("a model the rotating batch did not cover is reported, not invented", () => {
+  const partial = snapshotWithModels();
+  delete partial.models["groq/b"];
+  const { ok, status } = projectModels(partial);
+  assert.equal(ok, true, "a partial batch is normal, not a rejection");
+  assert.equal(status.models["groq/b"].availability, "unverified");
+  assert.equal(status.model_evidence.total, MODEL_KEYS.length);
+  assert.equal(status.model_evidence.covered, 2);
+});
+
+test("evidence older than the worker's own recency window is not carried forward", () => {
+  const stale = snapshotWithModels();
+  stale.models["groq/a"].checked_at = new Date(NOW - 46 * 60 * 1000).toISOString();
+  const { status } = projectModels(stale);
+  assert.equal(status.models["groq/a"].availability, "unverified");
+  assert.match(status.models["groq/a"].reason, /过期/);
+  // covered counts models with FRESH evidence, whatever that evidence says —
+  // it measures how much of the catalog the rotating batch reached, not how
+  // much of it passed. b and c were probed 5 minutes ago and still count.
+  assert.equal(status.model_evidence.covered, 2);
+});
+
+test("only catalog models are published, so a removed model leaves no orphan", () => {
+  const extra = snapshotWithModels();
+  extra.models["groq/deleted-from-registry"] = { availability: "available", latency_ms: 1, checked_at: new Date(NOW).toISOString() };
+  const { status } = projectModels(extra);
+  assert.deepEqual(Object.keys(status.models).sort(), [...MODEL_KEYS].sort());
+});
+
 test("the devlog guard exempts site/data so it cannot deadlock the refresh PR", async () => {
   // ci.yml requires a devlog entry whenever site/** changes. The scheduled
   // refresh PR only ever touches site/data/catalog.json, so without this

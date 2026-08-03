@@ -79,6 +79,11 @@ def build_public_catalog(
     could be cleared by hand-editing a timestamp.
     """
     statuses = status_snapshot.get("providers") or {}
+    # Per-model evidence, keyed "provider/model" exactly as the Cloudflare probe
+    # keys it. Absent it, a model is unverified rather than inheriting the
+    # provider's verdict — that inheritance is what published models as
+    # available on the strength of one smoke test against a sibling.
+    model_statuses = status_snapshot.get("models") or {}
     provider_profiles = provider_profiles or {}
     providers = []
     model_total = 0
@@ -94,6 +99,7 @@ def build_public_catalog(
         models = []
         for model in provider.models:
             model_total += 1
+            model_status = model_statuses.get(f"{name}/{model.id}") or {}
             free_tier = provider.free_tier_for(model)
             free_tier_payload = free_tier.to_dict(include_status=True, now=generated_at)
             free_status = free_tier_payload["status"]
@@ -107,7 +113,7 @@ def build_public_catalog(
                 "reasoning": model.reasoning,
                 "tool_calling": model.tool_calling,
                 "input_modalities": ["text"],
-                "availability": status.get("availability", "unverified"),
+                "availability": model_status.get("availability", "unverified"),
                 "capability_score": _capability_score(
                     model.context_window, model.max_tokens, model.reasoning, model.tool_calling
                 ),
@@ -120,7 +126,7 @@ def build_public_catalog(
                     model.context_window, model.reasoning, model.tool_calling
                 ),
                 "speed_tier_zh": _speed_tier(
-                    status.get("availability", "unverified"), status.get("latency_ms")
+                    model_status.get("availability", "unverified"), model_status.get("latency_ms")
                 ),
                 "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
                 "free_tier": free_tier_payload,
