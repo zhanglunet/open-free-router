@@ -256,9 +256,9 @@ export async function staticAudit() {
   //
   // Offline on purpose. A networked tier backed by models.dev would not help:
   // it still lists gemini-2.5-flash-lite (which 404s upstream), covers neither
-  // gitee-ai, nous nor sensenova, and checking gitee's own /v1/models is
-  // circular — refresh_sources/gitee_ai.py builds the registry from exactly
-  // that endpoint.
+  // nous nor sensenova. (The same argument sank the gitee-ai check before
+  // that provider was removed: its registry was generated from the very
+  // endpoint one would have validated against.)
   const catalogFile = join(SITE, "data", "catalog.json");
   if (existsSync(catalogFile)) {
     const catalog = JSON.parse(await readFile(catalogFile, "utf8"));

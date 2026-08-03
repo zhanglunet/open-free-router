@@ -242,12 +242,12 @@ def test_declared_matrix_covers_every_provider_and_protocol():
     assert matrix["notice_zh"].startswith("这是配置与协议适配矩阵")
 
 
-def test_bundled_registry_is_an_11_by_3_issue_free_matrix():
+def test_bundled_registry_is_a_10_by_3_issue_free_matrix():
     template = Path(__file__).parents[1] / "src/open_free_router/registry.default.yaml"
     matrix = protocol_matrix(Registry.load(template))
-    assert matrix["provider_count"] == 11
+    assert matrix["provider_count"] == 10
     assert matrix["protocol_count"] == 3
-    assert matrix["row_count"] == 33
+    assert matrix["row_count"] == 30  # 10 providers x 3 protocols
     assert matrix["issues"] == []
 
 

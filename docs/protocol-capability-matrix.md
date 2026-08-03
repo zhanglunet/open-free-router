@@ -46,7 +46,6 @@ open-free-router doctor --json
 | OpenRouter | 9 | 1 | 0 | ✓ | ✓ | ✓ |
 | SenseNova | 2 | 0 | 0 | ✓ | ✓ | ✓ |
 | StepFun | 1 | 0 | 0 | ✓ | ✓ | ✓ |
-| Gitee AI | 16 | 1 | 3 | ✓ | ✓ | ✓ |
 
 Google AI Studio 必须使用
 `https://generativelanguage.googleapis.com/v1beta/openai`。旧注册表若仍是

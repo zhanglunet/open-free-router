@@ -33,7 +33,6 @@ const SECRET_BINDINGS = {
   "openrouter": "OFR_PROBE_OPENROUTER_API_KEY",
   "sensenova": "OFR_PROBE_SENSENOVA_API_KEY",
   "stepfun": "OFR_PROBE_STEPFUN_API_KEY",
-  "gitee-ai": "OFR_PROBE_GITEE_AI_API_KEY",
 };
 
 const KEYLESS_PROVIDERS = new Set(["opencode-zen-free"]);
@@ -169,6 +168,22 @@ function requestFor(provider, model, credential, signal) {
  */
 const NO_EVIDENCE_STATUSES = new Set([401, 402, 403, 429]);
 
+/**
+ * Status codes lie about whose problem it is.
+ *
+ * Gitee returns HTTP 400 — normally "this request was rejected" — for what its
+ * own body calls 「当前账户没有可用的计费资源」. That is semantically a 402: it
+ * says our probe account has no credit and says nothing whatsoever about the
+ * model. Verified live: 11 of gitee's 16 models carried exactly that string
+ * while the board showed them as 不可用.
+ *
+ * Matching on the message is less principled than matching on the code, but the
+ * code is the thing that is wrong here. Kept deliberately narrow — billing,
+ * balance, quota and subscription wording only — so that a genuine model
+ * verdict like 「该模型已停用」 stays a verdict.
+ */
+const ACCOUNT_LEVEL_RE = /计费资源|账户余额|余额不足|购买订阅|资源包|充值|quota|billing|insufficient (?:balance|credit|funds)|payment required|subscription required/i;
+
 function verdictFor(status) {
   return NO_EVIDENCE_STATUSES.has(status) ? "unverified" : "unavailable";
 }
@@ -213,10 +228,13 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
     // the status code alone cannot tell a malformed credential from a missing
     // entitlement. Scrubbed and bounded before it goes anywhere.
     const detail = await upstreamError(response, credential);
+    const accountLevel = Boolean(detail) && ACCOUNT_LEVEL_RE.test(detail);
     return {
-      availability: verdictFor(response.status),
+      availability: accountLevel ? "unverified" : verdictFor(response.status),
       status: `http_${response.status}`,
-      reason: failureReason(response.status),
+      reason: accountLevel
+        ? "服务器探测账户在该提供商没有可用额度，未能取得该模型的证据"
+        : failureReason(response.status),
       ...(detail ? { upstream_error: detail } : {}),
       latency_ms: latency,
       checked_at: checkedAt,
