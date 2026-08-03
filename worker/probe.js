@@ -134,35 +134,54 @@ function recent(result, nowMs) {
   return Number.isFinite(checked) && nowMs - checked <= STATUS_STALE_MS;
 }
 
+/**
+ * One derivation, two call sites.
+ *
+ * summarizeProviders runs at probe time over raw evidence; mergeServerStatus
+ * runs at serve time over evidence that has already been through recent().
+ * Sharing this function is what guarantees a provider verdict can never
+ * contradict the model badges rendered beside it. The previous code copied a
+ * summary frozen at probe time, so any KV snapshot older than STATUS_STALE_MS
+ * produced a green provider card above its own "候选未验证" models — starting
+ * at 46 minutes, and byte-identically at 3 days and at 30 days.
+ *
+ * `evidence` is the list of surviving per-model results; `totalModels` is the
+ * provider's full model count, so the ratio reads the same in both contexts.
+ */
+function deriveProviderSummary(evidence, totalModels) {
+  const checkedAt = evidence.map((item) => item.checked_at).filter(Boolean).sort().at(-1) || "";
+  const available = evidence.filter((item) => item.availability === "available");
+  const failed = evidence.filter((item) => item.availability === "unavailable");
+  const latencies = available.map((item) => item.latency_ms).filter(Number.isFinite);
+  let summary;
+  if (available.length) {
+    summary = {
+      availability: "available",
+      reason: `Cloudflare 服务器已验证 ${available.length}/${totalModels} 个模型可用`,
+      // Math.min of an empty list is Infinity, which would serialise as null
+      // through JSON anyway but reads as a measurement in the merge.
+      latency_ms: latencies.length ? Math.min(...latencies) : null,
+    };
+  } else if (failed.length) {
+    summary = { availability: "unavailable", reason: failed[0].reason, latency_ms: failed[0].latency_ms };
+  } else {
+    summary = {
+      availability: "unverified",
+      // Not "首次探测": with no surviving evidence we cannot tell a provider
+      // that has never been probed from one whose evidence simply expired.
+      reason: evidence[0]?.reason || "暂无有效的 Cloudflare 服务器探测证据",
+      latency_ms: null,
+    };
+  }
+  return { ...summary, checked_at: checkedAt, evidence_count: evidence.length };
+}
+
 function summarizeProviders(catalog, results, nowMs) {
   return Object.fromEntries((catalog.providers || []).map((provider) => {
     const evidence = (provider.models || [])
       .map((model) => results[modelKey(provider.id, model.id)])
       .filter((result) => recent(result, nowMs));
-    const checkedAt = evidence.map((item) => item.checked_at).sort().at(-1) || "";
-    const available = evidence.filter((item) => item.availability === "available");
-    const failed = evidence.filter((item) => item.availability === "unavailable");
-    let summary;
-    if (available.length) {
-      summary = {
-        availability: "available",
-        reason: `Cloudflare 服务器已验证 ${available.length}/${provider.models.length} 个模型可用`,
-        latency_ms: Math.min(...available.map((item) => item.latency_ms).filter(Number.isFinite)),
-      };
-    } else if (failed.length) {
-      summary = {
-        availability: "unavailable",
-        reason: failed[0].reason,
-        latency_ms: failed[0].latency_ms,
-      };
-    } else {
-      summary = {
-        availability: "unverified",
-        reason: evidence[0]?.reason || "等待 Cloudflare 服务器首次探测",
-        latency_ms: null,
-      };
-    }
-    return [provider.id, { ...summary, checked_at: checkedAt, evidence_count: evidence.length }];
+    return [provider.id, deriveProviderSummary(evidence, (provider.models || []).length)];
   }));
 }
 
@@ -214,30 +233,31 @@ export function statusIsStale(snapshot, nowMs = Date.now()) {
 export function mergeServerStatus(catalog, snapshot, nowMs = Date.now()) {
   const live = snapshot?.schema_version === 2 ? snapshot : null;
   const providers = (catalog.providers || []).map((provider) => {
-    const summary = live?.providers?.[provider.id];
+    // The KV summary is deliberately not read here. Only evidence that survives
+    // recent() may speak for the provider — see deriveProviderSummary.
+    const surviving = [];
     const models = (provider.models || []).map((model) => {
       const evidence = live?.models?.[modelKey(provider.id, model.id)];
       if (!recent(evidence, nowMs)) {
         return { ...model, availability: "unverified", latency_ms: null, checked_at: "", reason: "等待服务器探测" };
       }
+      surviving.push(evidence);
       return { ...model, ...evidence, key: undefined, provider_id: undefined, model_id: undefined };
     });
-    return {
-      ...provider,
-      availability: summary?.availability || "unverified",
-      reason: summary?.reason || "等待 Cloudflare 服务器首次探测",
-      latency_ms: summary?.latency_ms ?? null,
-      checked_at: summary?.checked_at || "",
-      models,
-    };
+    return { ...provider, ...deriveProviderSummary(surviving, models.length), models };
   });
   return {
     ...catalog,
     providers,
     status_as_of: live?.as_of || "",
-    status_source: "cloudflare-server-probe",
+    // A KV miss means nothing was measured. Claiming a Cloudflare measurement
+    // anyway is the same class of lie the summary decay above fixes, and
+    // status.js branches on exactly this field to pick its heading.
+    status_source: live ? "cloudflare-server-probe" : "server-probe-pending",
     probe_scope: live?.scope || "server probe pending",
     probe_interval_minutes: PROBE_INTERVAL_MINUTES,
-    status_note: "可用性来自 Cloudflare 服务器端最小请求实测，与访问者本机无关；它是最近快照，不构成 SLA。",
+    status_note: live
+      ? "可用性来自 Cloudflare 服务器端最小请求实测，与访问者本机无关；它是最近快照，不构成 SLA。"
+      : "Cloudflare 服务器探测尚无有效快照，本页不判断可用性。",
   };
 }

@@ -1,6 +1,9 @@
 import { copyFile, cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
+import { execFileSync } from "node:child_process";
 import { join, relative, resolve } from "node:path";
+
+import { checkCatalogFreshness } from "./data-freshness.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const source = resolve(root, "site");
@@ -118,6 +121,35 @@ for (const entry of devlog.entries) {
     throw new Error(`Development log entry is incomplete: ${entry.id || "unknown"}`);
   }
 }
+// ── published catalog freshness and shape ───────────────────────────────
+//
+// Anchored to min(now, HEAD committer date). A wall-clock gate would fire on
+// commits whose catalog was fresh when they were made, which silently corrupts
+// `git bisect` (it reads exit 1 as "bad" and this build never emits 125) and
+// breaks rebuilding an old tag. Anchoring means a 30-day-old commit with a
+// 30-day-old catalog passes, while today's commit with a 30-day-old catalog
+// fails — which is the case that actually matters.
+const publishedCatalog = JSON.parse(await readFile(resolve(output, "data", "catalog.json"), "utf8"));
+let anchorMs = Date.now();
+let anchorLabel = "墙钟";
+try {
+  const committedAt = execFileSync("git", ["log", "-1", "--format=%cI"], { cwd: root, encoding: "utf8" }).trim();
+  const committedMs = Date.parse(committedAt);
+  if (Number.isFinite(committedMs) && committedMs < anchorMs) {
+    anchorMs = committedMs;
+    anchorLabel = `HEAD 提交时刻 ${committedAt}`;
+  }
+} catch {
+  // Tarball, vendored checkout or shallow export: no git metadata. The wall
+  // clock is strictly stricter, so this direction fails safe.
+}
+const freshness = checkCatalogFreshness(publishedCatalog, { anchorMs });
+console.log(`新鲜度锚点：${anchorLabel}`);
+for (const line of freshness.info) console.log(`  · ${line}`);
+if (!freshness.ok) {
+  throw new Error(`公开目录数据新鲜度校验失败：\n  - ${freshness.errors.join("\n  - ")}`);
+}
+
 for (const marker of ["免费大模型", "真实实测", "本地优先", "复制朋友圈文案", "https://oaf.asia/"]) {
   if (!storyHtml.includes(marker) && !storyJs.includes(marker)) {
     throw new Error(`Generated recommendation story is missing required content: ${marker}`);

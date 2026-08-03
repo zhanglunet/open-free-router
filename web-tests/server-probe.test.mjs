@@ -72,6 +72,76 @@ test("Google server probe uses the OpenAI-compatible endpoint the catalog advert
   assert.equal(JSON.parse(captured.options.body).model, "gemini-test");
 });
 
+/* The KV provider summary is written once at probe time and never decays. The
+   model evidence beside it does decay, through recent()/STATUS_STALE_MS. Serving
+   the frozen summary therefore rendered a green provider card sitting directly
+   above its own "候选未验证" model badges — starting at 46 minutes, and
+   byte-identically at 3 days and at 30 days. */
+const agedSnapshot = (nowMs, ageMs) => {
+  const checkedAt = new Date(nowMs - ageMs).toISOString();
+  return {
+    schema_version: 2,
+    as_of: checkedAt,
+    providers: {
+      p: {
+        availability: "available",
+        reason: "Cloudflare 服务器已验证 2/2 个模型可用",
+        latency_ms: 900,
+        checked_at: checkedAt,
+      },
+    },
+    models: {
+      "p/a": { availability: "available", latency_ms: 900, checked_at: checkedAt },
+      "p/b": { availability: "available", latency_ms: 800, checked_at: checkedAt },
+    },
+  };
+};
+const twoModelCatalog = { providers: [{ id: "p", models: [{ id: "a" }, { id: "b" }] }] };
+
+test("a stale KV snapshot cannot keep a provider green", () => {
+  const now = Date.parse("2026-08-03T00:00:00Z");
+  for (const ageMs of [46 * 60 * 1000, 3 * 86_400_000, 30 * 86_400_000]) {
+    const provider = mergeServerStatus(twoModelCatalog, agedSnapshot(now, ageMs), now).providers[0];
+    assert.equal(provider.availability, "unverified", `age ${ageMs}ms`);
+    assert.equal(provider.latency_ms, null);
+    assert.ok(provider.models.every((model) => model.availability === "unverified"));
+  }
+});
+
+test("fresh evidence still produces a green provider", () => {
+  const now = Date.parse("2026-08-03T00:00:00Z");
+  const provider = mergeServerStatus(twoModelCatalog, agedSnapshot(now, 60_000), now).providers[0];
+  assert.equal(provider.availability, "available");
+  assert.equal(provider.latency_ms, 800);
+  assert.ok(provider.models.every((model) => model.availability === "available"));
+});
+
+test("the provider verdict never contradicts its own model badges", () => {
+  const now = Date.parse("2026-08-03T00:00:00Z");
+  const fresh = new Date(now - 60_000).toISOString();
+  const stale = new Date(now - 3 * 86_400_000).toISOString();
+  const snapshot = {
+    schema_version: 2,
+    as_of: fresh,
+    providers: { p: { availability: "available", reason: "旧摘要", latency_ms: 900, checked_at: stale } },
+    models: {
+      "p/a": { availability: "unavailable", reason: "提供商服务返回 HTTP 503", latency_ms: 120, checked_at: fresh },
+      "p/b": { availability: "available", latency_ms: 800, checked_at: stale },
+    },
+  };
+  const provider = mergeServerStatus(twoModelCatalog, snapshot, now).providers[0];
+  // b's evidence expired, so only a's "unavailable" survives; the provider must
+  // follow it rather than the summary that still says available.
+  assert.equal(provider.availability, "unavailable");
+  assert.equal(provider.reason, "提供商服务返回 HTTP 503");
+});
+
+test("a KV miss must not advertise a Cloudflare measurement", () => {
+  const merged = mergeServerStatus({ providers: [] }, null, Date.parse("2026-08-03T00:00:00Z"));
+  assert.notEqual(merged.status_source, "cloudflare-server-probe");
+  assert.ok(!merged.status_note.includes("实测"), `status_note claimed measurement: ${merged.status_note}`);
+});
+
 test("rotating server snapshot stays below one half of the model catalog", async () => {
   const catalog = {
     providers: [{
