@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import { readFile, writeFile } from "node:fs/promises";
+import { execSync } from "node:child_process";
 import { resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
@@ -14,6 +15,20 @@ for (let index = 0; index < args.length; index += 2) {
 const allowedTypes = new Set(["feature", "improvement", "security", "milestone"]);
 if (!options.title || !options.summary) {
   throw new Error("Usage: npm run log:add -- --title \"标题\" --summary \"摘要\" [--type feature] [--items \"变化一|变化二\"] [--version v0.2.0] [--commit abc1234]");
+}
+// A commit hash cannot be known before the commit exists. Passing
+// `--commit "$(git rev-parse --short HEAD)"` therefore records the PARENT,
+// and site/logs/logs.js turns that into a public GitHub link pointing at an
+// unrelated revision — it happened to five entries in a row before anyone
+// noticed. Record the hash after committing (or amend), or leave it out.
+if (options.commit) {
+  const head = execSync("git rev-parse HEAD", { encoding: "utf8" }).trim();
+  if (head.startsWith(options.commit.toLowerCase()) || options.commit.toLowerCase() === "head") {
+    throw new Error(
+      `--commit ${options.commit} is the current HEAD, so it cannot contain the change you are logging.\n` +
+      "Omit --commit and add the hash after committing, or reference a pull request via the links field.",
+    );
+  }
 }
 const type = options.type || "improvement";
 if (!allowedTypes.has(type)) throw new Error(`Unsupported log type: ${type}`);
