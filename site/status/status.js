@@ -65,6 +65,11 @@
     $("#st-stat-asof").textContent = relativeTime(catalog.status_as_of || catalog.generated_at);
   }
 
+  /* A shape glyph plus visually-hidden text: the three states must not be
+     distinguishable by colour alone (WCAG 1.4.1), and a screen reader
+     otherwise hears only the model ID with no availability at all. */
+  const STATE_GLYPH = { available: "●", unavailable: "✕", unverified: "◐" };
+
   function modelBadge(model) {
     const cls = statusClass(model.availability);
     const title = [
@@ -76,7 +81,7 @@
       model.reasoning ? "支持推理" : null,
       model.tool_calling ? "支持工具" : null,
     ].filter(Boolean).join(" · ");
-    return `<span class="st-badge ${cls}" title="${esc(title)}">${esc(model.id)}</span>`;
+    return `<span class="st-badge ${cls}" title="${esc(title)}"><i aria-hidden="true">${STATE_GLYPH[cls]}</i><span class="st-sr">${statusLabel(model.availability)}：</span>${esc(model.id)}</span>`;
   }
 
   function providerCard(provider) {

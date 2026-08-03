@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from pathlib import Path
+from open_free_router import __version__
 from open_free_router.config import Config
 from open_free_router.registry import Registry, ModelInfo, ProviderConfig
 from open_free_router.refresh import refresh
@@ -664,6 +665,11 @@ def main():
     parser = argparse.ArgumentParser(
         prog="open-free-router",
         description="Free LLM model router & sync engine",
+    )
+    # The npm install guide tells users to verify the install with
+    # `open-free-router --version`; without this it exits 2 on a fresh setup.
+    parser.add_argument(
+        "--version", action="version", version=f"open-free-router {__version__}"
     )
     sub = parser.add_subparsers(dest="command")
 

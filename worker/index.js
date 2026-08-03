@@ -183,8 +183,10 @@ export default {
     }
     if (url.pathname === "/api/catalog") {
       try {
+        // Discovery is a soft dependency: a models.dev outage must not take
+        // the whole catalog (and with it the model radar) down to a 503.
         const [catalog, discovery, status] = await Promise.all([
-          loadRegistry(env), getDiscovery(env, ctx), loadProviderStatus(env),
+          loadRegistry(env), getDiscovery(env, ctx).catch(() => null), loadProviderStatus(env),
         ]);
         await refreshProviderStatusIfNeeded(env, ctx, status);
         return json({ ...mergeServerStatus(catalog, status), discovery });

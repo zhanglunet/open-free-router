@@ -161,7 +161,13 @@ async function load() {
   } catch {
     const response = await fetch("/data/catalog.json");
     catalog = await response.json();
-    catalog.discovery = { candidate_provider_count: 0, candidate_model_count: 0, providers: [] };
+    // discovery-seed.json is already deployed alongside the catalog; using it
+    // keeps the radar's candidate section populated when /api/catalog is down
+    // instead of claiming zero candidates.
+    catalog.discovery = await fetch("/data/discovery-seed.json")
+      .then((seed) => (seed.ok ? seed.json() : null))
+      .catch(() => null)
+      ?? { candidate_provider_count: 0, candidate_model_count: 0, providers: [] };
   }
   state.catalog = catalog;
   state.rows = flatten(catalog);
@@ -182,5 +188,15 @@ $("#reset").addEventListener("click", () => {
   renderRows();
 });
 load().catch((error) => {
-  $("#model-rows").innerHTML = `<tr><td colspan="11" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
+  // Every region that would otherwise sit in its loading skeleton forever
+  // has to be told the load failed, not just the table.
+  const reason = html(error?.message || error || "未知错误");
+  $("#model-rows").innerHTML = `<tr><td colspan="11" class="empty">目录加载失败：${reason}</td></tr>`;
+  $("#provider-cards").innerHTML = `<p class="empty">提供商信息加载失败：${reason}</p>`;
+  $("#candidate-list").innerHTML = `<p class="empty">发现队列加载失败：${reason}</p>`;
+  $("#status-time").textContent = "目录加载失败，以下数据可能不可用";
+  ["#provider-count", "#model-count", "#available-count", "#candidate-count"].forEach((id) => {
+    const el = $(id);
+    if (el) el.textContent = "—";
+  });
 });

@@ -27,9 +27,9 @@
       <p>Artificial Analysis Free API 数据仅用于内部分析。访问令牌只保存在当前浏览器标签的 sessionStorage 中，不写入 URL、Cookie 或服务器日志。</p>
       <form id="access-form">
         <label for="access-token">内部访问令牌</label>
-        <div><input id="access-token" name="access-token" type="password" autocomplete="off" required><button type="submit">进入评测</button></div>
+        <div><input id="access-token" name="access-token" type="password" autocomplete="off" required aria-describedby="access-error"><button type="submit">进入评测</button></div>
       </form>
-      <p class="access-error" id="access-error" hidden></p>
+      <p class="access-error" id="access-error" role="alert" hidden></p>
     </section>
 
     <section class="dashboard" id="dashboard" hidden>

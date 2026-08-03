@@ -33,7 +33,10 @@
         "评测页使用稳定的中文本地字体栈，收敛中文标题字重、行高与字距"
       ],
       "links": [
-        {"label": "查看模型评测", "href": "/benchmarks/"}
+        {
+          "label": "查看模型评测",
+          "url": "/benchmarks/"
+        }
       ]
     },
     {
@@ -54,8 +57,14 @@
         "新增八道准入闸门流程图、状态机、三层信任边界、命令与默认配置说明"
       ],
       "links": [
-        {"label": "查看候选准入机制", "href": "/validation/"},
-        {"label": "查看扩容雷达", "href": "/compare/#provider-expansion"}
+        {
+          "label": "查看候选准入机制",
+          "url": "/validation/"
+        },
+        {
+          "label": "查看扩容雷达",
+          "url": "/compare/#provider-expansion"
+        }
       ]
     },
     {
@@ -72,8 +81,14 @@
         "新增 14 个扩容候选及统一准入门槛，候选不计入当前 11 家已接入规模"
       ],
       "links": [
-        {"label": "查看站点地图", "href": "/sitemap/"},
-        {"label": "查看提供商扩容雷达", "href": "/compare/#provider-expansion"}
+        {
+          "label": "查看站点地图",
+          "url": "/sitemap/"
+        },
+        {
+          "label": "查看提供商扩容雷达",
+          "url": "/compare/#provider-expansion"
+        }
       ]
     },
     {
@@ -90,8 +105,14 @@
         "区分 Artificial Analysis 未导入、单条记录缺失和 0 分，拒绝从截图猜测评测数据"
       ],
       "links": [
-        {"label": "查看 npm 教程", "href": "/guide/npm/"},
-        {"label": "查看模型评测", "href": "/benchmarks/"}
+        {
+          "label": "查看 npm 教程",
+          "url": "/guide/npm/"
+        },
+        {
+          "label": "查看模型评测",
+          "url": "/benchmarks/"
+        }
       ]
     },
     {
@@ -108,8 +129,14 @@
         "上游 API Key 仍只由本机配置管理，npm 引导器不读取或上传凭据"
       ],
       "links": [
-        {"label": "查看 npm 包", "href": "https://www.npmjs.com/package/open-free-router"},
-        {"label": "查看安装指南", "href": "/guide/"}
+        {
+          "label": "查看 npm 包",
+          "url": "https://www.npmjs.com/package/open-free-router"
+        },
+        {
+          "label": "查看安装指南",
+          "url": "/guide/"
+        }
       ]
     },
     {
@@ -127,8 +154,14 @@
         "评测静态快照使用版本化请求，避免新资源上线前产生的边缘 404 负缓存"
       ],
       "links": [
-        {"label": "查看模型评测", "href": "/benchmarks/"},
-        {"label": "查看工具比较", "href": "/compare/"}
+        {
+          "label": "查看模型评测",
+          "url": "/benchmarks/"
+        },
+        {
+          "label": "查看工具比较",
+          "url": "/compare/"
+        }
       ]
     },
     {
@@ -145,8 +178,14 @@
         "明确 55 个登记模型不等同全部在线可用，并说明私有维护仓库的安装权限要求"
       ],
       "links": [
-        {"label": "查看系统架构", "href": "/architecture/"},
-        {"label": "查看安装指南", "href": "/guide/"}
+        {
+          "label": "查看系统架构",
+          "url": "/architecture/"
+        },
+        {
+          "label": "查看安装指南",
+          "url": "/guide/"
+        }
       ]
     },
     {

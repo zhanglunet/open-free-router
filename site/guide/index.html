@@ -101,7 +101,7 @@ codex --version</code></pre></li>
     "ANTHROPIC_BASE_URL": "http://127.0.0.1:8337",
     "ANTHROPIC_AUTH_TOKEN": "<em>本地代理token</em>",
     "ANTHROPIC_MODEL": "gq/gpt-oss-120b",
-    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "gq/llama-8b"
+    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "gq/llama-3.1-8b"
   }
 }</code></pre>
             <p class="shot-note">✓ 流式 SSE · ✓ 工具调用 · ✓ count_tokens · 还原方法：删除以上 env 键即可</p>
@@ -121,8 +121,8 @@ codex --version</code></pre></li>
             <figcaption><span></span><span></span><span></span><b>opencode · /models</b></figcaption>
             <pre><code>┃ 选择模型
 ┃ ▸ groq          gpt-oss-120b     <em>tools · 131K</em>
-┃   openrouter    gpt-oss-20b-free <em>tools</em>
-┃   nvidia-nim    nemotron-ultra   <em>reasoning</em></code></pre>
+┃   openrouter    gpt-oss-20b:free <em>tools</em>
+┃   nvidia-nim    nemotron-3-ultra <em>reasoning</em></code></pre>
             <p class="shot-note">✓ 重启 opencode 后生效 · 手工配置的其他 provider 不受影响</p>
           </figure>
         </div>
@@ -191,8 +191,8 @@ model = "gq/gpt-oss-120b"
             <figcaption><span></span><span></span><span></span><b>WorkBuddy · 模型选择器</b></figcaption>
             <pre><code>┌ Custom Models ──────────────┐
 │ ● gq/gpt-oss-120b   <em>tools</em>   │
-│ ○ or/gpt-oss-20b-free       │
-│ ○ nv/nemotron-ultra <em>reason</em>  │
+│ ○ or/gpt-oss-20b:free       │
+│ ○ nv/nemotron-3-ultra <em>rsn</em> │
 └─────────────────────────────┘</code></pre>
             <p class="shot-note">✓ supportsToolCall 按注册表能力标注 · 改动后需重启应用</p>
           </figure>
@@ -229,7 +229,7 @@ model = "gq/gpt-oss-120b"
             <figcaption><span></span><span></span><span></span><b>~/.pi/agent/models.json</b></figcaption>
             <pre><code>{ "providers": { "local-free": {
   "baseUrl": "http://127.0.0.1:8337/v1",
-  "models": [{ "id": "or/gpt-oss-20b-free" }]
+  "models": [{ "id": "or/gpt-oss-20b:free" }]
 }}}</code></pre>
             <p class="shot-note">✓ 每次整体覆写，不会堆积旧条目 · OMP 用 ruamel.yaml 结构化编辑保留注释</p>
           </figure>

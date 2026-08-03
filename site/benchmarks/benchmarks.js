@@ -1,5 +1,7 @@
 const state = { rows: [], external: new Map() };
 const $ = (selector) => document.querySelector(selector);
+// Point colour alone carries availability; put it in the accessible name too.
+const STATUS_LABELS = { available: "服务端可用", unverified: "未验证", unavailable: "当前不可用" };
 const number = new Intl.NumberFormat("zh-CN");
 
 function html(value) {
@@ -66,7 +68,7 @@ function renderScatter() {
   const labelledBins = new Set();
   $("#scatter").innerHTML = '<div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>' + rows.map((row, index) => {
     const label = row.name || row.id;
-    const title = `${label} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
+    const title = `${label} · ${STATUS_LABELS[row.provider_status] || "状态未知"} · 任务适配 ${row.readiness} · ${formatLatency(row.latency_ms)}${row.external ? ` · AA Intelligence ${row.external.intelligence ?? "—"}` : ""}`;
     const x = xPosition(row.latency_ms);
     const labelBin = `${Math.round(x / 16)}-${Math.round(row.readiness / 12)}`;
     const labelled = labelledBins.size < 14 && !labelledBins.has(labelBin);

@@ -45,17 +45,17 @@
     <section class="log-tools" aria-label="日志搜索与筛选">
       <label><span>搜索历史</span><input id="log-search" type="search" placeholder="搜索功能、协议、客户端或问题……"></label>
       <div class="log-filters" role="group" aria-label="更新类型">
-        <button class="active" data-log-type="all">全部</button>
-        <button data-log-type="feature">新功能</button>
-        <button data-log-type="improvement">体验改进</button>
-        <button data-log-type="security">安全修复</button>
-        <button data-log-type="milestone">里程碑</button>
+        <button class="active" data-log-type="all" aria-pressed="true">全部</button>
+        <button data-log-type="feature" aria-pressed="false">新功能</button>
+        <button data-log-type="improvement" aria-pressed="false">体验改进</button>
+        <button data-log-type="security" aria-pressed="false">安全修复</button>
+        <button data-log-type="milestone" aria-pressed="false">里程碑</button>
       </div>
       <span id="log-result-count" aria-live="polite"></span>
     </section>
 
     <section class="log-layout">
-      <div id="log-list" class="log-list" aria-live="polite"><p class="log-loading">正在读取开发航迹……</p></div>
+      <div id="log-list" class="log-list"><p class="log-loading">正在读取开发航迹……</p></div>
       <aside class="log-side">
         <div><small>持续记录规则</small><h2>代码在变，文档也要同步。</h2><p>每次重要开发都追加结构化日志，写清楚日期、类型、变化内容和关联提交。页面会自动按时间倒序展示。</p></div>
         <div><small>了解项目</small><h2>第一次来到自由港？</h2><p>先读这篇完整介绍，了解它解决什么问题、适合谁，以及如何开始。</p><a href="/stories/free-model-port/">阅读推荐文章 →</a></div>
