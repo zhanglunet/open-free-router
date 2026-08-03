@@ -193,4 +193,81 @@ model evidence entries: 55
   给所有方案打分
 - 1 个**综合**，产出唯一的设计定稿与可直接执行的任务分解
 
-> 记录续写于设计评审返回之后。
+### 2.1 评审中途返回的第一个结论：我把范围搞错了
+
+「数据诚实性」视角的设计返回后，指出**最严重的「过期数据被当作当前数据」根本不在
+静态兜底路径上，而在 Worker 的实时路径上**。Superpowers `verification-before-completion`
+明确要求「不得把 agent 的自述当作证据」，所以逐条自己复现。
+
+#### 复现 1：`mergeServerStatus` 对提供商摘要没有任何时效闸门
+
+`worker/probe.js:226-247`：模型证据每一条都过 `recent()`（45 分钟，`STATUS_STALE_MS`），
+而提供商摘要的 `availability` / `reason` / `latency_ms` / `checked_at` 是**无条件**
+从 KV 快照里拷出来的。
+
+独立复现（直接 import 真实模块，喂入不同年龄的 KV 快照）：
+
+```
+--- KV snapshot aged 10 minutes ---
+  provider: available | Cloudflare 服务器已验证 3/3 个模型可用 | latency 900ms
+  models  : available, available, available
+--- KV snapshot aged 46 minutes ---
+  provider: available | Cloudflare 服务器已验证 3/3 个模型可用 | latency 900ms
+  models  : unverified, unverified, unverified
+--- KV snapshot aged 3 days ---
+  provider: available | Cloudflare 服务器已验证 3/3 个模型可用 | latency 900ms
+  models  : unverified, unverified, unverified
+--- KV snapshot aged 30 days ---
+  provider: available | Cloudflare 服务器已验证 3/3 个模型可用 | latency 900ms
+  models  : unverified, unverified, unverified
+
+3-day vs 30-day provider payload identical (ignoring checked_at): true
+```
+
+即：**从第 46 分钟开始**，状态页就会出现一张写着「可用 · 已验证 3/3 个模型可用 ·
+900ms 实测延迟」的提供商卡片，下面挂着三个「候选未验证」的模型徽章；而 3 天与
+30 天的提供商输出**逐字节相同**，访客无法区分。
+
+`worker/index.js:60-63,180` 里刷新是 `ctx.waitUntil()` 的后台任务，本次请求返回的
+就是这份陈旧合并结果；若探测持续失败（例如密钥轮换），KV 永远不被覆盖，那个
+`available` 就是不朽的。
+
+**这比 PRD 描述的静态兜底问题严重得多**：它在主路径上，从 46 分钟起就成立，
+且没有任何视觉线索。
+
+#### 复现 2：定时刷新会把「最近检查」变成一个从未发生的检查
+
+`site/status/status.js:65` 是 `relativeTime(catalog.status_as_of || catalog.generated_at)`，
+填入的元素标签是 **「最近检查」**（`site/status/index.html:55`）。而
+`metadataOnly()` 会把 `status_as_of` 置空（`status.js:128`），于是静态兜底路径
+**总是**落到 `generated_at` 上。
+
+当前实测显示「最近检查 2 天前」（诚实）。一旦按 PRD 需求 2 加上每日刷新
+`generated_at` 的定时任务，同一个位置会变成「最近检查 0 秒前」——**为一次从未
+发生的可用性检查报出 0 秒**。换言之，PRD 需求 2 按字面实现会让页面更不诚实，
+必须先修这一行。
+
+#### 复现 3：模型雷达的静态兜底分支没有等价的中和层
+
+`site/status/status.js:125-148` 有 `metadataOnly()` 把兜底数据整体降级；
+`site/models/models.js:161-171` 的兜底分支**直接使用原始 JSON**。后果：
+提供商绿点、`最近可用` 计数、每行 `可用` 徽章都按「当前事实」渲染。
+
+#### 复现 4：评测页把过期可用性折进一个数字分
+
+`site/benchmarks/benchmarks.js:26-33`：`availability`（满分 35）来自
+`row.provider_status`，`latency`（满分 10）来自 `row.latency_ms`——
+**任务适配分的 45% 来自可用性与延迟**。而 `site/benchmarks/index.html:65` 的
+计分规则表宣称数据来源是「Cloudflare 最近一次提供商级探测快照」。在静态兜底
+路径上这句话是假的，且该页**没有任何时间戳**，连判断的机会都不给。
+
+#### 复现 5：构建期门禁保护不了已经在线的站点
+
+`ls .github/workflows/` 只有 `ci.yml` 和 `site.yml`，**没有部署工作流**——
+部署是人工 `npm run deploy`。所以构建期门禁挡住的是「修复一个已经腐坏的站点」，
+而不是「防止它腐坏」。门禁仍然值得做（它防的是把过期快照**提交**进仓库），
+但不能把它当作对访客的保护，真正的保护必须发生在渲染时。
+
+---
+
+> 记录续写于设计评审全部返回之后。
