@@ -22,6 +22,9 @@ def test_public_catalog_redacts_keys_and_scores_features(tmp_path):
     catalog = build_public_catalog(reg, {
         "as_of": "2026-08-01T00:00:00Z",
         "providers": {"provider": {"availability": "available", "latency_ms": 100}},
+        # Per-model evidence, not the provider's verdict: a model is only
+        # published available when something probed that model.
+        "models": {"provider/model:free": {"availability": "available", "latency_ms": 100}},
     })
     output = tmp_path / "catalog.json"
     write_public_catalog(catalog, output)
@@ -74,3 +77,43 @@ def test_public_catalog_rejects_credential_like_values(tmp_path):
             assert "credential" in str(exc).lower()
         else:
             raise AssertionError("credential-like catalog value was written")
+
+
+def test_model_availability_comes_from_per_model_evidence_not_the_provider():
+    # The provider verdict is one smoke test. Stamping it onto every model
+    # published 7 models as available with no evidence of their own, and made
+    # the per-model column carry zero per-model information.
+    reg = Registry({
+        "p": {
+            "upstream_url": "https://api.example/v1",
+            "prefix": "p",
+            "models": [{"id": "good"}, {"id": "unprobed"}],
+        },
+    })
+    catalog = build_public_catalog(reg, {
+        "as_of": "2026-08-03T00:00:00Z",
+        "providers": {"p": {"availability": "available", "latency_ms": 100}},
+        "models": {
+            "p/good": {"availability": "available", "latency_ms": 900, "reason": "实测成功"},
+        },
+    })
+    models = {m["id"]: m for m in catalog["providers"][0]["models"]}
+    assert models["good"]["availability"] == "available"
+    assert models["good"]["speed_tier_zh"] == "快"
+    # No per-model evidence: the provider being up says nothing about this model.
+    assert models["unprobed"]["availability"] == "unverified"
+    assert models["unprobed"]["speed_tier_zh"] == "未测"
+    # The provider's own verdict is untouched.
+    assert catalog["providers"][0]["availability"] == "available"
+
+
+def test_a_snapshot_without_per_model_evidence_publishes_unverified_models():
+    # Legacy provider-level snapshots (the local dashboard writes one) carry no
+    # per-model evidence at all. Falling back to the provider verdict would be
+    # the exact fabrication this replaces.
+    reg = Registry({"p": {"upstream_url": "https://api.example/v1", "prefix": "p", "models": [{"id": "m"}]}})
+    catalog = build_public_catalog(reg, {
+        "as_of": "2026-08-03T00:00:00Z",
+        "providers": {"p": {"availability": "available", "latency_ms": 100}},
+    })
+    assert catalog["providers"][0]["models"][0]["availability"] == "unverified"

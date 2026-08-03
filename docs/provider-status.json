@@ -1,61 +1,452 @@
 {
-  "as_of": "2026-08-03T06:45:08.507Z",
+  "as_of": "2026-08-03T12:15:08.517Z",
   "method": "Cloudflare 服务器端最小请求探测快照，经公开只读接口 /api/status 取回；不保留任何凭据。仅 available 原样通过，其余一律降级为 unverified，避免把一次采样的限流或未覆盖当成提供商故障发布。",
+  "model_evidence": {
+    "covered": 55,
+    "total": 55
+  },
   "providers": {
-    "google-ai-studio": {
-      "availability": "unverified",
-      "latency_ms": null,
-      "reason": "提供商对服务器探测请求限流"
+    "deepseek": {
+      "availability": "available",
+      "latency_ms": 618,
+      "reason": "Cloudflare 服务器已验证 2/2 个模型可用"
     },
     "groq": {
       "availability": "available",
-      "latency_ms": 49,
+      "latency_ms": 48,
       "reason": "Cloudflare 服务器已验证 5/6 个模型可用"
     },
     "nous": {
       "availability": "available",
-      "latency_ms": 2167,
+      "latency_ms": 987,
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用"
     },
     "nvidia-nim": {
       "availability": "available",
-      "latency_ms": 357,
-      "reason": "Cloudflare 服务器已验证 2/5 个模型可用"
+      "latency_ms": 718,
+      "reason": "Cloudflare 服务器已验证 1/5 个模型可用"
     },
     "opencode-zen-free": {
       "availability": "available",
-      "latency_ms": 517,
-      "reason": "Cloudflare 服务器已验证 4/7 个模型可用"
-    },
-    "openrouter": {
-      "availability": "unverified",
-      "latency_ms": null,
-      "reason": "提供商对服务器探测请求限流"
+      "latency_ms": 454,
+      "reason": "Cloudflare 服务器已验证 2/7 个模型可用"
     },
     "poolside": {
       "availability": "available",
-      "latency_ms": 395,
+      "latency_ms": 398,
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用"
     },
     "sensenova": {
       "availability": "available",
-      "latency_ms": 2587,
+      "latency_ms": 2196,
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用"
     },
     "stepfun": {
       "availability": "available",
-      "latency_ms": 1548,
+      "latency_ms": 2208,
       "reason": "Cloudflare 服务器已验证 1/1 个模型可用"
-    },
-    "deepseek": {
-      "availability": "available",
-      "latency_ms": 610,
-      "reason": "Cloudflare 服务器已验证 2/2 个模型可用"
     },
     "gitee-ai": {
       "availability": "unverified",
       "latency_ms": null,
       "reason": "服务器探测返回 HTTP 400"
+    },
+    "google-ai-studio": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "reason": "提供商服务返回 HTTP 503"
+    },
+    "openrouter": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "reason": "提供商对服务器探测请求限流"
+    }
+  },
+  "models": {
+    "deepseek/deepseek-chat": {
+      "availability": "available",
+      "latency_ms": 618,
+      "checked_at": "2026-08-03T12:15:22.022Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "deepseek/deepseek-reasoner": {
+      "availability": "available",
+      "latency_ms": 773,
+      "checked_at": "2026-08-03T12:00:25.271Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "groq/llama-3.3-70b": {
+      "availability": "available",
+      "latency_ms": 1027,
+      "checked_at": "2026-08-03T12:15:08.517Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "groq/llama-3.1-8b": {
+      "availability": "available",
+      "latency_ms": 87,
+      "checked_at": "2026-08-03T12:00:11.904Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "groq/compound": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:08.517Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "groq/compound-mini": {
+      "availability": "available",
+      "latency_ms": 1032,
+      "checked_at": "2026-08-03T12:00:11.904Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "groq/gpt-oss-20b": {
+      "availability": "available",
+      "latency_ms": 48,
+      "checked_at": "2026-08-03T12:15:08.517Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "groq/gpt-oss-120b": {
+      "availability": "available",
+      "latency_ms": 238,
+      "checked_at": "2026-08-03T12:00:11.904Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "nous/ling-3.0-flash:free": {
+      "availability": "available",
+      "latency_ms": 987,
+      "checked_at": "2026-08-03T12:15:08.517Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "nous/step-3.7-flash:free": {
+      "availability": "available",
+      "latency_ms": 1896,
+      "checked_at": "2026-08-03T12:00:12.936Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "nvidia-nim/minimax-m3": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:09.544Z",
+      "status": "timeout",
+      "reason": "Cloudflare 服务器请求超时"
+    },
+    "nvidia-nim/nemotron-3-ultra": {
+      "availability": "available",
+      "latency_ms": 718,
+      "checked_at": "2026-08-03T12:00:12.936Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "nvidia-nim/step-3.7-flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:09.544Z",
+      "status": "timeout",
+      "reason": "Cloudflare 服务器请求超时"
+    },
+    "nvidia-nim/glm-5.2": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:12.936Z",
+      "status": "timeout",
+      "reason": "Cloudflare 服务器请求超时"
+    },
+    "nvidia-nim/deepseek-v4-flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:09.544Z",
+      "status": "http_529",
+      "reason": "提供商服务返回 HTTP 529"
+    },
+    "opencode-zen-free/big-pickle": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:12.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "opencode-zen-free/mimo-v2.5-free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:09.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "opencode-zen-free/north-mini-code-free": {
+      "availability": "available",
+      "latency_ms": 454,
+      "checked_at": "2026-08-03T12:00:12.936Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "opencode-zen-free/nemotron-3-ultra-free": {
+      "availability": "available",
+      "latency_ms": 7275,
+      "checked_at": "2026-08-03T12:15:09.544Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "opencode-zen-free/deepseek-v4-flash-free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:24.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "opencode-zen-free/ling-3.0-flash-free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:21.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "opencode-zen-free/laguna-s-2.1-free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:24.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "poolside/laguna-s:free": {
+      "availability": "available",
+      "latency_ms": 2241,
+      "checked_at": "2026-08-03T12:00:25.271Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "poolside/laguna-xs:free": {
+      "availability": "available",
+      "latency_ms": 398,
+      "checked_at": "2026-08-03T12:15:22.022Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "sensenova/v4-flash": {
+      "availability": "available",
+      "latency_ms": 3611,
+      "checked_at": "2026-08-03T12:00:25.271Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "sensenova/glm-5.2": {
+      "availability": "available",
+      "latency_ms": 2196,
+      "checked_at": "2026-08-03T12:15:22.022Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "stepfun/step-3.5-flash": {
+      "availability": "available",
+      "latency_ms": 2208,
+      "checked_at": "2026-08-03T12:00:25.271Z",
+      "status": "http_200",
+      "reason": "Cloudflare 服务器最小请求实测成功"
+    },
+    "gitee-ai/DeepSeek-V3": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:22.022Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/DeepSeek-R1": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:28.882Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/DeepSeek-V3.2": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:24.452Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/DeepSeek-V4-Flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:28.882Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/Qwen3-32B": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:24.452Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/Qwen3-Coder-Flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:28.882Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/Qwen3.5-Flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:24.452Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/Qwen3.7-Max": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:28.882Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/GLM-4.6": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:24.452Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/GLM-5.2": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:28.882Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/kimi-k2-instruct": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:24.452Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/MiniMax-M3": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:31.835Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/ERNIE-4.5-Turbo": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:26.367Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/ERNIE-X1-Turbo": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:31.835Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/gpt-oss-120b": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:26.367Z",
+      "status": "http_400",
+      "reason": "服务器探测返回 HTTP 400"
+    },
+    "gitee-ai/QwQ-32B": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:31.835Z",
+      "status": "timeout",
+      "reason": "Cloudflare 服务器请求超时"
+    },
+    "google-ai-studio/gemini-2.5-flash": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:11.904Z",
+      "status": "http_503",
+      "reason": "提供商服务返回 HTTP 503"
+    },
+    "google-ai-studio/gemini-2.5-flash-lite": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:08.517Z",
+      "status": "http_404",
+      "reason": "模型或接口在提供商侧不存在"
+    },
+    "google-ai-studio/gemini-2.5-pro": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:11.904Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/nemotron-3-ultra:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:21.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/ling-3.0-flash:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:24.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/gemma-4-26b:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:21.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/gemma-4-31b:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:24.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/nemotron-3-super:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:21.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/north-mini-code:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:24.936Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/nemotron-3-nano-r:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:21.544Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/nemotron-3-nano:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:00:25.271Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
+    },
+    "openrouter/gpt-oss-20b:free": {
+      "availability": "unverified",
+      "latency_ms": null,
+      "checked_at": "2026-08-03T12:15:22.022Z",
+      "status": "http_429",
+      "reason": "提供商对服务器探测请求限流"
     }
   }
 }

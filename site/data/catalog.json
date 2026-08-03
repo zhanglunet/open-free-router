@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-08-03T06:48:01+00:00",
-  "status_as_of": "2026-08-03T06:45:08.507Z",
+  "generated_at": "2026-08-03T12:27:36+00:00",
+  "status_as_of": "2026-08-03T12:15:08.517Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 11,
   "model_count": 55,
@@ -13,8 +13,8 @@
       "api": "https://api.deepseek.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 610,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 618,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 2,
       "models": [
         {
@@ -100,8 +100,8 @@
       "api": "https://api.groq.com/openai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 5/6 个模型可用",
-      "latency_ms": 49,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 48,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 6,
       "models": [
         {
@@ -166,12 +166,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "通用大语言模型",
           "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -287,8 +287,8 @@
       "api": "https://inference-api.nousresearch.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 2167,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 987,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 2,
       "models": [
         {
@@ -308,7 +308,7 @@
           "family_zh": "Ling",
           "description_zh": "Ling 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
+          "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -372,9 +372,9 @@
       "prefix": "nv",
       "api": "https://integrate.api.nvidia.com/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 2/5 个模型可用",
-      "latency_ms": 357,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "reason": "Cloudflare 服务器已验证 1/5 个模型可用",
+      "latency_ms": 718,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 5,
       "models": [
         {
@@ -389,12 +389,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "MiniMax",
           "description_zh": "MiniMax 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -439,12 +439,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 75,
           "family_zh": "阶跃 Step",
           "description_zh": "阶跃 Step 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -464,12 +464,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "智谱 GLM",
           "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -489,12 +489,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -534,9 +534,9 @@
       "prefix": "zen",
       "api": "https://opencode.ai/zen/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 4/7 个模型可用",
-      "latency_ms": 517,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "reason": "Cloudflare 服务器已验证 2/7 个模型可用",
+      "latency_ms": 454,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 7,
       "models": [
         {
@@ -551,12 +551,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "通用大语言模型",
           "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -576,12 +576,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "通用大语言模型",
           "description_zh": "通用大语言模型 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -631,7 +631,7 @@
           "family_zh": "NVIDIA Nemotron",
           "description_zh": "NVIDIA Nemotron 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "较慢",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -651,12 +651,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -676,12 +676,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "Ling",
           "description_zh": "Ling 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -701,12 +701,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "Poolside Laguna",
           "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -747,8 +747,8 @@
       "api": "https://inference.poolside.ai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 395,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 398,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 2,
       "models": [
         {
@@ -768,7 +768,7 @@
           "family_zh": "Poolside Laguna",
           "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "中等",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -834,8 +834,8 @@
       "api": "https://token.sensenova.cn/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 2587,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 2196,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 2,
       "models": [
         {
@@ -855,7 +855,7 @@
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
+          "speed_tier_zh": "较慢",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -921,8 +921,8 @@
       "api": "https://api.stepfun.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/1 个模型可用",
-      "latency_ms": 1548,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "latency_ms": 2208,
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 1,
       "models": [
         {
@@ -984,7 +984,7 @@
       "availability": "unverified",
       "reason": "服务器探测返回 HTTP 400",
       "latency_ms": null,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 16,
       "models": [
         {
@@ -1419,9 +1419,9 @@
       "prefix": "gai",
       "api": "https://generativelanguage.googleapis.com/v1beta/openai",
       "availability": "unverified",
-      "reason": "提供商对服务器探测请求限流",
+      "reason": "提供商服务返回 HTTP 503",
       "latency_ms": null,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 3,
       "models": [
         {
@@ -1534,7 +1534,7 @@
       "availability": "unverified",
       "reason": "提供商对服务器探测请求限流",
       "latency_ms": null,
-      "checked_at": "2026-08-03T06:45:08.507Z",
+      "checked_at": "2026-08-03T12:15:08.517Z",
       "model_count": 9,
       "models": [
         {
