@@ -46,8 +46,13 @@ function flatten(catalog) {
     ...model,
     provider_id: provider.id,
     provider_name: provider.name,
-    provider_status: provider.availability,
-    latency_ms: provider.latency_ms,
+    /* provider_availability is kept for the provider cards only. Rows used to
+       take the provider's verdict and the provider's Math.min latency, so a
+       12-second timeout rendered as ~1.2s and 6 of 55 badges contradicted their
+       own evidence. The merged catalog carries genuine per-model values. */
+    provider_availability: provider.availability,
+    model_status: model.availability ?? "unverified",
+    latency_ms: model.latency_ms ?? null,
   })));
 }
 
@@ -90,7 +95,7 @@ function filteredRows() {
     const haystack = `${row.provider_id} ${row.provider_name} ${row.id} ${row.name} ${row.upstream_id} ${row.codex_alias}`.toLowerCase();
     return (!query || haystack.includes(query)) &&
       (provider === "all" || row.provider_id === provider) &&
-      (status === "all" || row.provider_status === status) &&
+      (status === "all" || row.model_status === status) &&
       (free === "all" || (free === "verified" && freeStatus(row.free_tier) === "verified") || (free === "review" && ["expired", "unverified", "invalid"].includes(freeStatus(row.free_tier))) || (free === "unknown" && freeStatus(row.free_tier) === "unknown")) &&
       (feature === "all" || (feature === "tools" && row.tool_calling) || (feature === "reasoning" && row.reasoning));
   });
@@ -108,7 +113,7 @@ function renderRows() {
   $("#result-count").textContent = number.format(rows.length);
   $("#model-rows").innerHTML = rows.length ? rows.map((row) => `
     <tr>
-      <td><span class="status-badge ${row.provider_status}">${statusLabel(row.provider_status)}</span></td>
+      <td><span class="status-badge ${row.model_status}" title="${html(row.reason || "")}">${statusLabel(row.model_status)}</span></td>
       <td><small>${html(row.provider_name)}</small><b>${html(row.name)}</b><code>${html(row.upstream_id)}</code></td>
       <td class="model-description"><b>${html(row.family_zh)}</b><span>${html(row.description_zh)}</span><em>适合：${html(row.recommended_for_zh)}</em><small>${html(row.speed_tier_zh)} · ${html(row.benchmark_note_zh)}</small></td>
       <td><span class="status-badge free-${freeStatus(row.free_tier)}">${freeLabel(row.free_tier)}</span>${row.free_tier?.type && row.free_tier.type !== "unknown" ? `<code>${html(row.free_tier.type)}</code>` : ""}${row.free_tier?.requires_payment_method ? '<small>需要付款方式</small>' : ''}${row.free_tier?.evidence_url ? `<a class="provider-source" href="${externalUrl(row.free_tier.evidence_url)}" rel="noreferrer">证据 ↗</a>` : ""}</td>
@@ -181,6 +186,9 @@ function degradeCatalog(catalog) {
     latency_ms: null,
     checked_at: "",
     reason: "静态兜底数据，未做可用性判断",
+    /* Exported from the provider's numbers; without evidence it is not a speed
+       claim we can stand behind. Mirrors worker/probe.js speedTier. */
+    speed_tier_zh: "未测",
   });
   return {
     ...catalog,

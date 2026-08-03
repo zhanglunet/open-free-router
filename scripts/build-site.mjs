@@ -194,7 +194,11 @@ for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", 
     throw new Error(`Generated benchmarks page is missing required content: ${marker}`);
   }
 }
-for (const marker of ["明确计分规则", "同提供商模型目前继承同一快照", "目录未提供", "不是 0 分"]) {
+// 「不再继承同提供商其他模型的快照」 replaced 「同提供商模型目前继承同一快照」:
+// the old sentence described benchmarks.js accurately until it started
+// scoring from per-model evidence, at which point it became a false
+// statement pinned in place by this very guard.
+for (const marker of ["明确计分规则", "不再继承同提供商其他模型的快照", "逐模型探测证据", "目录未提供", "不是 0 分"]) {
   if (!benchmarksHtml.includes(marker) && !benchmarksJs.includes(marker)) {
     throw new Error(`Generated benchmarks methodology is missing required content: ${marker}`);
   }

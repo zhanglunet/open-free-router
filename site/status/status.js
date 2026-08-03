@@ -146,6 +146,7 @@
           reason: "等待服务器探测恢复",
           latency_ms: null,
           checked_at: "",
+          speed_tier_zh: "未测",
         })),
       })),
     };
