@@ -40,7 +40,58 @@ const KEYLESS_PROVIDERS = new Set(["opencode-zen-free"]);
 
 function credentialFor(providerId, env) {
   const binding = SECRET_BINDINGS[providerId];
-  return binding ? String(env[binding] || "") : "";
+  // Trimmed: ai.gitee.com answers `Authorization: Bearer ` (empty credential)
+  // with 400, not 401, so without this a whitespace-only secret is
+  // indistinguishable from a working one in our own output — it would look
+  // like the provider rejecting every model.
+  return binding ? String(env[binding] || "").trim() : "";
+}
+
+/* Ported from src/open_free_router/probe.py's _CREDENTIAL_RE. Providers do
+   sometimes echo the offending key back in an error body, and that body is
+   about to be stored in KV and served publicly. */
+const CREDENTIAL_RE = /(?:Bearer\s+)?\b(?:sk|nvapi|gsk|xai|pplx|or)[-_][A-Za-z0-9._-]{6,}|AIza[0-9A-Za-z_-]{20,}/gi;
+
+/**
+ * A non-2xx result used to carry a locally synthesised reason and zero upstream
+ * information, because the body was cancelled before the status was examined.
+ * That body is the one artefact separating "our credential is malformed" from
+ * "this account lacks entitlement" — the two live hypotheses for gitee-ai
+ * returning 400 on all 16 of its models.
+ */
+async function upstreamError(response) {
+  try {
+    const raw = (await response.text()).slice(0, 512);
+    let message = raw;
+    try {
+      const parsed = JSON.parse(raw);
+      message = parsed?.error?.message ?? parsed?.message ?? raw;
+    } catch {
+      /* not JSON, or truncated mid-object: fall back to the raw slice */
+    }
+    const scrubbed = String(message).replace(CREDENTIAL_RE, "[redacted-credential]").trim();
+    return scrubbed ? scrubbed.slice(0, 300) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Mirrors src/open_free_router/public_catalog.py:_speed_tier exactly.
+ *
+ * The Python copy runs at export time against the PROVIDER's availability and
+ * latency, and mergeServerStatus spreads evidence objects that contain no
+ * speed_tier_zh key — so the frozen provider-derived string survived onto the
+ * live catalog. Measured on production before this change: 17 models advertised
+ * 中等/较慢 while unavailable (including a 12 s timeout rendering as 中等) and 2
+ * advertised 当前不可用 while answering in under a second.
+ */
+function speedTier(availability, latencyMs) {
+  if (availability === "unavailable") return "当前不可用";
+  if (availability !== "available" || !Number.isFinite(latencyMs)) return "未测";
+  if (latencyMs <= 1500) return "快";
+  if (latencyMs <= 3000) return "中等";
+  return "较慢";
 }
 
 function safeEndpoint(value) {
@@ -114,8 +165,8 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
     const [url, options] = requestFor(provider, model, credential, AbortSignal.timeout(PROBE_TIMEOUT_MS));
     const response = await fetcher(url, options);
     const latency = Math.max(0, Math.round(now() - started));
-    if (response.body) await response.body.cancel();
     if (response.ok) {
+      if (response.body) await response.body.cancel();
       return {
         availability: "available",
         status: `http_${response.status}`,
@@ -124,10 +175,15 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
         checked_at: checkedAt,
       };
     }
+    // Read rather than cancel: failureReason() only knows the status code, and
+    // the status code alone cannot tell a malformed credential from a missing
+    // entitlement. Scrubbed and bounded before it goes anywhere.
+    const detail = await upstreamError(response);
     return {
       availability: "unavailable",
       status: `http_${response.status}`,
       reason: failureReason(response.status),
+      ...(detail ? { upstream_error: detail } : {}),
       latency_ms: latency,
       checked_at: checkedAt,
     };
@@ -257,10 +313,27 @@ export function mergeServerStatus(catalog, snapshot, nowMs = Date.now()) {
     const models = (provider.models || []).map((model) => {
       const evidence = live?.models?.[modelKey(provider.id, model.id)];
       if (!recent(evidence, nowMs)) {
-        return { ...model, availability: "unverified", latency_ms: null, checked_at: "", reason: "等待服务器探测" };
+        // speed_tier_zh comes from the static export, where it was derived from
+        // the provider's numbers. With no surviving evidence it is not a speed
+        // claim we can stand behind.
+        return {
+          ...model,
+          availability: "unverified",
+          latency_ms: null,
+          checked_at: "",
+          reason: "等待服务器探测",
+          speed_tier_zh: "未测",
+        };
       }
       surviving.push(evidence);
-      return { ...model, ...evidence, key: undefined, provider_id: undefined, model_id: undefined };
+      return {
+        ...model,
+        ...evidence,
+        speed_tier_zh: speedTier(evidence.availability, evidence.latency_ms),
+        key: undefined,
+        provider_id: undefined,
+        model_id: undefined,
+      };
     });
     return { ...provider, ...deriveProviderSummary(surviving, models.length), models };
   });
