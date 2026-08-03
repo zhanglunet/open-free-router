@@ -13,6 +13,66 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  devlog:
+    name: Public devlog entry
+    # AGENTS.md: every user-visible feature, fix, hardening, release or website
+    # change must carry one concise Chinese devlog entry in the same change set.
+    # build-site.mjs validates the *shape* of each entry but cannot know whether
+    # a change was user-visible, so until now the rule rested entirely on review
+    # — and it was missed exactly that way on PR #18, past the build gate, the
+    # test suites and the whole-site audit.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require a devlog entry for user-visible site changes
+        env:
+          # PR-authored text is never interpolated into the script body; it
+          # arrives as an environment variable so it cannot become shell code.
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          git fetch --no-tags origin "$BASE_REF"
+          CHANGED=$(git diff --name-only FETCH_HEAD...HEAD)
+
+          # site/data/** is excluded on purpose: the scheduled data-refresh PR
+          # only republishes catalog.json and provider-status.json, which is a
+          # data refresh rather than a behaviour change, and requiring a devlog
+          # entry there would deadlock that workflow against this one.
+          VISIBLE=$(printf '%s\n' "$CHANGED" | grep '^site/' | grep -v '^site/data/' || true)
+          if [ -z "$VISIBLE" ]; then
+            echo "no user-visible site files changed"
+            exit 0
+          fi
+
+          if printf '%s\n' "$CHANGED" | grep -qx 'site/data/devlog.json'; then
+            echo "devlog entry present alongside:"
+            printf '%s\n' "$VISIBLE" | sed 's/^/  /'
+            exit 0
+          fi
+
+          # Escape hatch for genuine non-visible edits (a comment, a pure
+          # refactor). It is deliberately visible in the PR itself rather than
+          # hidden in CI config, so skipping is a reviewable decision.
+          case "$PR_TITLE $PR_BODY" in
+            *"[skip devlog]"*)
+              echo "::warning::site/ changed with no devlog entry; honoured [skip devlog] from the PR title or body"
+              exit 0
+              ;;
+          esac
+
+          echo "::error::AGENTS.md requires one concise Chinese devlog entry in the same change set as a user-visible website change"
+          echo "Changed under site/ (excluding site/data/):"
+          printf '%s\n' "$VISIBLE" | sed 's/^/  /'
+          echo
+          echo 'Add one with:  npm run log:add -- --title "标题" --summary "摘要" --type improvement'
+          echo 'If this change is genuinely not user-visible, put [skip devlog] in the PR title or body.'
+          exit 1
+
   python:
     name: Python ${{ matrix.python-version }}
     runs-on: ubuntu-latest

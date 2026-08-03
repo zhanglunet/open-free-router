@@ -82,3 +82,12 @@ test("the refresh workflow opens a pull request and never pushes to the branch u
   // triggered with GITHUB_TOKEN, so CI actually sees the bot's branch.
   assert.match(workflow, /gh workflow run/);
 });
+
+test("the devlog guard exempts site/data so it cannot deadlock the refresh PR", async () => {
+  // ci.yml requires a devlog entry whenever site/** changes. The scheduled
+  // refresh PR only ever touches site/data/catalog.json, so without this
+  // exemption the two workflows would block each other forever.
+  const ci = await readFile(new URL("../.github/workflows/ci.yml", import.meta.url), "utf8");
+  assert.match(ci, /grep -v '\^site\/data\/'/);
+  assert.match(ci, /grep -qx 'site\/data\/devlog\.json'/);
+});
