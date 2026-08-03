@@ -237,6 +237,9 @@
     // <= 0 here — compare against the last successful load instead, or the
     // tab could sit on stale data indefinitely after being backgrounded.
     if (document.hidden) return;
+    // Returning to a paused tab must not refresh: load()'s finally would also
+    // overwrite the "已暂停" countdown with a number.
+    if (state.paused) return;
     if (Date.now() - state.lastLoadedAt >= REFRESH_SECONDS * 1000) load();
     else if (state.catalog) renderAll(state.catalog);
   });

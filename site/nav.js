@@ -95,17 +95,20 @@ if (header) {
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && !panel.hidden) setOpen(false);
     if (event.key !== "Tab" || panel.hidden) return;
-    // Keep Tab inside the open dialog.
-    const focusable = [toggle, ...panel.querySelectorAll("a")];
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    // The dialog's members are not contiguous in the DOM: the toggle lives in
+    // the header while the panel is the last child of <body>, so the page's
+    // whole tab order sits between them. Guarding only the two ends of the
+    // list therefore leaks — Tab from the toggle walked into <main> and
+    // Shift+Tab from the first link walked into the footer. Take over Tab
+    // entirely while the dialog is open and drive the cycle ourselves.
+    const items = [toggle, ...panel.querySelectorAll("a")];
+    const index = items.indexOf(document.activeElement);
+    event.preventDefault();
+    const step = event.shiftKey ? -1 : 1;
+    const next = index === -1
+      ? items[event.shiftKey ? items.length - 1 : 0] // focus escaped: pull it back
+      : items[(index + step + items.length) % items.length];
+    next.focus();
   });
   window.matchMedia("(min-width: 981px)").addEventListener("change", (event) => { if (event.matches) setOpen(false); });
   header.append(toggle);
