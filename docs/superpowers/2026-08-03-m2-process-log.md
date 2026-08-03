@@ -286,4 +286,53 @@ model evidence entries: 55
 
 ---
 
-> 记录续写于设计评审全部返回之后。
+## 3. 设计评审结论与执行
+
+评审返回：3 个独立设计 + 1 份对抗性缺陷报告 + 3 份评委打分 + 1 份综合定稿
+（8 个 agent，约 83 万 token）。定稿以「YAGNI 最小改动」的形态为底，嫁接
+「数据诚实性」的 Worker 闸门与「运维可行性」的提交时刻锚定，产出 20 项
+bite-sized 任务。设计定稿见
+`docs/superpowers/specs/2026-08-03-m2-data-freshness-design.md` §5，
+实施计划见 `docs/superpowers/plans/2026-08-03-m2-data-freshness.md`。
+
+**执行前逐条复现了定稿依赖的关键事实**（不采信 agent 自述）：
+
+| 断言 | 复现结果 |
+|---|---|
+| `/v1beta/openai/models/X:generateContent` 是 404 | `404`（另两个端点均 400，即存在） |
+| `_speed_tier("unverified", *)` 返回「当前不可用」 | 确认，三种延迟输入都是 |
+| 拼错 `--registry` 导出 0/0 并退出 0 | 确认 |
+| 当日快照年龄 1.54 天 | 确认——年龄门禁当天就是绿的 |
+
+其中第一条最危险：重新导出会把 `google-ai-studio.api` 改成 `/v1beta/openai`，
+而探测特判会拼出那个 404 → `unavailable`。**只提交数据刷新会让 Google 在
+M2 要修的那块看板上变黑，且看起来像提供商挂了。** 因此 W4（删特判）与
+W5（重导出）必须同一提交，实际也是这么做的（`77ed070`）。
+
+## 4. 执行记录
+
+| 提交 | 内容 |
+|---|---|
+| `affa5f0` | 调查记录与设计约束（动手前落盘） |
+| `2de4a98` | 五条已复现缺陷，改写里程碑范围 |
+| `77ed070` | W1-W5：`_speed_tier`、注入时钟、`--now`、删 Google 特判、重导出目录 |
+| `67f7da6` | W7-W10：Worker 提供商时效闸门、构建期形状+年龄门禁 |
+| `60481eb` | W12-W15、W17：三个页面无条件降级、审计服务器可模拟故障、`/data/*.json` 缓存策略 |
+| `27c6bf0` | W6、W11、W16：审计降级层、CI 可复现性 diff、PRD 验收条件 |
+| `9f6314a` | W18、W19：无凭据刷新两条时钟、线上产物监控 |
+
+TDD 的逐项 RED/GREEN 证据见 `docs/superpowers/2026-08-03-m2-compliance.md` §3。
+
+## 5. 本轮发现但**不属于 M2**的问题（留给 M3）
+
+1. **`registry.default.yaml` 里没有任何 free_tier 证据**，因此模型雷达的
+   「免费证据」列全部显示「条件未知」，而 `/validation/` 页面在宣称这些提供商的
+   免费层已核验。这是内容准确性问题，不是新鲜度问题。
+2. **逐模型可用性是伪造的**：`public_catalog.py` 把提供商结论盖到全部 55 个
+   模型上。路径已知——`/api/status` 带有以 `provider/model` 为键的逐模型证据，
+   卡在 `docs/provider-status.json` 的 schema 变更上。
+3. **七个陈旧度常量互不协调**，已在 `worker/probe.js` 顶部全部点名。
+4. **指纹排序隐患**：`build-site.mjs` 先哈希后重写引用，一旦有 JS 引用另一个
+   被哈希的 JS，缓存里会留下指向已改名文件的引用——因 `_headers` 标了一年
+   immutable，后果是**硬 404 打死整页**。目前休眠（实测无任何跨文件引用），
+   这也是三份 `degradeCatalog()` 故意重复而不共享的原因。

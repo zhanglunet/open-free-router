@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+### Data freshness (M2)
+
+- Provider availability on `/api/catalog` is now derived from the model evidence
+  that survived the 45-minute recency window instead of a KV summary frozen at
+  probe time. A stale snapshot used to render "可用 · 已验证 3/3 个模型可用 ·
+  900ms" above three "候选未验证" model badges from 46 minutes onward, with the
+  3-day and 30-day payloads byte-identical.
+- A KV miss no longer advertises `status_source: cloudflare-server-probe` or a
+  note claiming a live measurement, and a provider whose evidence expired no
+  longer reports "首次探测".
+- `_speed_tier` returns 未测 rather than the affirmative 当前不可用 for a model
+  that was never probed; the Worker copies this field onto the live catalog
+  without recomputing it.
+- The status board, model radar and benchmarks page degrade explicitly when
+  `/api/catalog` is unreachable, instead of rendering the published snapshot as
+  current fact. The board no longer attributes the catalog export time to an
+  element labelled 最近检查.
+- `npm run build` fails on a published catalog that is stale, a schema
+  generation behind, internally inconsistent or empty, anchored to the commit
+  date so `git bisect` and old-tag rebuilds are unaffected. CI additionally
+  re-exports the catalog and diffs it, so the gate cannot be cleared by editing
+  a timestamp.
+- `scripts/refresh-provider-status.mjs` refreshes availability evidence from the
+  deployed Worker's own unauthenticated `/api/status` with no credentials,
+  validating the snapshot first and projecting it monotone-safely: `available`
+  passes through, everything else becomes `unverified`, so a rate-limited probe
+  never publishes an outage.
+- New scheduled workflows: `data-refresh.yml` opens a pull request with a
+  refreshed snapshot, and `deployed-freshness.yml` checks what the live site
+  actually serves — the only check that does, since deploys are manual.
+- `site/_headers` gives `/data/*.json` an explicit short TTL; it is not
+  fingerprinted, so a visitor could previously be served a catalog older than
+  the gate's own threshold from a fresh deploy.
+- The site audit gains a degraded pass that serves the build with `/api/*`
+  failing and requires each fallback page to say so.
+
 - Published the public `open-free-router@0.3.0` npm bootstrap package with
   `open-free-router` and `ofr` commands; verified a clean registry install,
   isolated Python environment creation and CLI startup.

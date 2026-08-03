@@ -5,6 +5,24 @@ export const PROBE_BATCHES = 2;
 export const PROBE_TIMEOUT_MS = 12_000;
 export const STATUS_STALE_MS = 45 * 60 * 1000;
 
+/**
+ * Seven staleness clocks now coexist in this project. Nothing enforces
+ * coherence between them, and that is where the next drift bug will be written
+ * — so they are at least named in one place:
+ *
+ *   PROBE_INTERVAL_MINUTES  15 min   how often the Worker probes
+ *   statusIsStale()         20 min   when /api/catalog kicks a background probe
+ *   STATUS_STALE_MS         45 min   when a model's evidence stops counting
+ *   /api/catalog            300 s    edge cache TTL (JSON_HEADERS in index.js)
+ *   getDiscovery()          7 h      models.dev candidate refresh
+ *   REFRESH_MAX_AGE_DAYS    3 d      scheduled republish of the static snapshot
+ *   MAX_CATALOG_AGE_DAYS    7 d      build gate on the committed snapshot
+ *
+ * The last two live in scripts/data-freshness.mjs and are unit-asserted to keep
+ * REFRESH < MAX. Reconciling the rest is tracked as M3 in
+ * docs/PRD-site-quality-and-roadmap.md.
+ */
+
 const SECRET_BINDINGS = {
   "deepseek": "OFR_PROBE_DEEPSEEK_API_KEY",
   "google-ai-studio": "OFR_PROBE_GOOGLE_AI_STUDIO_API_KEY",
