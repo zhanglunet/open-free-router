@@ -17,7 +17,6 @@ from open_free_router.refresh_sources import (
     sensenova,
     stepfun,
     opencode_zen,
-    gitee_ai,
 )
 
 # Map registry provider name -> refresh source module
@@ -32,7 +31,6 @@ SOURCE_MAP = {
     "sensenova": sensenova,
     "stepfun": stepfun,
     "opencode-zen-free": opencode_zen,
-    "gitee-ai": gitee_ai,
 }
 
 

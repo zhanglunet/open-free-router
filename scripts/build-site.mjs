@@ -149,6 +149,37 @@ for (const entry of devlog.entries) {
 // 30-day-old catalog passes, while today's commit with a 30-day-old catalog
 // fails — which is the case that actually matters.
 const publishedCatalog = JSON.parse(await readFile(resolve(output, "data", "catalog.json"), "utf8"));
+
+// ── advertised provider/model counts must match the published catalog ──
+//
+// Nothing checked these. Removing a provider left "11 家免费上游" on the
+// architecture and compare pages, "55 登记免费模型" on the homepage and a stale
+// per-provider count on the map — no test, audit or gate noticed, because the
+// numbers are prose and prose is what drifts.
+for (const [route, text] of [["/architecture/", architectureHtml], ["/compare/", compareHtml]]) {
+  for (const claimed of [...text.matchAll(/([0-9]+)\s*家(?:免费上游|已接入|维护范围)/g)].map((match) => Number(match[1]))) {
+    if (claimed !== publishedCatalog.provider_count) {
+      throw new Error(`${route} advertises ${claimed} providers, but the published catalog has ${publishedCatalog.provider_count}`);
+    }
+  }
+}
+if (!html.includes(`>${publishedCatalog.provider_count}</b><span>已接入提供商`) ||
+    !html.includes(`>${publishedCatalog.model_count}</b><span>登记免费模型`)) {
+  throw new Error(
+    "Homepage stat block must pre-render the published counts " +
+    `(${publishedCatalog.provider_count} providers / ${publishedCatalog.model_count} models)`,
+  );
+}
+// The map states a count per provider, so their sum is the catalog. This
+// catches a removed provider and a model added to or dropped from one.
+const mapMarkerCounts = [...mapHtml.matchAll(/aria-label="[^"]*?·\s*([0-9]+)\s*个免费模型"/g)].map((match) => Number(match[1]));
+if (mapMarkerCounts.length !== publishedCatalog.provider_count) {
+  throw new Error(`/map/ shows ${mapMarkerCounts.length} provider markers, but the catalog has ${publishedCatalog.provider_count}`);
+}
+const mapModelTotal = mapMarkerCounts.reduce((sum, value) => sum + value, 0);
+if (mapModelTotal !== publishedCatalog.model_count) {
+  throw new Error(`/map/ markers account for ${mapModelTotal} models, but the catalog has ${publishedCatalog.model_count}`);
+}
 let anchorMs = Date.now();
 let anchorLabel = "墙钟";
 try {

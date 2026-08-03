@@ -78,10 +78,14 @@ test("a failing probe keeps a scrubbed slice of the upstream error", async () =>
   // is examined. That is the one artefact that separates "our credential is
   // malformed" from "the account lacks entitlement" — gitee-ai returns 400 for
   // all 16 models and we cannot tell which without it.
-  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
-  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: "k" }, async () =>
+  const provider = { id: "deepseek", api: "https://api.deepseek.com/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_DEEPSEEK_API_KEY: "k" }, async () =>
     new Response(JSON.stringify({ error: { code: "400", message: "该模型需要开通资源包" } }), { status: 400 }));
-  assert.equal(result.availability, "unavailable");
+  // Written before we could read a real gitee body. 「资源包」 turned out to be
+  // account-level wording, so the honest verdict here is unverified — the
+  // capture is what this test is about, and the classification is covered
+  // separately above.
+  assert.equal(result.availability, "unverified");
   assert.equal(result.status, "http_400");
   assert.equal(result.upstream_error, "该模型需要开通资源包");
 });
@@ -132,6 +136,43 @@ for (const [status, expected] of STATUS_TAXONOMY) {
     assert.equal(result.availability, expected, `${status} -> ${result.availability} (${result.reason})`);
   });
 }
+
+/* Status codes lie. Gitee returns HTTP 400 — normally "the model rejected our
+   request" — for what its own body calls 「当前账户没有可用的计费资源」, i.e. our
+   account has no credit. That is semantically a 402 and says nothing about the
+   model. Verified live: 11 of gitee's 16 models carried exactly that string. */
+const ACCOUNT_LEVEL_BODIES = [
+  ["当前账户没有可用的计费资源，请购买订阅套餐或资源包，或充值账户余额后重试。", 400],
+  ["You exceeded your current quota, please check your plan and billing details.", 400],
+  ["Insufficient balance", 400],
+  ["subscription required for this endpoint", 403],
+];
+
+for (const [body, status] of ACCOUNT_LEVEL_BODIES) {
+  test(`an account-level upstream message is unverified even on HTTP ${status}: ${body.slice(0, 18)}…`, async () => {
+    const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+    const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+      new Response(JSON.stringify({ error: { message: body } }), { status }));
+    assert.equal(result.availability, "unverified", `${status} / ${body} -> ${result.availability}`);
+    assert.match(result.reason, /账户|额度/);
+  });
+}
+
+test("a retired-model message stays a verdict about the model", async () => {
+  // 「该模型已停用」 is the opposite case: gitee said exactly this for
+  // kimi-k2-instruct, and it IS about the model.
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+    new Response(JSON.stringify({ error: { message: "该模型已停用，请更换或升级为其他模型版本。" } }), { status: 400 }));
+  assert.equal(result.availability, "unavailable");
+});
+
+test("a plain 400 with no account signal is still a verdict about the model", async () => {
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+    new Response(JSON.stringify({ error: { message: "unknown field 'foo' in request" } }), { status: 400 }));
+  assert.equal(result.availability, "unavailable");
+});
 
 test("a probe that timed out against our own budget is unverified, not a verdict", async () => {
   const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
@@ -201,8 +242,8 @@ test("a credential with no recognised prefix is still redacted", async () => {
   // /api/status and spread into /api/catalog, so a prefix allowlist alone
   // publishes the key the moment a provider echoes it back.
   const secret = "9f3c1ba77e0d4e2b8c5a6f10d2e94b77";
-  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
-  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: secret }, async () =>
+  const provider = { id: "deepseek", api: "https://api.deepseek.com/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_DEEPSEEK_API_KEY: secret }, async () =>
     new Response(JSON.stringify({ error: { message: `token ${secret} is not authorized` } }), { status: 400 }));
   assert.ok(!result.upstream_error.includes(secret), result.upstream_error);
   assert.match(result.upstream_error, /redacted-credential/);
@@ -227,9 +268,9 @@ test("a whitespace-only secret reports no_server_credential instead of sending a
   // ai.gitee.com returns 400 — not 401 — for `Authorization: Bearer ` with an
   // empty credential (verified live). Without trimming, a blank Cloudflare
   // secret is indistinguishable from a valid one in our own output.
-  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
+  const provider = { id: "deepseek", api: "https://api.deepseek.com/v1", models: [{ id: "m" }] };
   let called = false;
-  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: "   " }, async () => {
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_DEEPSEEK_API_KEY: "   " }, async () => {
     called = true;
     return new Response("{}", { status: 400 });
   });

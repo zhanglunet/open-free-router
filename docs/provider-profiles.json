@@ -199,25 +199,5 @@
       "按量计费，充值后可用"
     ],
     "free_quota_zh": "官方 API 为付费按量计费（历史上有赠送额度活动）；并非永久免费，请留意余额。"
-  },
-  "gitee-ai": {
-    "zh_name": "Gitee AI",
-    "organization": "开源中国/Gitee",
-    "region": "中国",
-    "background_zh": "Gitee 面向开发者提供的模型 API 与 AI 能力平台，聚合多种中文和开放模型。",
-    "strengths_zh": [
-      "国内开发者生态",
-      "中文模型覆盖",
-      "多厂商模型入口"
-    ],
-    "cautions_zh": "本项目最新实测账户没有可用计费资源，不能据目录状态推断当前可调用。",
-    "official_url": "https://ai.gitee.com/",
-    "key_url": "https://ai.gitee.com/dashboard/settings/tokens",
-    "key_steps_zh": [
-      "注册/登录 Gitee AI（模力方舟）",
-      "打开 工作台 → 设置 → 访问令牌",
-      "创建私人令牌作为 API Key"
-    ],
-    "free_quota_zh": "Serverless API 提供每日免费调用次数；超出后需要计费资源包。"
   }
 }

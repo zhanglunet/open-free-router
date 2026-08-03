@@ -24,7 +24,7 @@ less "$f"
 bash "$f" --codex --auto-discovery
 ```
 
-追踪 11 个 LLM 提供商的 55 个登记模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI、Gitee AI），运行本地代理按模型 ID 或虚拟模型智能路由到可尝试上游，并自动刷新模型列表。一次配置，**9 个客户端**共享模型：Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy、Pi、OMP；另有内置 MCP 服务器供任意 MCP 宿主调用。
+追踪 10 个 LLM 提供商的 38 个登记模型（OpenRouter、NVIDIA NIM、OpenCode Zen、Nous Research、StepFun、SenseNova、Groq、Google AI Studio、DeepSeek、Poolside AI），运行本地代理按模型 ID 或虚拟模型智能路由到可尝试上游，并自动刷新模型列表。一次配置，**9 个客户端**共享模型：Codex、Claude Code、OpenCode、Hermes、Kimi CLI、OpenClaw、WorkBuddy、Pi、OMP；另有内置 MCP 服务器供任意 MCP 宿主调用。
 
 ## 网站预览
 

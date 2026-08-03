@@ -23,7 +23,7 @@ less "$f"
 bash "$f" --codex --auto-discovery
 ```
 
-Tracks 55 registered models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy that routes explicit or virtual model IDs to eligible upstreams, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
+Tracks 38 registered models across 10 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI), runs a local proxy that routes explicit or virtual model IDs to eligible upstreams, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
 
 ## Website preview
 

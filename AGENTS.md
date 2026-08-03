@@ -129,7 +129,7 @@ src/open_free_router/
 
 ## Supported providers (11)
 
-openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside, gitee-ai
+openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside
 
 ## Related
 

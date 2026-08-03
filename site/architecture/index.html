@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="dark">
   <meta name="theme-color" content="#061120">
-  <meta name="description" content="模力自由港 v0.3.0 系统架构：一个本地端口连接 9 个客户端与 11 家免费上游，覆盖多协议适配、智能路由、三层故障隔离、安全 fallback、本机分析与数据边界。">
+  <meta name="description" content="模力自由港 v0.3.0 系统架构：一个本地端口连接 9 个客户端与 10 家免费上游，覆盖多协议适配、智能路由、三层故障隔离、安全 fallback、本机分析与数据边界。">
   <meta property="og:title" content="系统架构 · 模力自由港">
   <meta name="twitter:card" content="summary_large_image">
   <meta property="og:url" content="https://oaf.asia/architecture/">
@@ -33,7 +33,7 @@
       <div>
         <p class="arch-eyebrow"><span></span> SYSTEM ARCHITECTURE</p>
         <h1><span>一个本地端口，</span><em>九个客户端，</em><span>十一家免费上游。</span></h1>
-        <p>open-free-router 在本机架起一座自由港：单个 127.0.0.1 端口听懂三种 HTTP 协议与一条 MCP 通道，再用虚拟模型、可解释评分、三层故障隔离与首字节前安全 fallback，把 9 个终端客户端的请求路由到 11 家免费上游。上游密钥只存本机，响应逐行真流式透传。</p>
+        <p>open-free-router 在本机架起一座自由港：单个 127.0.0.1 端口听懂三种 HTTP 协议与一条 MCP 通道，再用虚拟模型、可解释评分、三层故障隔离与首字节前安全 fallback，把 9 个终端客户端的请求路由到 10 家免费上游。上游密钥只存本机，响应逐行真流式透传。</p>
         <div class="arch-hero-actions"><a class="button primary" href="#diagram">查看架构图 ↓</a><a class="button secondary" href="#intelligence">智能路由与韧性</a><a class="button secondary" href="#lifecycle">请求生命周期</a></div>
       </div>
       <aside class="arch-portcard" aria-label="本地服务概览">
@@ -51,8 +51,8 @@
     </section>
 
     <section class="arch-stats" aria-label="架构规模统计">
-      <article><b>11</b><span>免费上游提供商</span><small>UPSTREAM PROVIDERS</small></article>
-      <article><b>55</b><span>登记免费模型</span><small>REGISTERED MODELS</small></article>
+      <article><b>10</b><span>免费上游提供商</span><small>UPSTREAM PROVIDERS</small></article>
+      <article><b>38</b><span>登记免费模型</span><small>REGISTERED MODELS</small></article>
       <article><b>9</b><span>终端客户端</span><small>CLIENTS</small></article>
       <article><b>16</b><span>顶层 CLI 命令</span><small>CLI COMMANDS</small></article>
       <article><b>5</b><span>模型 ID 格式</span><small>ID FORMATS</small></article>
@@ -65,12 +65,12 @@
       <header>
         <p class="arch-eyebrow"><span></span> SYSTEM MAP</p>
         <h2>四层一图：<em>从终端到上游。</em></h2>
-        <p>客户端层经四条协议通道进入本地控制面：单端口代理完成鉴权、候选规划、协议转换、三层故障隔离与真流式透传；registry.yaml 作为唯一模型事实源，runtime-state.json 与 usage.db 只保存脱敏运行状态；最后经 TLS 抵达 11 家免费上游。</p>
+        <p>客户端层经四条协议通道进入本地控制面：单端口代理完成鉴权、候选规划、协议转换、三层故障隔离与真流式透传；registry.yaml 作为唯一模型事实源，runtime-state.json 与 usage.db 只保存脱敏运行状态；最后经 TLS 抵达 10 家免费上游。</p>
       </header>
       <div class="arch-figure" role="region" aria-label="总体架构图（可横向滚动）" tabindex="0">
         <svg viewBox="0 0 1200 760" role="img" aria-labelledby="arch-svg-title arch-svg-desc" xmlns="http://www.w3.org/2000/svg">
           <title id="arch-svg-title">模力自由港总体架构图</title>
-          <desc id="arch-svg-desc">四层架构：9 个客户端通过 Responses、Messages、OpenAI Chat 与 MCP 四条通道进入本地控制面；单端口代理完成鉴权、路由计划、三层故障隔离、首字节前 fallback、协议适配与脱敏指标，再经 TLS 转发到 11 家免费上游；Provider Key 永不下发客户端。</desc>
+          <desc id="arch-svg-desc">四层架构：9 个客户端通过 Responses、Messages、OpenAI Chat 与 MCP 四条通道进入本地控制面；单端口代理完成鉴权、路由计划、三层故障隔离、首字节前 fallback、协议适配与脱敏指标，再经 TLS 转发到 10 家免费上游；Provider Key 永不下发客户端。</desc>
           <defs>
             <marker id="ar-cy" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0L9,4.5L0,9z" fill="#24d6c8"/></marker>
             <marker id="ar-bl" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto"><path d="M0,0L9,4.5L0,9z" fill="#6d8bff"/></marker>
@@ -232,7 +232,7 @@
           <text class="sg-un" x="858.5" y="680" text-anchor="middle">Zen</text>
           <text class="sg-un" x="945.5" y="672" text-anchor="middle">SenseNova</text>
           <text class="sg-un" x="1032.5" y="672" text-anchor="middle">StepFun</text>
-          <text class="sg-un" x="1119.5" y="672" text-anchor="middle">Gitee AI</text>
+          
 
           <text class="sg-m" x="685" y="734" text-anchor="middle"><tspan class="sg-dim">出站全链路 TLS · Provider Key 只存本机 </tspan><tspan class="sg-cy">registry.yaml（0600）</tspan><tspan class="sg-am"> · 永不下发客户端</tspan></text>
         </svg>
