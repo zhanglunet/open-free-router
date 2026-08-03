@@ -154,6 +154,25 @@ function requestFor(provider, model, credential, signal) {
   ];
 }
 
+/**
+ * A probe result answers one of two different questions, and collapsing them
+ * into one field is what put 18 of 35 models on the public board as 不可用 for
+ * reasons that had nothing to do with the model — including all 9 of
+ * openrouter's, dark purely because we probe it every 15 minutes.
+ *
+ *   "is this model usable?"      404, a 4xx rejection, 5xx   -> unavailable
+ *   "did we manage to find out?" 401/402/403/429, no response -> unverified
+ *
+ * Every reason string in the second group already names us as the subject —
+ * our credential, our quota, our request rate, our timeout budget — while the
+ * availability field said the provider was down.
+ */
+const NO_EVIDENCE_STATUSES = new Set([401, 402, 403, 429]);
+
+function verdictFor(status) {
+  return NO_EVIDENCE_STATUSES.has(status) ? "unverified" : "unavailable";
+}
+
 function failureReason(status) {
   if (status === 401 || status === 403) return "服务器凭据无效或没有访问权限";
   if (status === 402) return "服务器探测账户没有可用额度";
@@ -195,7 +214,7 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
     // entitlement. Scrubbed and bounded before it goes anywhere.
     const detail = await upstreamError(response, credential);
     return {
-      availability: "unavailable",
+      availability: verdictFor(response.status),
       status: `http_${response.status}`,
       reason: failureReason(response.status),
       ...(detail ? { upstream_error: detail } : {}),
@@ -204,11 +223,15 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
     };
   } catch (error) {
     const timeout = error?.name === "TimeoutError" || error?.name === "AbortError";
+    // No response at all means no evidence either way. The budget below is
+    // ours, so the message names it rather than blaming the model.
     return {
-      availability: "unavailable",
+      availability: "unverified",
       status: timeout ? "timeout" : error?.message === "invalid_endpoint" ? "invalid_endpoint" : "network_error",
-      reason: timeout ? "Cloudflare 服务器请求超时" : "Cloudflare 服务器无法连接提供商",
-      latency_ms: timeout ? PROBE_TIMEOUT_MS : null,
+      reason: timeout
+        ? `Cloudflare 服务器在 ${PROBE_TIMEOUT_MS / 1000} 秒预算内未收到响应`
+        : "Cloudflare 服务器无法连接提供商",
+      latency_ms: null,
       checked_at: checkedAt,
     };
   }
@@ -298,7 +321,14 @@ export async function buildServerSnapshot(catalog, env, existing = null, options
     model_id: model.id,
     ...await probeModel(provider, model, env, fetcher, () => Date.now()),
   }));
-  for (const result of probed) results[result.key] = result;
+  for (const result of probed) {
+    const prior = results[result.key];
+    // An unverified probe learned nothing. Letting it overwrite a verdict that
+    // is still inside the recency window turned a single throttled cycle into a
+    // model going red — verified: one 429 erased a five-minute-old success.
+    if (result.availability === "unverified" && prior && prior.availability !== "unverified") continue;
+    results[result.key] = result;
+  }
   return {
     schema_version: 2,
     source: "cloudflare-server-probe",

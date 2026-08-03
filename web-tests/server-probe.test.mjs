@@ -102,6 +102,98 @@ test("a credential echoed back by the provider is scrubbed out of upstream_error
   assert.match(result.upstream_error, /redacted-credential/);
 });
 
+/* A probe result answers one of two different questions, and they must not be
+   collapsed into one field:
+     - "is this model usable?"        → 404, 4xx rejection, 5xx  → unavailable
+     - "did we manage to find out?"   → 401/402/403/429/timeout  → unverified
+   Every reason string in the second group already says the subject is us
+   ("服务器凭据", "探测账户", "对服务器探测请求限流", "服务器请求超时") while the
+   availability field said the model was down. Measured live: 18 of 35
+   unavailable verdicts were of the second kind, including all 9 of openrouter's
+   models, dark purely because we probe it every 15 minutes. */
+const STATUS_TAXONOMY = [
+  [200, "available"],
+  [400, "unavailable"],
+  [404, "unavailable"],
+  [500, "unavailable"],
+  [503, "unavailable"],
+  [529, "unavailable"],
+  [401, "unverified"],
+  [402, "unverified"],
+  [403, "unverified"],
+  [429, "unverified"],
+];
+
+for (const [status, expected] of STATUS_TAXONOMY) {
+  test(`HTTP ${status} is ${expected}`, async () => {
+    const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+    const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
+      new Response("{}", { status }));
+    assert.equal(result.availability, expected, `${status} -> ${result.availability} (${result.reason})`);
+  });
+}
+
+test("a probe that timed out against our own budget is unverified, not a verdict", async () => {
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () => {
+    const error = new Error("timed out");
+    error.name = "TimeoutError";
+    throw error;
+  });
+  assert.equal(result.availability, "unverified");
+  assert.equal(result.status, "timeout");
+  // The budget is ours, so the message has to name it rather than blame the model.
+  assert.match(result.reason, /12/);
+});
+
+test("an unverified result must not erase recent evidence that did reach a verdict", async () => {
+  // A single 429 used to overwrite a five-minute-old successful measurement, so
+  // one throttled cycle turned a working model red until the next probe.
+  const now = Date.parse("2026-08-03T08:00:00Z");
+  const recentIso = new Date(now - 5 * 60 * 1000).toISOString();
+  const catalog = { providers: [{ id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m1" }] }] };
+  const existing = {
+    schema_version: 2,
+    as_of: recentIso,
+    models: {
+      "groq/m1": { key: "groq/m1", availability: "available", status: "http_200", latency_ms: 40, checked_at: recentIso },
+    },
+  };
+  const snapshot = await buildServerSnapshot(catalog, { OFR_PROBE_GROQ_API_KEY: "k" }, existing, {
+    nowMs: now,
+    batch: 0,
+    fetcher: async () => new Response("{}", { status: 429 }),
+  });
+  assert.equal(snapshot.models["groq/m1"].availability, "available");
+  assert.equal(snapshot.models["groq/m1"].status, "http_200");
+});
+
+test("an unverified result is recorded when there is no prior verdict to keep", async () => {
+  const now = Date.parse("2026-08-03T08:00:00Z");
+  const catalog = { providers: [{ id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m1" }] }] };
+  const snapshot = await buildServerSnapshot(catalog, { OFR_PROBE_GROQ_API_KEY: "k" }, null, {
+    nowMs: now,
+    batch: 0,
+    fetcher: async () => new Response("{}", { status: 429 }),
+  });
+  assert.equal(snapshot.models["groq/m1"].availability, "unverified");
+  assert.equal(snapshot.models["groq/m1"].status, "http_429");
+});
+
+test("a provider throttling every probe is unverified, not down", async () => {
+  const now = Date.parse("2026-08-03T08:00:00Z");
+  const catalog = { providers: [{ id: "openrouter", api: "https://openrouter.ai/api/v1", models: [{ id: "a" }, { id: "b" }] }] };
+  const snapshot = await buildServerSnapshot(catalog, { OFR_PROBE_OPENROUTER_API_KEY: "k" }, null, {
+    nowMs: now,
+    batch: 0,
+    fetcher: async () => new Response("{}", { status: 429 }),
+  });
+  assert.equal(snapshot.providers.openrouter.availability, "unverified");
+  const merged = mergeServerStatus(catalog, snapshot, now).providers[0];
+  assert.equal(merged.availability, "unverified");
+  assert.ok(merged.models.every((model) => model.availability === "unverified"));
+});
+
 test("a credential with no recognised prefix is still redacted", async () => {
   // The pattern list only knows the key formats we have seen. credentialFor
   // accepts an arbitrary secret string — a Gitee private token has no sk_/gsk_
