@@ -548,6 +548,60 @@ export async function browserAudit({ verbose = false } = {}) {
     if (notFoundText < 40)
       add("major", "/404", "404 页面内容为空", "找不到页面时用户看到空白页。");
     await context.close();
+
+    // ── degraded pass ────────────────────────────────────────────────────
+    //
+    // Every check above runs against a healthy /api/catalog, which is exactly
+    // why the static-fallback branches shipped rendering a stale snapshot as
+    // current fact — no test could reach them. This pass serves the same build
+    // with /api/* returning 503 and asserts each page says so.
+    const degradedServer = await startServer(WEB, { apiCatalog: "fail" });
+    try {
+      const degradedContext = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+      for (const route of ["/models/", "/benchmarks/", "/status/"]) {
+        const page = await degradedContext.newPage();
+        try {
+          await page.goto(`http://127.0.0.1:${degradedServer.port}${route}`, { waitUntil: "networkidle" });
+          const state = await page.evaluate(() => ({
+            text: document.body.innerText || "",
+            // A number here would mean the page counted providers as available
+            // without anything having measured them.
+            availableCount: document.querySelector("#available-count")?.textContent?.trim() ?? null,
+            // Scoped to the rendered cards on purpose: both pages also ship a
+            // static legend that shows one of every lamp colour, and that is
+            // not a claim about any provider.
+            greenDots: document.querySelectorAll(".provider-card .dot.available, .st-card .st-lamp.available").length,
+          }));
+          if (!/静态兜底数据|不判断可用性|未做可用性判断/.test(state.text)) {
+            add("critical", route, "接口不可用时未声明降级",
+              "/api/catalog 返回 503，但页面没有告诉访客数据来自静态兜底快照。");
+          }
+          if (state.availableCount !== null && /^[0-9]/.test(state.availableCount)) {
+            add("critical", route, "降级后仍展示可用数量",
+              `「最近可用」显示 ${state.availableCount}，但本次渲染没有任何可用性证据。`);
+          }
+          if (state.greenDots) {
+            add("critical", route, "降级后仍展示可用状态灯",
+              `仍有 ${state.greenDots} 个绿色状态指示，实际未做任何探测。`);
+          }
+          // The degraded rendering must not trip the healthy-page heuristics.
+          if (state.text.trim().length < 200) {
+            add("critical", route, "降级后页面几乎没有内容",
+              `body 可见文本仅 ${state.text.trim().length} 字符。`);
+          }
+          for (const marker of ["正在加载", "正在读取", "加载中"]) {
+            if (state.text.includes(marker)) {
+              add("major", route, "降级后卡在加载态", `网络空闲后仍显示：${marker}`);
+            }
+          }
+        } finally {
+          await page.close();
+        }
+      }
+      await degradedContext.close();
+    } finally {
+      degradedServer.server.close();
+    }
   } finally {
     await browser.close();
     server.close();

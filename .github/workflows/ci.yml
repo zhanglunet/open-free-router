@@ -35,6 +35,27 @@ jobs:
       - name: Test
         run: python -m pytest tests/ -q
 
+      - name: Public catalog is reproducible from the registry
+        # An age gate can be cleared by hand-editing a timestamp; this cannot.
+        # Re-exporting with generated_at pinned to the committed value and
+        # diffing catches what age structurally misses — schema drift, a typo'd
+        # --registry, a stale api field — because the only way to make it pass
+        # is to actually run the exporter.
+        run: |
+          NOW=$(python -c "import json;print(json.load(open('site/data/catalog.json'))['generated_at'])")
+          python scripts/export-public-catalog.py \
+            --registry src/open_free_router/registry.default.yaml \
+            --status docs/provider-status.json \
+            --profiles docs/provider-profiles.json \
+            --now "$NOW" \
+            --output /tmp/catalog-reexport.json
+          if ! git diff --no-index --quiet site/data/catalog.json /tmp/catalog-reexport.json; then
+            echo "::error::site/data/catalog.json does not match a re-export from the registry"
+            git diff --no-index site/data/catalog.json /tmp/catalog-reexport.json | head -60
+            exit 1
+          fi
+          echo "published catalog matches a fresh export"
+
       - name: CLI smoke test
         # The npm install guide tells users to verify with these two commands,
         # so they are part of the contract, not just internal plumbing.
@@ -73,3 +94,34 @@ jobs:
 
       - name: Worker dry-run
         run: npx wrangler deploy --dry-run
+
+      - name: Freshness gate fails on a stale catalog
+        # The PRD's acceptance criterion, executed rather than asserted. Last on
+        # purpose: build-site.mjs starts by removing web/, so the deliberately
+        # failing build leaves it half-written, and the steps above consume it.
+        # A fixed 2020 date rather than now-30d, so the check means the same
+        # thing when CI re-runs on an old commit (the gate anchors to the commit
+        # date, not the wall clock).
+        run: |
+          cp site/data/catalog.json /tmp/catalog-orig.json
+          node -e '
+            const fs = require("fs");
+            const path = "site/data/catalog.json";
+            const catalog = JSON.parse(fs.readFileSync(path, "utf8"));
+            catalog.generated_at = "2020-01-01T00:00:00.000Z";
+            fs.writeFileSync(path, JSON.stringify(catalog, null, 2) + "\n");
+          '
+          status=0
+          npm run build > /tmp/gate.log 2>&1 || status=$?
+          cp /tmp/catalog-orig.json site/data/catalog.json
+          if [ "$status" -eq 0 ]; then
+            echo "::error::the freshness gate did not fire on a stale catalog"
+            exit 1
+          fi
+          if ! grep -q "公开目录数据新鲜度校验失败" /tmp/gate.log; then
+            echo "::error::the build failed, but not because of the freshness gate"
+            cat /tmp/gate.log
+            exit 1
+          fi
+          echo "gate fired as expected"
+          npm run build
