@@ -58,8 +58,16 @@ const CREDENTIAL_RE = /(?:Bearer\s+)?\b(?:sk|nvapi|gsk|xai|pplx|or)[-_][A-Za-z0-
  * That body is the one artefact separating "our credential is malformed" from
  * "this account lacks entitlement" — the two live hypotheses for gitee-ai
  * returning 400 on all 16 of its models.
+ *
+ * The result is served by the unauthenticated /api/status and spread into
+ * /api/catalog, so redaction has to be complete, not best-effort. The exact
+ * credential we sent is removed first: CREDENTIAL_RE only knows the key formats
+ * we have already seen, while credentialFor accepts an arbitrary secret string
+ * — a Gitee private token carries no sk_/gsk_ style prefix and would sail
+ * through a prefix allowlist. The pattern pass stays as defence in depth, since
+ * a body may echo some *other* provider's key.
  */
-async function upstreamError(response) {
+async function upstreamError(response, credential) {
   try {
     const raw = (await response.text()).slice(0, 512);
     let message = raw;
@@ -69,7 +77,14 @@ async function upstreamError(response) {
     } catch {
       /* not JSON, or truncated mid-object: fall back to the raw slice */
     }
-    const scrubbed = String(message).replace(CREDENTIAL_RE, "[redacted-credential]").trim();
+    let scrubbed = String(message);
+    // A short secret would over-redact ordinary words; real credentials are long.
+    if (credential && credential.length >= 8) {
+      for (const form of new Set([credential, encodeURIComponent(credential)])) {
+        scrubbed = scrubbed.split(form).join("[redacted-credential]");
+      }
+    }
+    scrubbed = scrubbed.replace(CREDENTIAL_RE, "[redacted-credential]").trim();
     return scrubbed ? scrubbed.slice(0, 300) : undefined;
   } catch {
     return undefined;
@@ -178,7 +193,7 @@ export async function probeModel(provider, model, env, fetcher = fetch, now = ()
     // Read rather than cancel: failureReason() only knows the status code, and
     // the status code alone cannot tell a malformed credential from a missing
     // entitlement. Scrubbed and bounded before it goes anywhere.
-    const detail = await upstreamError(response);
+    const detail = await upstreamError(response, credential);
     return {
       availability: "unavailable",
       status: `http_${response.status}`,

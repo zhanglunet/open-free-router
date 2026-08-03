@@ -102,6 +102,28 @@ test("a credential echoed back by the provider is scrubbed out of upstream_error
   assert.match(result.upstream_error, /redacted-credential/);
 });
 
+test("a credential with no recognised prefix is still redacted", async () => {
+  // The pattern list only knows the key formats we have seen. credentialFor
+  // accepts an arbitrary secret string — a Gitee private token has no sk_/gsk_
+  // style prefix — and upstream_error is served by the unauthenticated
+  // /api/status and spread into /api/catalog, so a prefix allowlist alone
+  // publishes the key the moment a provider echoes it back.
+  const secret = "9f3c1ba77e0d4e2b8c5a6f10d2e94b77";
+  const provider = { id: "gitee-ai", api: "https://ai.gitee.com/v1", models: [{ id: "DeepSeek-V3" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GITEE_AI_API_KEY: secret }, async () =>
+    new Response(JSON.stringify({ error: { message: `token ${secret} is not authorized` } }), { status: 400 }));
+  assert.ok(!result.upstream_error.includes(secret), result.upstream_error);
+  assert.match(result.upstream_error, /redacted-credential/);
+});
+
+test("a percent-encoded echo of the credential is redacted too", async () => {
+  const secret = "tok/en+with=specials";
+  const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
+  const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: secret }, async () =>
+    new Response(JSON.stringify({ error: { message: `bad key ${encodeURIComponent(secret)} here` } }), { status: 401 }));
+  assert.ok(!result.upstream_error.includes(encodeURIComponent(secret)), result.upstream_error);
+});
+
 test("upstream_error is bounded so a hostile body cannot bloat the KV snapshot", async () => {
   const provider = { id: "groq", api: "https://api.groq.com/openai/v1", models: [{ id: "m" }] };
   const result = await probeModel(provider, provider.models[0], { OFR_PROBE_GROQ_API_KEY: "k" }, async () =>
