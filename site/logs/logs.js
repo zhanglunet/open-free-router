@@ -13,7 +13,14 @@ function html(value) {
 
 function localUrl(value) {
   const url = String(value || "");
-  return url.startsWith("/") && !url.startsWith("//") ? html(url) : "#";
+  if (url.startsWith("/") && !url.startsWith("//")) return html(url);
+  // Dev-log entries occasionally cite an upstream page; allow plain https
+  // links through so they are not silently flattened to "#".
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === "https:") return html(parsed.href);
+  } catch { /* not an absolute URL */ }
+  return "#";
 }
 
 function render() {
@@ -34,7 +41,11 @@ function render() {
 
 filters.forEach((button) => button.addEventListener("click", () => {
   activeType = button.dataset.logType;
-  filters.forEach((item) => item.classList.toggle("active", item === button));
+  filters.forEach((item) => {
+    const on = item === button;
+    item.classList.toggle("active", on);
+    item.setAttribute("aria-pressed", String(on));
+  });
   render();
 }));
 search.addEventListener("input", render);

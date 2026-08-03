@@ -116,10 +116,27 @@ function renderRows() {
       <td data-value="${row.max_tokens}">${formatTokens(row.max_tokens)}</td>
       <td><span class="feature ${row.reasoning ? "yes" : "no"}">${row.reasoning ? "YES" : "—"}</span></td>
       <td><span class="feature ${row.tool_calling ? "yes" : "no"}">${row.tool_calling ? "YES" : "—"}</span></td>
-      <td><div class="score"><i style="--score:${row.capability_score}%"></i><b>${row.capability_score}</b></div></td>
+      <td><div class="score"><i data-score="${row.capability_score}"></i><b>${row.capability_score}</b></div></td>
       <td>${latencyLabel(row.latency_ms)}</td>
       <td><code>${html(row.codex_alias)}</code></td>
     </tr>`).join("") : `<tr><td colspan="11" class="empty">没有符合当前筛选条件的模型。</td></tr>`;
+  paintScoreBars();
+}
+
+/**
+ * Width of the capability bars.
+ *
+ * This has to go through the CSSOM rather than a `style="--score:…"`
+ * attribute in the markup above: the site ships `style-src 'self'` with no
+ * `'unsafe-inline'`, which blocks style *attributes* — the bars rendered at
+ * zero width in production. Programmatic setProperty is not covered by the
+ * directive, so the value applies normally.
+ */
+function paintScoreBars() {
+  for (const bar of document.querySelectorAll("#model-rows .score i[data-score]")) {
+    const score = Number(bar.dataset.score);
+    bar.style.setProperty("--score", `${Number.isFinite(score) ? score : 0}%`);
+  }
 }
 
 function renderDiscovery(discovery) {
@@ -144,7 +161,13 @@ async function load() {
   } catch {
     const response = await fetch("/data/catalog.json");
     catalog = await response.json();
-    catalog.discovery = { candidate_provider_count: 0, candidate_model_count: 0, providers: [] };
+    // discovery-seed.json is already deployed alongside the catalog; using it
+    // keeps the radar's candidate section populated when /api/catalog is down
+    // instead of claiming zero candidates.
+    catalog.discovery = await fetch("/data/discovery-seed.json")
+      .then((seed) => (seed.ok ? seed.json() : null))
+      .catch(() => null)
+      ?? { candidate_provider_count: 0, candidate_model_count: 0, providers: [] };
   }
   state.catalog = catalog;
   state.rows = flatten(catalog);
@@ -165,5 +188,15 @@ $("#reset").addEventListener("click", () => {
   renderRows();
 });
 load().catch((error) => {
-  $("#model-rows").innerHTML = `<tr><td colspan="11" class="empty">目录加载失败：${html(error.message)}</td></tr>`;
+  // Every region that would otherwise sit in its loading skeleton forever
+  // has to be told the load failed, not just the table.
+  const reason = html(error?.message || error || "未知错误");
+  $("#model-rows").innerHTML = `<tr><td colspan="11" class="empty">目录加载失败：${reason}</td></tr>`;
+  $("#provider-cards").innerHTML = `<p class="empty">提供商信息加载失败：${reason}</p>`;
+  $("#candidate-list").innerHTML = `<p class="empty">发现队列加载失败：${reason}</p>`;
+  $("#status-time").textContent = "目录加载失败，以下数据可能不可用";
+  ["#provider-count", "#model-count", "#available-count", "#candidate-count"].forEach((id) => {
+    const el = $(id);
+    if (el) el.textContent = "—";
+  });
 });

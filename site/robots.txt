@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /internal/
 
 Sitemap: https://oaf.asia/sitemap.xml

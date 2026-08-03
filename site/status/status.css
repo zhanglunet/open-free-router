@@ -135,3 +135,8 @@ body.st-loading .st-pulse{background:var(--amber);box-shadow:0 0 0 5px rgba(255,
   .sk-line,.sk-badges i{animation:none;background:rgba(132,183,224,.12)}
   #st-refresh{transition:none}
 }
+
+/* Visually-hidden helper: keeps the state word available to screen
+   readers without changing the badge layout. */
+.st-sr{position:absolute;width:1px;height:1px;margin:-1px;padding:0;overflow:hidden;clip:rect(0 0 0 0);clip-path:inset(50%);white-space:nowrap;border:0}
+.st-badge i{font-style:normal;margin-right:.3em}

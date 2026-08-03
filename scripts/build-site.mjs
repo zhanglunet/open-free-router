@@ -1,5 +1,6 @@
-import { copyFile, cp, mkdir, readFile, rm } from "node:fs/promises";
-import { resolve } from "node:path";
+import { copyFile, cp, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
+import { createHash } from "node:crypto";
+import { join, relative, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const source = resolve(root, "site");
@@ -162,9 +163,8 @@ for (const marker of ["labelledBins", "return 86 -", "jitter-${index % 8}", "vie
 if (!benchmarksJs.includes("/data/benchmarks.json?v=")) {
   throw new Error("Benchmarks static snapshot request must be versioned to avoid stale edge 404s");
 }
-if (!benchmarksHtml.includes('src="/benchmarks/benchmarks.js?v=')) {
-  throw new Error("Benchmarks script asset must be versioned to avoid stale browser caches");
-}
+// Cache-busting is now handled by content-hash fingerprinting below, which
+// covers every asset rather than the handful that carried manual markers.
 if (!benchmarksJs.includes("function html(value)") || !benchmarksJs.includes("&lt;")) {
   throw new Error("Benchmarks page must HTML-escape public catalog and benchmark fields");
 }
@@ -194,7 +194,8 @@ for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, archit
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }
-  if (!page.includes('src="/nav.js?')) {
+  // Checked before fingerprinting, so the reference is still the plain path.
+  if (!page.includes('src="/nav.js"')) {
     throw new Error("Every page with the shared header must load the responsive navigation");
   }
 }
@@ -221,4 +222,64 @@ if (/AIza[0-9A-Za-z_-]{30,}|sk-[0-9A-Za-z]{20,}/.test(html)) {
   throw new Error("Generated site contains a credential-like value");
 }
 
-console.log(`Built ${output} from ${source}`);
+// ── content-hash fingerprinting ─────────────────────────────────────────
+//
+// Hand-maintained `?v=` markers only ever covered 6 of 27 assets — styles.css
+// among the ones they missed — so an edit to it reached returning visitors
+// only when their cache happened to revalidate. Renaming each CSS/JS file
+// after a hash of its own bytes makes the URL change exactly when the
+// content does, which lets `_headers` mark them immutable for a year.
+//
+// `site/` stays clean: only the built copy under `web/` is rewritten.
+
+async function walk(dir, out = []) {
+  for (const entry of await readdir(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) await walk(full, out);
+    else out.push(full);
+  }
+  return out;
+}
+
+const builtFiles = await walk(output);
+const hashedAssets = new Map(); // "/styles.css" → "/styles.a1b2c3d4.css"
+
+for (const file of builtFiles) {
+  if (!/\.(css|js)$/.test(file)) continue;
+  const url = "/" + relative(output, file).split("\\").join("/");
+  const bytes = await readFile(file);
+  const hash = createHash("sha256").update(bytes).digest("hex").slice(0, 8);
+  const hashedUrl = url.replace(/\.(css|js)$/, `.${hash}.$1`);
+  await rename(file, join(output, hashedUrl.slice(1)));
+  hashedAssets.set(url, hashedUrl);
+}
+
+// Longest-first so /models/models.css is never partially matched by a
+// shorter path that happens to be a prefix.
+const assetPatterns = [...hashedAssets.entries()].sort((a, b) => b[0].length - a[0].length);
+
+for (const file of await walk(output)) {
+  if (!/\.(html|js|css)$/.test(file)) continue;
+  let text = await readFile(file, "utf8");
+  const original = text;
+  for (const [url, hashedUrl] of assetPatterns) {
+    // Match the reference with or without a leftover query string.
+    text = text.split(`"${url}"`).join(`"${hashedUrl}"`);
+    text = text.replaceAll(new RegExp(`"${url.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}\\?[^"]*"`, "g"), `"${hashedUrl}"`);
+  }
+  if (text !== original) await writeFile(file, text);
+}
+
+// Nothing referenced from a page may keep an unhashed URL, or it silently
+// falls back to the old caching behaviour this exists to replace.
+for (const file of await walk(output)) {
+  if (!file.endsWith(".html")) continue;
+  const page = await readFile(file, "utf8");
+  for (const [, ref] of page.matchAll(/(?:src|href)="(\/[^"]+\.(?:css|js))(?:\?[^"]*)?"/g)) {
+    if (!/\.[0-9a-f]{8}\.(css|js)$/.test(ref)) {
+      throw new Error(`Unfingerprinted asset referenced by ${relative(output, file)}: ${ref}`);
+    }
+  }
+}
+
+console.log(`Built ${output} from ${source} (${hashedAssets.size} assets fingerprinted)`);

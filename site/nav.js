@@ -34,18 +34,31 @@ if (header) {
   panel.id = "mobile-navigation";
   panel.className = "mobile-nav-panel";
   panel.hidden = true;
+  // The panel covers the page when open, so announce it as a modal dialog
+  // rather than an anonymous div appended to the end of <body>.
+  panel.setAttribute("role", "dialog");
+  panel.setAttribute("aria-modal", "true");
+  panel.setAttribute("aria-label", "网站导航");
   const globalNav = document.createElement("nav");
   globalNav.setAttribute("aria-label", "移动端主导航");
   globalNav.innerHTML = globalLinks.map(([label, href], index) =>
     `<a href="${href}"><small>${String(index + 1).padStart(2, "0")}</small><span>${label}</span></a>`
   ).join("");
-  [...globalNav.querySelectorAll("a")].forEach((link) => {
-    const linkPath = new URL(link.href, window.location.origin).pathname;
-    const active = linkPath === "/" ? currentPath === "/" : currentPath.startsWith(linkPath);
-    if (active) link.setAttribute("aria-current", "page");
-  });
-  if (!globalNav.querySelector('[aria-current="page"]')) {
-    globalNav.querySelector("a")?.setAttribute("aria-current", "page");
+  // Mark exactly one link. A plain prefix test matches several entries at
+  // once (/guide/npm/ satisfies both "/guide/" and "/guide/npm/", and "/"
+  // prefixes everything), which announces multiple "current page" links to
+  // assistive tech. The longest matching prefix is the real one, and an
+  // exact match is by definition the longest, so one pass covers both.
+  const navLinks = [...globalNav.querySelectorAll("a")];
+  const bestPath = navLinks
+    .map((link) => new URL(link.href, window.location.origin).pathname)
+    .filter((linkPath) => (linkPath === "/" ? currentPath === "/" : currentPath.startsWith(linkPath)))
+    .reduce((best, linkPath) => (linkPath.length > best.length ? linkPath : best), "");
+  if (bestPath) {
+    const match = navLinks.find(
+      (link) => new URL(link.href, window.location.origin).pathname === bestPath,
+    );
+    match?.setAttribute("aria-current", "page");
   }
   panel.append(globalNav);
 
@@ -70,11 +83,33 @@ if (header) {
     toggle.classList.toggle("open", open);
     panel.hidden = !open;
     document.body.classList.toggle("mobile-nav-open", open);
+    // The panel is the last child of <body>; without moving focus into it a
+    // keyboard user would tab through the whole page before reaching the
+    // menu they just opened, and land behind the overlay on close.
+    if (open) panel.querySelector("a")?.focus();
+    else toggle.focus();
   }
 
   toggle.addEventListener("click", () => setOpen(toggle.getAttribute("aria-expanded") !== "true"));
   panel.addEventListener("click", (event) => { if (event.target.closest("a")) setOpen(false); });
-  document.addEventListener("keydown", (event) => { if (event.key === "Escape") setOpen(false); });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && !panel.hidden) setOpen(false);
+    if (event.key !== "Tab" || panel.hidden) return;
+    // The dialog's members are not contiguous in the DOM: the toggle lives in
+    // the header while the panel is the last child of <body>, so the page's
+    // whole tab order sits between them. Guarding only the two ends of the
+    // list therefore leaks — Tab from the toggle walked into <main> and
+    // Shift+Tab from the first link walked into the footer. Take over Tab
+    // entirely while the dialog is open and drive the cycle ourselves.
+    const items = [toggle, ...panel.querySelectorAll("a")];
+    const index = items.indexOf(document.activeElement);
+    event.preventDefault();
+    const step = event.shiftKey ? -1 : 1;
+    const next = index === -1
+      ? items[event.shiftKey ? items.length - 1 : 0] // focus escaped: pull it back
+      : items[(index + step + items.length) % items.length];
+    next.focus();
+  });
   window.matchMedia("(min-width: 981px)").addEventListener("change", (event) => { if (event.matches) setOpen(false); });
   header.append(toggle);
   document.body.append(panel);

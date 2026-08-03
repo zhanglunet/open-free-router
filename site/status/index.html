@@ -7,21 +7,24 @@
   <meta name="theme-color" content="#061120">
   <meta name="description" content="模力自由港服务器端可用状态：Cloudflare 定时实测免费大模型提供商与模型，展示延迟、原因和最近探测时间。">
   <meta property="og:title" content="实时可用状态 · 模力自由港">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://oaf.asia/status/">
+  <meta property="og:type" content="website">
   <meta property="og:description" content="Cloudflare 服务器端定时实测免费大模型：绿灯可用、红灯不可用、黄灯未验证，与访问者本机无关。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>实时可用状态 · 模力自由港</title>
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/status/status.css">
-  <script src="/nav.js?v=20260803b" defer></script>
+  <script src="/nav.js" defer></script>
   <script src="/status/status.js" defer></script>
 </head>
 <body>
   <div class="site-grid" aria-hidden="true"></div>
   <a class="skip-link" href="#board">跳到状态面板</a>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
     <nav aria-label="状态页导航"><a href="/models/">模型雷达</a><a href="/architecture/">系统架构</a><a href="/map/">全球分布</a><a href="/guide/">安装指南</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
@@ -31,6 +34,7 @@
       <span class="st-pulse" aria-hidden="true"></span>
       <p class="st-countdown-text" role="timer">下次刷新 <b id="st-countdown">60</b><i>s</i></p>
       <button id="st-refresh" type="button">立即刷新</button>
+      <button id="st-pause" type="button" aria-pressed="false">暂停自动刷新</button>
       <p class="st-generated" id="st-generated" aria-live="polite">正在读取状态快照…</p>
     </div>
     <div class="st-error" id="st-error" role="alert" hidden>
@@ -61,7 +65,7 @@
           <li><span class="st-lamp unverified" aria-hidden="true"></span>候选未验证</li>
         </ul>
       </header>
-      <div class="st-cards" id="st-cards" aria-live="polite" aria-busy="true">
+      <div class="st-cards" id="st-cards" aria-busy="true">
         <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
         <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
         <article class="st-card st-skeleton" aria-hidden="true"><div class="sk-line sk-w40"></div><div class="sk-line sk-w70"></div><div class="sk-line sk-w55"></div><div class="sk-badges"><i></i><i></i><i></i><i></i><i></i></div></article>
@@ -104,7 +108,7 @@
   </main>
 
   <footer>
-    <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · 实时可用状态</small></span></div>
+    <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port · 实时可用状态</small></span></div>
     <p>状态是维护者实例的最近探测快照，不是 SLA；免费额度、模型目录和账户可用性可能随时变化。对自己的部署实测请使用本地仪表盘 Live Status。</p>
     <div class="footer-links"><a href="/models/">模型雷达</a><a href="/stories/free-model-port/">推荐文章</a><a href="/logs/">开发日志</a><a href="/">返回首页</a></div>
   </footer>

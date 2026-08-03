@@ -23,7 +23,11 @@ async function request(path, options = {}) {
     headers: { Accept: "application/json", Authorization: `Bearer ${state.token}`, ...(options.headers || {}) },
   });
   const payload = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(response.status === 401 ? "访问令牌不正确" : payload.message || payload.error || `HTTP ${response.status}`);
+  if (!response.ok) {
+    const error = new Error(response.status === 401 ? "访问令牌不正确" : payload.message || payload.error || `HTTP ${response.status}`);
+    error.status = response.status;
+    throw error;
+  }
   return payload;
 }
 
@@ -97,4 +101,20 @@ $("#model-search").addEventListener("input", renderRows);
 $("#model-sort").addEventListener("input", renderRows);
 
 const savedToken = sessionStorage.getItem("ofrInternalBenchmarkToken");
-if (savedToken) unlock(savedToken).catch(() => sessionStorage.removeItem("ofrInternalBenchmarkToken"));
+if (savedToken) {
+  unlock(savedToken).catch((error) => {
+    // Only an actual rejection means the token is bad. A 503 while the
+    // snapshot is still being built used to silently discard a valid token
+    // and drop the user back to the login form with no explanation.
+    if (error?.status === 401) {
+      sessionStorage.removeItem("ofrInternalBenchmarkToken");
+    }
+    const banner = $("#access-error");
+    if (banner) {
+      banner.textContent = error?.status === 401
+        ? "访问令牌不正确，请重新输入。"
+        : `暂时无法载入内部数据：${error?.message || error}`;
+      banner.hidden = false;
+    }
+  });
+}

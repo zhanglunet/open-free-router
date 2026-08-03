@@ -1,0 +1,31 @@
+# HTTP response headers for the static site.
+#
+# These cannot live in the page's <meta> CSP: browsers ignore frame-ancestors
+# (and sandbox / report-uri) when the policy arrives in a meta element, so
+# clickjacking protection has to be a real header. They also cannot live in
+# worker/index.js — wrangler.jsonc sets run_worker_first: ["/api/*"], so page
+# and asset requests are answered by Cloudflare's Asset Worker and never
+# reach our fetch handler. This file is the mechanism that actually applies,
+# and it keeps assets cacheable at the edge with no Worker invocation.
+#
+# The framing-only CSP here composes with each page's own meta CSP; CSP
+# policies combine restrictively, so both apply.
+
+/*
+  Content-Security-Policy: frame-ancestors 'none'
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: geolocation=(), microphone=(), camera=(), interest-cohort=()
+
+/internal/*
+  X-Robots-Tag: noindex, nofollow
+
+# Fingerprinted assets: the filename changes whenever the bytes do
+# (scripts/build-site.mjs), so the URL can be cached indefinitely. HTML keeps
+# the default revalidate behaviour so a deploy is picked up immediately.
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable

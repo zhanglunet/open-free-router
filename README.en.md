@@ -17,9 +17,10 @@
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
 ```bash
-curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
-less /tmp/open-free-router-install.sh
-bash /tmp/open-free-router-install.sh --codex --auto-discovery
+f=$(mktemp)
+curl -fsSLo "$f" https://oaf.asia/install.sh
+less "$f"
+bash "$f" --codex --auto-discovery
 ```
 
 Tracks 55 registered models across 11 LLM providers (OpenRouter, NVIDIA NIM, OpenCode Zen, Nous Research, StepFun, SenseNova, Groq, Google AI Studio, DeepSeek, Poolside AI, Gitee AI), runs a local proxy that routes explicit or virtual model IDs to eligible upstreams, and auto-refreshes the model list. Configure once, share across **9 clients**: Codex, Claude Code, OpenCode, Hermes, Kimi CLI, OpenClaw, WorkBuddy, Pi, and OMP — plus a built-in MCP server for any MCP host.
@@ -64,9 +65,10 @@ Every client receives only the **local proxy token** — upstream API keys never
 
 **Option 1: One-liner (recommended)**
 ```bash
-curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh
-less /tmp/open-free-router-install.sh
-bash /tmp/open-free-router-install.sh --codex --auto-discovery
+f=$(mktemp)
+curl -fsSLo "$f" https://oaf.asia/install.sh
+less "$f"
+bash "$f" --codex --auto-discovery
 ```
 
 Install with systemd auto-start:

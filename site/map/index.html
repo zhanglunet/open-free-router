@@ -7,20 +7,23 @@
   <meta name="theme-color" content="#061120">
   <meta name="description" content="模力自由港全球分布地图：11 家免费大模型提供商的总部位置、三大区域统计与地理延迟视角。">
   <meta property="og:title" content="全球分布 · 模力自由港">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://oaf.asia/map/">
+  <meta property="og:type" content="website">
   <meta property="og:description" content="免费算力的世界航图：美国、中国与全球分布式提供商一图看清。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>全球分布 · 模力自由港</title>
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/map/map.css">
-  <script src="/nav.js?v=20260803b" defer></script>
+  <script src="/nav.js" defer></script>
 </head>
 <body>
   <div class="site-grid" aria-hidden="true"></div>
   <a class="skip-link" href="#atlas">跳到分布地图</a>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
     <nav aria-label="全球分布页导航"><a href="/models/">模型雷达</a><a href="/status/">实时状态</a><a href="/architecture/">系统架构</a><a href="/guide/">安装指南</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
@@ -51,18 +54,18 @@
         <div class="map-stage" role="group" aria-label="全球免费模型提供商分布地图">
           <img src="/assets/map/world-dots.svg" alt="点阵世界地图底图" width="1000" height="520">
           <ul class="marker-layer">
-            <li class="map-marker mk-us mk-openrouter" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>OpenRouter</b><small>美国 · 旧金山</small><em>9 个免费模型</em></span></li>
-            <li class="map-marker mk-us mk-groq" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Groq</b><small>美国 · 山景城</small><em>6 个免费模型</em></span></li>
-            <li class="map-marker mk-us mk-google" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>谷歌 AI Studio</b><small>美国 · 山景城</small><em>3 个免费模型</em></span></li>
-            <li class="map-marker mk-us mk-nvidia" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>英伟达 NIM</b><small>美国 · 圣克拉拉</small><em>5 个免费模型</em></span></li>
-            <li class="map-marker mk-us mk-poolside-us" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Poolside（美）</b><small>美国 · 纽约</small><em>2 个免费模型</em></span></li>
-            <li class="map-marker mk-us mk-nous" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Nous Research</b><small>美国 · 纽约</small><em>2 个免费模型</em></span></li>
-            <li class="map-marker mk-eu mk-poolside-eu" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Poolside（法）</b><small>法国 · 巴黎</small><em>与纽约双总部</em></span></li>
-            <li class="map-marker mk-cn mk-sensenova" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>商汤 SenseNova</b><small>中国 · 上海</small><em>2 个免费模型</em></span></li>
-            <li class="map-marker mk-cn mk-stepfun" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>阶跃星辰 StepFun</b><small>中国 · 上海</small><em>1 个免费模型</em></span></li>
-            <li class="map-marker mk-cn mk-deepseek" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>深度求索 DeepSeek</b><small>中国 · 杭州</small><em>2 个免费模型</em></span></li>
-            <li class="map-marker mk-cn mk-gitee" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Gitee AI 模力方舟</b><small>中国 · 深圳</small><em>16 个免费模型</em></span></li>
-            <li class="map-marker mk-eu mk-global mk-zen" tabindex="0"><i class="mk-ring" aria-hidden="true"></i><i class="mk-dot" aria-hidden="true"></i><span class="mk-flag">GLOBAL · 分布式路由</span><span class="mk-tip"><b>OpenCode Zen</b><small>全球分布式 · 就近接入</small><em>7 个免费模型</em></span></li>
+            <li aria-label="OpenRouter · 美国 · 旧金山 · 9 个免费模型" class="map-marker mk-us mk-openrouter" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>OpenRouter</b><small>美国 · 旧金山</small><em>9 个免费模型</em></span></li>
+            <li aria-label="Groq · 美国 · 山景城 · 6 个免费模型" class="map-marker mk-us mk-groq" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Groq</b><small>美国 · 山景城</small><em>6 个免费模型</em></span></li>
+            <li aria-label="谷歌 AI Studio · 美国 · 山景城 · 3 个免费模型" class="map-marker mk-us mk-google" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>谷歌 AI Studio</b><small>美国 · 山景城</small><em>3 个免费模型</em></span></li>
+            <li aria-label="英伟达 NIM · 美国 · 圣克拉拉 · 5 个免费模型" class="map-marker mk-us mk-nvidia" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>英伟达 NIM</b><small>美国 · 圣克拉拉</small><em>5 个免费模型</em></span></li>
+            <li aria-label="Poolside（美） · 美国 · 纽约 · 2 个免费模型" class="map-marker mk-us mk-poolside-us" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Poolside（美）</b><small>美国 · 纽约</small><em>2 个免费模型</em></span></li>
+            <li aria-label="Nous Research · 美国 · 纽约 · 2 个免费模型" class="map-marker mk-us mk-nous" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Nous Research</b><small>美国 · 纽约</small><em>2 个免费模型</em></span></li>
+            <li aria-label="Poolside（法） · 法国 · 巴黎 · 与纽约双总部" class="map-marker mk-eu mk-poolside-eu" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Poolside（法）</b><small>法国 · 巴黎</small><em>与纽约双总部</em></span></li>
+            <li aria-label="商汤 SenseNova · 中国 · 上海 · 2 个免费模型" class="map-marker mk-cn mk-sensenova" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>商汤 SenseNova</b><small>中国 · 上海</small><em>2 个免费模型</em></span></li>
+            <li aria-label="阶跃星辰 StepFun · 中国 · 上海 · 1 个免费模型" class="map-marker mk-cn mk-stepfun" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>阶跃星辰 StepFun</b><small>中国 · 上海</small><em>1 个免费模型</em></span></li>
+            <li aria-label="深度求索 DeepSeek · 中国 · 杭州 · 2 个免费模型" class="map-marker mk-cn mk-deepseek" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>深度求索 DeepSeek</b><small>中国 · 杭州</small><em>2 个免费模型</em></span></li>
+            <li aria-label="Gitee AI 模力方舟 · 中国 · 深圳 · 16 个免费模型" class="map-marker mk-cn mk-gitee" tabindex="0"><i class="mk-dot" aria-hidden="true"></i><span class="mk-tip"><b>Gitee AI 模力方舟</b><small>中国 · 深圳</small><em>16 个免费模型</em></span></li>
+            <li aria-label="OpenCode Zen · 全球分布式 · 就近接入 · 7 个免费模型" class="map-marker mk-eu mk-global mk-zen" tabindex="0"><i class="mk-ring" aria-hidden="true"></i><i class="mk-dot" aria-hidden="true"></i><span class="mk-flag">GLOBAL · 分布式路由</span><span class="mk-tip"><b>OpenCode Zen</b><small>全球分布式 · 就近接入</small><em>7 个免费模型</em></span></li>
           </ul>
         </div>
       </div>
@@ -140,7 +143,7 @@
   </main>
 
   <footer>
-    <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · 全球分布地图</small></span></div>
+    <div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port · 全球分布地图</small></span></div>
     <p>总部位置仅供参考，推理节点可能全球分布；状态不是 SLA，免费额度、模型目录和账户可用性可能变化。实测数据见<a href="/status/">实时状态页</a>。</p>
     <div class="footer-links"><a href="/models/">模型雷达</a><a href="/stories/free-model-port/">推荐文章</a><a href="/logs/">开发日志</a><a href="/">返回首页</a></div>
   </footer>

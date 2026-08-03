@@ -3,7 +3,7 @@
   "use strict";
 
   const REFRESH_SECONDS = 60;
-  const state = { catalog: null, secondsLeft: REFRESH_SECONDS, loading: false };
+  const state = { catalog: null, secondsLeft: REFRESH_SECONDS, loading: false, lastLoadedAt: 0, paused: false };
   const $ = (selector) => document.querySelector(selector);
   const number = new Intl.NumberFormat("zh-CN");
 
@@ -65,6 +65,11 @@
     $("#st-stat-asof").textContent = relativeTime(catalog.status_as_of || catalog.generated_at);
   }
 
+  /* A shape glyph plus visually-hidden text: the three states must not be
+     distinguishable by colour alone (WCAG 1.4.1), and a screen reader
+     otherwise hears only the model ID with no availability at all. */
+  const STATE_GLYPH = { available: "●", unavailable: "✕", unverified: "◐" };
+
   function modelBadge(model) {
     const cls = statusClass(model.availability);
     const title = [
@@ -76,7 +81,7 @@
       model.reasoning ? "支持推理" : null,
       model.tool_calling ? "支持工具" : null,
     ].filter(Boolean).join(" · ");
-    return `<span class="st-badge ${cls}" title="${esc(title)}">${esc(model.id)}</span>`;
+    return `<span class="st-badge ${cls}" title="${esc(title)}"><i aria-hidden="true">${STATE_GLYPH[cls]}</i><span class="st-sr">${statusLabel(model.availability)}：</span>${esc(model.id)}</span>`;
   }
 
   function providerCard(provider) {
@@ -122,6 +127,9 @@
       ...catalog,
       status_as_of: "",
       status_source: "static-metadata-fallback",
+      /* catalog.json still carries the old English smoke-test note; in this
+         mode the page has no availability evidence at all, so say that. */
+      status_note: "服务器探测接口暂不可用，本页仅展示静态模型目录，不判断可用性。",
       providers: (catalog.providers || []).map((provider) => ({
         ...provider,
         availability: "unverified",
@@ -139,12 +147,15 @@
     };
   }
 
-  function showError(message) {
+  /* `detail` is passed explicitly because state.catalog is already
+     populated by the time the static-fallback path reports itself — reading
+     it there would claim we kept "previous data" on the very first load. */
+  function showError(message, detail) {
     $("#st-error-text").textContent = message;
-    const hasData = Boolean(state.catalog);
-    $("#st-error").querySelector("em").textContent = hasData
-      ? "已保留上一次成功获取的数据。"
-      : "尚未获取到任何数据，将在倒计时结束后自动重试。";
+    $("#st-error").querySelector("em").textContent = detail
+      ?? (state.catalog
+        ? "已保留上一次成功获取的数据。"
+        : "尚未获取到任何数据，将在倒计时结束后自动重试。");
     $("#st-error").hidden = false;
   }
 
@@ -162,7 +173,8 @@
       let response;
       let fallback = false;
       try {
-        response = await fetch("/api/catalog", { cache: "no-store" });
+        /* This board only reads availability; skip the discovery payload. */
+        response = await fetch("/api/catalog?fields=status", { cache: "no-store" });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
       } catch {
         response = await fetch("/data/catalog.json", { cache: "no-store" });
@@ -173,13 +185,25 @@
       if (!Array.isArray(catalog.providers)) throw new Error("目录数据格式异常");
       state.catalog = catalog;
       renderAll(catalog);
-      if (fallback) showError("服务器状态接口暂不可用；当前只展示静态模型目录，不判断可用性。");
+      if (fallback) showError(
+        "服务器状态接口暂不可用；当前只展示静态模型目录，不判断可用性。",
+        "下方模型清单来自最近一次发布的静态快照，不代表当前可用性。",
+      );
       else hideError();
     } catch (error) {
       showError(`无法获取 /api/catalog（${error.message || error}）`);
-      if (state.catalog) renderAll(state.catalog); /* 刷新旧数据的相对时间 */
+      if (state.catalog) {
+        renderAll(state.catalog); /* 刷新旧数据的相对时间 */
+      } else {
+        /* Nothing has ever loaded: the skeletons would otherwise stay up
+           forever with aria-busy stuck at true. */
+        const cards = $("#st-cards");
+        cards.innerHTML = `<p class="st-empty">暂时无法获取状态数据，将自动重试。</p>`;
+        cards.setAttribute("aria-busy", "false");
+      }
     } finally {
       state.loading = false;
+      state.lastLoadedAt = Date.now();
       state.secondsLeft = REFRESH_SECONDS;
       $("#st-countdown").textContent = String(REFRESH_SECONDS);
       document.body.classList.remove("st-loading");
@@ -188,6 +212,7 @@
   }
 
   function tick() {
+    if (state.paused) return;
     if (state.loading) return;
     if (document.hidden) return; /* 后台标签页暂停倒计时，回到前台继续 */
     state.secondsLeft -= 1;
@@ -199,8 +224,24 @@
   }
 
   $("#st-refresh").addEventListener("click", () => load());
+  /* WCAG 2.2.2: content that updates automatically needs a way to stop it. */
+  $("#st-pause").addEventListener("click", () => {
+    state.paused = !state.paused;
+    const button = $("#st-pause");
+    button.setAttribute("aria-pressed", String(state.paused));
+    button.textContent = state.paused ? "继续自动刷新" : "暂停自动刷新";
+    $("#st-countdown").textContent = state.paused ? "已暂停" : String(state.secondsLeft);
+  });
   document.addEventListener("visibilitychange", () => {
-    if (!document.hidden && state.secondsLeft <= 0) load();
+    // The countdown is reset in load()'s finally, so secondsLeft is never
+    // <= 0 here — compare against the last successful load instead, or the
+    // tab could sit on stale data indefinitely after being backgrounded.
+    if (document.hidden) return;
+    // Returning to a paused tab must not refresh: load()'s finally would also
+    // overwrite the "已暂停" countdown with a number.
+    if (state.paused) return;
+    if (Date.now() - state.lastLoadedAt >= REFRESH_SECONDS * 1000) load();
+    else if (state.catalog) renderAll(state.catalog);
   });
   setInterval(tick, 1000);
   load();
