@@ -1,2 +1,5 @@
 .npm-hero::after{content:"NPM 01"}.npm-flow{display:flex;align-items:center;flex-wrap:wrap;gap:.7rem;margin:0 0 2rem}.npm-flow span{padding:.75rem .9rem;border:1px solid var(--line);background:var(--panel);font:650 .62rem var(--mono)}.npm-flow i{color:var(--cyan);font-style:normal}.npm-hero .path-cards b{font-size:1.5rem}.troubleshooting details p code{color:var(--cyan)}
 @media(max-width:640px){.npm-flow{display:grid;grid-template-columns:1fr}.npm-flow i{transform:rotate(90deg);justify-self:center}}
+
+/* WCAG 2.5.8 (AA): the standalone CTA in this paragraph needs a 24px box. */
+.guide-section p>a:only-child{display:inline-flex;align-items:center;min-height:24px}

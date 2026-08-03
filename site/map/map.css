@@ -116,7 +116,8 @@
 .latency-row>span{font:700 .56rem var(--mono)}
 .latency-fast{color:var(--green)}
 .latency-mid{color:var(--amber)}
-.latency-var{color:var(--blue)}
+/* --blue is a background/accent tone (3.6:1 as text); use the text-safe variant. */
+.latency-var{color:var(--blue-text)}
 
 /* ---------- 页脚前 CTA ---------- */
 .map-cta{width:min(var(--max),calc(100% - 48px));margin:0 auto 7rem;padding:4.5rem 2rem;text-align:center;border:1px solid rgba(36,214,200,.3);background:radial-gradient(circle at 50% 0,rgba(36,214,200,.09),transparent 42%),var(--navy-2)}

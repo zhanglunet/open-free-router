@@ -120,6 +120,40 @@ export function installManifest() {
   };
 }
 
+/**
+ * Security headers that only work over HTTP, not in a <meta> CSP.
+ *
+ * Browsers ignore `frame-ancestors` (and `sandbox`, `report-uri`) when the
+ * policy arrives in a meta element — they log a console error and drop the
+ * directive — so clickjacking protection has to be a real response header.
+ * This policy is intentionally framing-only: it combines with each page's
+ * own meta CSP, and CSP policies compose restrictively.
+ */
+const ASSET_SECURITY_HEADERS = {
+  "Content-Security-Policy": "frame-ancestors 'none'",
+  "X-Frame-Options": "DENY",
+  "X-Content-Type-Options": "nosniff",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "geolocation=(), microphone=(), camera=(), interest-cohort=()",
+};
+
+async function serveAsset(request, env) {
+  const response = await env.ASSETS.fetch(request);
+  const headers = new Headers(response.headers);
+  for (const [name, value] of Object.entries(ASSET_SECURITY_HEADERS)) {
+    headers.set(name, value);
+  }
+  // Keep the private dashboard out of search indexes even if someone links it.
+  if (new URL(request.url).pathname.startsWith("/internal/")) {
+    headers.set("X-Robots-Tag", "noindex, nofollow");
+  }
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -163,7 +197,7 @@ export default {
       if (!status) return json({ error: "server_probe_pending" }, 503);
       return json(status);
     }
-    return env.ASSETS.fetch(request);
+    return serveAsset(request, env);
   },
 
   async scheduled(controller, env, ctx) {

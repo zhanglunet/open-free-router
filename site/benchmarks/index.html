@@ -9,7 +9,7 @@
   <meta property="og:title" content="模型评测 · 模力自由港">
   <meta property="og:description" content="不把功能标签冒充智力分：本站实测与第三方独立评测分开呈现。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
   <title>模型评测 · 模力自由港</title>
   <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
   <link rel="stylesheet" href="/styles.css">
@@ -39,7 +39,7 @@
       <div class="scatter-viewport" role="region" aria-label="模型评测散点图，可在窄屏横向滚动" tabindex="0">
         <div class="scatter-shell">
           <div class="axis-y"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span><b>自由港任务适配分</b></div>
-          <div class="scatter" id="scatter" aria-label="模型任务适配分与服务器实测延迟散点图">
+          <div class="scatter" id="scatter" data-target-size="essential" aria-label="模型任务适配分与服务器实测延迟散点图">
             <div class="gridline y25"></div><div class="gridline y50"></div><div class="gridline y75"></div>
             <p class="scatter-loading">正在读取服务器端目录与评测快照…</p>
           </div>
@@ -72,7 +72,7 @@
       <header><p class="bench-eyebrow"><span></span> EXTERNAL BENCHMARKS</p><h2>第三方分数，<em>带着出处进入。</em></h2></header>
       <div class="external-status" id="external-status"><b>Artificial Analysis 尚未导入</b><p>服务器当前没有 Artificial Analysis 官方 API 快照，所以整组 Intelligence、Coding、Agentic 与任务成本字段显示“未导入”，不是 0 分。已完成安全导入器；只有配置官方 API Key 并通过来源、版本与模型匹配校验后才会发布，不从图片猜分。</p></div>
       <div class="external-scatter-shell" id="external-chart" hidden>
-        <div class="external-scatter" id="external-scatter" aria-label="已匹配模型的 Artificial Analysis Intelligence 与任务成本散点图"></div>
+        <div class="external-scatter" id="external-scatter" data-target-size="essential" aria-label="已匹配模型的 Artificial Analysis Intelligence 与任务成本散点图"></div>
         <div class="external-axis"><span>低任务成本</span><b>Cost per Intelligence Index task（USD，对数映射）</b><span>高任务成本</span></div>
         <p>越靠上 Intelligence Index 越高，越靠左完成评测任务的成本越低；只画出与自由港登记模型匹配且两项数据完整的记录。</p>
       </div>
