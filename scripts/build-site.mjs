@@ -152,33 +152,61 @@ const publishedCatalog = JSON.parse(await readFile(resolve(output, "data", "cata
 
 // ── advertised provider/model counts must match the published catalog ──
 //
-// Nothing checked these. Removing a provider left "11 家免费上游" on the
-// architecture and compare pages, "55 登记免费模型" on the homepage and a stale
-// per-provider count on the map — no test, audit or gate noticed, because the
-// numbers are prose and prose is what drifts.
-for (const [route, text] of [["/architecture/", architectureHtml], ["/compare/", compareHtml]]) {
-  for (const claimed of [...text.matchAll(/([0-9]+)\s*家(?:免费上游|已接入|维护范围)/g)].map((match) => Number(match[1]))) {
-    if (claimed !== publishedCatalog.provider_count) {
-      throw new Error(`${route} advertises ${claimed} providers, but the published catalog has ${publishedCatalog.provider_count}`);
+// Removing one provider left NINE stale claims across five pages, and the first
+// version of this guard — which enumerated the three phrasings I happened to
+// remember — caught two of them. Enumerating from memory is the failure mode,
+// so the noun list below came from grepping every numeral on the site, and the
+// map's figures are derived from its own markers rather than restated.
+const SITE_WIDE_PROVIDER_NOUNS = [
+  "家免费上游", "家免费提供商", "家提供商", "家已接入", "家维护范围",
+  "个提供商", "个 Provider", "个上游源", "UPSTREAMS",
+];
+const SITE_WIDE_MODEL_NOUNS = ["个登记免费模型", "登记免费模型", "REGISTERED MODELS"];
+const countedPages = [
+  ["/", html], ["/architecture/", architectureHtml], ["/compare/", compareHtml],
+  ["/map/", mapHtml], ["/guide/", guideHtml], ["/models/", modelsHtml],
+  ["/status/", statusHtml], ["/benchmarks/", benchmarksHtml], ["/validation/", validationHtml],
+];
+for (const [route, text] of countedPages) {
+  for (const [nouns, actual, what] of [
+    [SITE_WIDE_PROVIDER_NOUNS, publishedCatalog.provider_count, "providers"],
+    [SITE_WIDE_MODEL_NOUNS, publishedCatalog.model_count, "models"],
+  ]) {
+    for (const noun of nouns) {
+      const pattern = new RegExp(`([0-9]+)\\s*(?:</b><span>)?${noun}`, "g");
+      for (const match of text.matchAll(pattern)) {
+        if (Number(match[1]) !== actual) {
+          throw new Error(`${route} advertises ${match[1]} ${noun} (${what}), but the published catalog has ${actual}`);
+        }
+      }
     }
   }
 }
-if (!html.includes(`>${publishedCatalog.provider_count}</b><span>已接入提供商`) ||
-    !html.includes(`>${publishedCatalog.model_count}</b><span>登记免费模型`)) {
-  throw new Error(
-    "Homepage stat block must pre-render the published counts " +
-    `(${publishedCatalog.provider_count} providers / ${publishedCatalog.model_count} models)`,
-  );
+
+// The map states a figure per provider and per region. Deriving both from its
+// own markers means the page cannot contradict itself, and the marker total is
+// checked against the catalog, so a removed provider fails here too.
+// Counted from the class attribute alone. A first attempt paired each marker's
+// class with its own <em> across the markup and silently under-counted, which
+// is the same "clever regex" mistake this guard exists to catch.
+const mapRegionCounts = {};
+for (const match of mapHtml.matchAll(/class="map-marker mk-([a-z]+) /g)) {
+  mapRegionCounts[match[1]] = (mapRegionCounts[match[1]] || 0) + 1;
 }
-// The map states a count per provider, so their sum is the catalog. This
-// catches a removed provider and a model added to or dropped from one.
-const mapMarkerCounts = [...mapHtml.matchAll(/aria-label="[^"]*?·\s*([0-9]+)\s*个免费模型"/g)].map((match) => Number(match[1]));
-if (mapMarkerCounts.length !== publishedCatalog.provider_count) {
-  throw new Error(`/map/ shows ${mapMarkerCounts.length} provider markers, but the catalog has ${publishedCatalog.provider_count}`);
+const mapMarkerLabels = [...mapHtml.matchAll(/aria-label="[^"]*?·\s*([0-9]+)\s*个免费模型"/g)];
+if (mapMarkerLabels.length !== publishedCatalog.provider_count) {
+  throw new Error(`/map/ shows ${mapMarkerLabels.length} provider markers, but the catalog has ${publishedCatalog.provider_count}`);
 }
-const mapModelTotal = mapMarkerCounts.reduce((sum, value) => sum + value, 0);
+const mapModelTotal = mapMarkerLabels.reduce((sum, match) => sum + Number(match[1]), 0);
 if (mapModelTotal !== publishedCatalog.model_count) {
   throw new Error(`/map/ markers account for ${mapModelTotal} models, but the catalog has ${publishedCatalog.model_count}`);
+}
+for (const [card, region] of [["region-cn", "cn"], ["region-us", "us"]]) {
+  const stated = mapHtml.match(new RegExp(`class="region-card ${card}"[\\s\\S]*?<b>([0-9]+)</b>`));
+  const actual = mapRegionCounts[region] || 0;
+  if (stated && Number(stated[1]) !== actual) {
+    throw new Error(`/map/ ${card} claims ${stated[1]} providers, but ${actual} markers carry mk-${region}`);
+  }
 }
 let anchorMs = Date.now();
 let anchorLabel = "墙钟";

@@ -65,6 +65,24 @@ def _speed_tier(availability: str, latency_ms: int | None) -> str:
     return "较慢"
 
 
+_RATIO_RE = re.compile(r"(\d+)\s*/\s*(\d+)\s*个模型")
+
+
+def _reason_for(raw_reason: str, available: int, total: int) -> str:
+    """Keep a provider's reason arithmetically possible.
+
+    The reason is prose the Cloudflare probe generated against ITS view of the
+    registry, then copied verbatim. Remove a model and the probe still counts
+    it for up to one snapshot, so the published catalog claimed 「已验证 1/3 个
+    模型可用」 for a provider it simultaneously declared as having 2 models.
+    Only the ratio is rewritten; reasons that carry a cause rather than a count
+    (rate limiting, no credential) are left exactly as they are.
+    """
+    if not _RATIO_RE.search(raw_reason or ""):
+        return raw_reason
+    return _RATIO_RE.sub(f"{available}/{total} 个模型", raw_reason, count=1)
+
+
 def build_public_catalog(
     registry: Registry,
     status_snapshot: dict,
@@ -142,7 +160,11 @@ def build_public_catalog(
             "prefix": provider.model_prefix,
             "api": provider.upstream_url or provider.base_url,
             "availability": status.get("availability", "unverified"),
-            "reason": status.get("reason", "No recent smoke-test evidence"),
+            "reason": _reason_for(
+                status.get("reason", "No recent smoke-test evidence"),
+                sum(1 for item in models if item["availability"] == "available"),
+                len(models),
+            ),
             "latency_ms": status.get("latency_ms"),
             "checked_at": status.get("checked_at", status_snapshot.get("as_of", "")),
             "model_count": len(models),

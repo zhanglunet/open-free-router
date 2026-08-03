@@ -46,7 +46,7 @@
           <div><dt>SCHED</dt><dd>刷新 12h · 发现 24h</dd></div>
           <div><dt>MCP</dt><dd>stdio JSON-RPC · 默认 8 tools</dd></div>
         </dl>
-        <p><i></i>PROXY LISTENING · 9 CLIENTS SYNCED · 11 UPSTREAMS</p>
+        <p><i></i>PROXY LISTENING · 9 CLIENTS SYNCED · 10 UPSTREAMS</p>
       </aside>
     </section>
 
@@ -316,10 +316,10 @@
             <tr><td><code>probe.py</code></td><td>实测探测</td><td>Live Probe 真实最小请求验证模型可用性</td></tr>
             <tr><td><code>mcp_server.py</code></td><td>MCP 服务器</td><td>stdio JSON-RPC · 默认 8 个工具；2 个写工具显式启用</td></tr>
             <tr><td><code>sync.py</code></td><td>客户端适配</td><td>9 客户端配置写入 · 不覆盖原有设置</td></tr>
-            <tr><td><code>refresh.py + refresh_sources/</code></td><td>模型刷新</td><td>11 个上游源可插拔适配 · 定时更新免费模型列表</td></tr>
+            <tr><td><code>refresh.py + refresh_sources/</code></td><td>模型刷新</td><td>10 个上游源可插拔适配 · 定时更新免费模型列表</td></tr>
             <tr><td><code>discovery.py</code></td><td>候选发现</td><td>公开目录扫描 · 生成 review-only 候选</td></tr>
             <tr><td><code>registry.py + config.py</code></td><td>事实源与配置</td><td>registry.yaml / config.yaml · 备份 · 路径解析 · 0600 权限</td></tr>
-            <tr><td><code>protocol_matrix.py</code></td><td>协议诊断</td><td>11 个 Provider × 3 个客户端协议声明矩阵与修复建议</td></tr>
+            <tr><td><code>protocol_matrix.py</code></td><td>协议诊断</td><td>10 个 Provider × 3 个客户端协议声明矩阵与修复建议</td></tr>
             <tr><td><code>ui.py</code></td><td>Web 仪表盘</td><td>:9057 Provider 管理与实时探测界面</td></tr>
             <tr><td><code>serve.py</code></td><td>守护进程</td><td>代理 + 仪表盘 + 调度器一键启动</td></tr>
             <tr><td><code>cli.py</code></td><td>命令行入口</td><td>16 个顶层命令（serve / route / resilience / metrics / protocols…）</td></tr>

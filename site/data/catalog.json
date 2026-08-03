@@ -1,6 +1,6 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-08-03T14:08:24+00:00",
+  "generated_at": "2026-08-03T14:30:45+00:00",
   "status_as_of": "2026-08-03T14:00:19.122Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 10,
@@ -99,7 +99,7 @@
       "prefix": "gai",
       "api": "https://generativelanguage.googleapis.com/v1beta/openai",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 1/3 个模型可用",
+      "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
       "latency_ms": 806,
       "checked_at": "2026-08-03T14:00:19.122Z",
       "model_count": 2,
