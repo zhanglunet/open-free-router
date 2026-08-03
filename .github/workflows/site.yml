@@ -1,0 +1,92 @@
+name: Site audit
+
+# The browser half of the audit: runtime CSP violations, console errors,
+# axe-core WCAG 2.1 AA, horizontal overflow and tap targets. Split from ci.yml
+# so installing Chromium never slows the fast feedback loop, and only runs
+# when something that reaches a page actually changed.
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "site/**"
+      - "worker/**"
+      - "scripts/build-site.mjs"
+      - "scripts/audit-site.mjs"
+      - "web-tests/site-audit.mjs"
+      - ".github/workflows/site.yml"
+  pull_request:
+    paths:
+      - "site/**"
+      - "worker/**"
+      - "scripts/build-site.mjs"
+      - "scripts/audit-site.mjs"
+      - "web-tests/site-audit.mjs"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  audit:
+    name: Whole-site audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Cache Playwright browsers
+        id: browser-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Chromium
+        if: steps.browser-cache.outputs.cache-hit != 'true'
+        run: npx --yes playwright@1.62.1 install --with-deps chromium
+
+      - name: Install Chromium system deps
+        if: steps.browser-cache.outputs.cache-hit == 'true'
+        run: npx --yes playwright@1.62.1 install-deps chromium
+
+      - name: Build site
+        run: npm run build
+
+      - name: Audit
+        run: |
+          # playwright-core needs an explicit binary path.
+          CHROMIUM_PATH="$(find ~/.cache/ms-playwright -name 'chrome' -type f | head -1)"
+          echo "Using $CHROMIUM_PATH"
+          # Invoked directly, not via `npm run`: npm writes its own banner to
+          # stdout, which would corrupt the JSON report.
+          CHROMIUM_PATH="$CHROMIUM_PATH" node scripts/audit-site.mjs --json > site-audit.json || AUDIT_FAILED=1
+          # Print a readable summary regardless of outcome.
+          node -e '
+            const r = require("./site-audit.json");
+            if (r.browserSkipped) console.log("browser layer skipped:", r.browserSkipped);
+            const counts = r.findings.reduce((a, f) => ({ ...a, [f.severity]: (a[f.severity] || 0) + 1 }), {});
+            console.log(`${counts.critical || 0} critical, ${counts.major || 0} major, ${counts.minor || 0} minor`);
+            for (const f of r.findings) console.log(`[${f.severity}] ${f.page} — ${f.title}: ${f.detail}`);
+          '
+          # A skipped browser layer must not silently pass as a green audit.
+          node -e '
+            const r = require("./site-audit.json");
+            if (r.browserSkipped) { console.error("Browser layer did not run"); process.exit(1); }
+          '
+          exit "${AUDIT_FAILED:-0}"
+
+      - name: Upload audit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: site-audit
+          path: site-audit.json

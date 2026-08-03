@@ -20,3 +20,12 @@
 
 /internal/*
   X-Robots-Tag: noindex, nofollow
+
+# Fingerprinted assets: the filename changes whenever the bytes do
+# (scripts/build-site.mjs), so the URL can be cached indefinitely. HTML keeps
+# the default revalidate behaviour so a deploy is picked up immediately.
+/*.css
+  Cache-Control: public, max-age=31536000, immutable
+
+/*.js
+  Cache-Control: public, max-age=31536000, immutable
