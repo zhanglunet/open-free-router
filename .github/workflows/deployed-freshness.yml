@@ -1,0 +1,78 @@
+name: Deployed freshness
+
+# The build gate in scripts/data-freshness.mjs measures git. This measures what
+# visitors actually receive.
+#
+# The distinction is not academic: this repository has no deploy workflow —
+# deploys are a manual `npm run deploy` — so a green build proves the committed
+# snapshot is fresh and proves nothing about the live site. On the day this was
+# written the deployed /data/catalog.json was still schema_version 1 while the
+# repository had already moved to 2.
+#
+# Expect this to be red until the M2 branch is deployed. That is the accurate
+# signal, not a broken workflow.
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: deployed-freshness
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: What visitors actually receive
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Fetch the deployed catalog
+        run: curl -fsS --max-time 30 https://oaf.asia/data/catalog.json -o deployed.json
+
+      - name: Check age and shape
+        # The threshold is deliberately looser than the build gate's 7 days: a
+        # deploy lags a merge, and this must flag genuine neglect rather than
+        # normal release cadence.
+        run: |
+          node -e '
+            const catalog = require("./deployed.json");
+            const days = (Date.now() - Date.parse(catalog.generated_at)) / 86400000;
+            const models = (catalog.providers || []).reduce((n, p) => n + (p.models?.length ?? 0), 0);
+            console.log(`deployed generated_at ${catalog.generated_at} (${days.toFixed(1)}d), schema ${catalog.schema_version}, ${catalog.providers?.length ?? 0} providers / ${models} models`);
+            let failed = false;
+            if (catalog.schema_version !== 2) {
+              console.error("::error::deployed catalog is an old schema generation; the site needs a redeploy");
+              failed = true;
+            }
+            if (!Number.isFinite(Date.parse(catalog.generated_at)) || days > 14) {
+              console.error(`::error::deployed catalog is ${days.toFixed(1)} days old (threshold 14); run npm run deploy`);
+              failed = true;
+            }
+            if (!models) {
+              console.error("::error::deployed catalog contains no models");
+              failed = true;
+            }
+            process.exit(failed ? 1 : 0);
+          '
+
+      - name: Check the live probe is still running
+        # A stalled probe leaves the board on evidence that quietly ages out;
+        # worker/probe.js now degrades it correctly, so the visible symptom is
+        # everything reading 待验证 rather than anything looking broken.
+        run: |
+          curl -fsS --max-time 30 https://oaf.asia/api/health -o health.json
+          node -e '
+            const health = require("./health.json");
+            const asOf = Date.parse(health.provider_probe_as_of ?? "");
+            const minutes = Number.isFinite(asOf) ? (Date.now() - asOf) / 60000 : Infinity;
+            console.log(`provider_probe_as_of ${health.provider_probe_as_of} (${Number.isFinite(minutes) ? minutes.toFixed(0) : "?"} min)`);
+            if (!(minutes < 120)) {
+              console.error("::error::the Cloudflare probe has not produced a snapshot in over 2 hours");
+              process.exit(1);
+            }
+          '

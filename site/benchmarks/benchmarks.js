@@ -142,16 +142,67 @@ function indexExternal(snapshot) {
   }
 }
 
+/* 服务端可用性占任务适配分 35 分、实测延迟占 10 分——接近一半的分数来自可用性
+   证据。方法论表格声称数据来自「Cloudflare 最近一次提供商级探测快照」，在静态
+   兜底路径上这句话是假的，而这个页面此前连时间戳都没有。降级在兜底分支上无条件
+   执行；与 models.js / status.js 的同名逻辑刻意重复而非共享，理由见 models.js 中
+   degradeCatalog 上方的注释（指纹排序 + 一年 immutable）。 */
+function degradeCatalog(catalog) {
+  const blank = (entry) => ({
+    ...entry,
+    availability: "unverified",
+    latency_ms: null,
+    checked_at: "",
+    reason: "静态兜底数据，未做可用性判断",
+  });
+  return {
+    ...catalog,
+    status_as_of: "",
+    providers: (catalog.providers || []).map((provider) => ({
+      ...blank(provider),
+      models: (provider.models || []).map(blank),
+    })),
+  };
+}
+
+function relativeDays(iso) {
+  const parsed = Date.parse(iso ?? "");
+  if (!Number.isFinite(parsed)) return "时间未知";
+  const elapsed = Math.max(0, Date.now() - parsed);
+  const days = Math.floor(elapsed / 86400000);
+  if (days >= 1) return `${days} 天前`;
+  const hours = Math.floor(elapsed / 3600000);
+  return hours >= 1 ? `${hours} 小时前` : "不到 1 小时前";
+}
+
+async function loadCatalog() {
+  try {
+    const response = await fetch("/api/catalog", { headers: { Accept: "application/json" } });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return { catalog: await response.json(), degraded: false };
+  } catch {
+    const response = await fetch("/data/catalog.json");
+    return { catalog: degradeCatalog(await response.json()), degraded: true };
+  }
+}
+
 async function load() {
-  const [catalogResponse, benchmarkResponse] = await Promise.all([
-    fetch("/api/catalog", { headers: { Accept: "application/json" } }).then((response) => response.ok ? response.json() : fetch("/data/catalog.json").then((fallback) => fallback.json())).catch(() => fetch("/data/catalog.json").then((response) => response.json())),
+  const [{ catalog, degraded }, benchmarkResponse] = await Promise.all([
+    loadCatalog(),
     fetch("/data/benchmarks.json?v=20260803c").then((response) => response.ok ? response.json() : Promise.reject(new Error(`评测快照 HTTP ${response.status}`))),
   ]);
   indexExternal(benchmarkResponse);
-  state.rows = flatten(catalogResponse);
+  state.rows = flatten(catalog);
   $("#evaluated-models").textContent = number.format(state.rows.length);
-  $("#live-models").textContent = number.format(state.rows.filter((row) => row.provider_status === "available").length);
+  const liveModels = $("#live-models");
+  liveModels.classList.toggle("qualitative", degraded);
+  liveModels.textContent = degraded
+    ? "未验证"
+    : number.format(state.rows.filter((row) => row.provider_status === "available").length);
   $("#free-evidence-models").textContent = number.format(state.rows.filter((row) => freeStatus(row) !== "unknown").length);
+  $("#bench-freshness").textContent = degraded
+    ? `静态兜底数据 · 目录生成于 ${relativeDays(catalog.generated_at)} · 服务端可用性与延迟两项未做实测，任务适配分据此按未验证计分`
+    : `服务端可用性来自 Cloudflare 探测快照 · ${catalog.status_as_of ? relativeDays(catalog.status_as_of) : "尚无有效快照"}`;
   renderScatter(); renderRows();
 }
 

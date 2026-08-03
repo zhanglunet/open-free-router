@@ -13,3 +13,8 @@
 @media(max-width:640px){.bench-hero,.bench-section{width:calc(100% - 32px)}.bench-hero{padding:5rem 0 3.5rem}.bench-hero h1{font-size:clamp(2.8rem,13vw,4rem);line-height:1.08;letter-spacing:-.025em}.bench-section{padding:5rem 0}.bench-section>header h2{font-size:clamp(2.3rem,11vw,3.4rem);letter-spacing:-.02em}.scatter-shell{grid-template-columns:52px 1fr;grid-template-rows:380px 62px}.axis-y b,.axis-x b{display:none}.bench-controls{display:grid}.bench-controls input,.bench-controls select{width:100%;min-width:0}.bench-table-wrap{margin-right:-16px}}
 
 .bench-count{color:var(--muted);font:600 .65rem var(--mono);align-self:end;padding-bottom:.5rem}
+
+/* 目录快照新鲜度：任务适配分有 45% 来自可用性与延迟，页面必须说明这两项
+   的来源与年龄，而不是让读者以为分数总是实测出来的。 */
+.bench-freshness{margin:1.2rem 0 0;color:var(--dim);font:600 .68rem/1.6 var(--mono)}
+.bench-stats b.qualitative{font-size:clamp(1.1rem,2.2vw,1.9rem)}

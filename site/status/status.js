@@ -62,7 +62,11 @@
     }));
     $("#st-stat-providers").textContent = `${okProviders} / ${catalog.provider_count ?? providers.length}`;
     $("#st-stat-models").textContent = `${okModels} / ${catalog.model_count ?? totalModels}`;
-    $("#st-stat-asof").textContent = relativeTime(catalog.status_as_of || catalog.generated_at);
+    /* Labelled 最近检查. status_as_of is the availability-evidence clock;
+       generated_at is when the catalog structure was exported. Falling back to
+       the latter reports a time for a check that never ran — and once a
+       scheduled job refreshes generated_at daily it would read "0 秒前". */
+    $("#st-stat-asof").textContent = catalog.status_as_of ? relativeTime(catalog.status_as_of) : "未验证";
   }
 
   /* A shape glyph plus visually-hidden text: the three states must not be

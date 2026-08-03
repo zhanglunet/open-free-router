@@ -29,3 +29,10 @@
 
 /*.js
   Cache-Control: public, max-age=31536000, immutable
+
+# /data/*.json is not fingerprinted (build-site.mjs only hashes css/js), so
+# without an explicit rule it inherits the default asset TTL — a visitor could
+# be served a catalog older than the build gate's own threshold on a perfectly
+# fresh deploy. The whole point of the gate is that what ships is fresh.
+/data/*.json
+  Cache-Control: public, max-age=300, must-revalidate

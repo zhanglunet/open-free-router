@@ -1,0 +1,152 @@
+name: Data refresh
+
+# Keeps the published catalog inside the build gate's threshold without any
+# credentials: the availability evidence is fetched back from the deployed
+# Worker's own unauthenticated /api/status, and the catalog is re-exported from
+# the in-repo registry.
+#
+# It opens a pull request instead of pushing. A push with the default
+# GITHUB_TOKEN does not trigger ci.yml or site.yml, so a direct bot commit would
+# be the one change in this repo that nothing validates — and an api-field or
+# schema change deserves a human in front of it. workflow_dispatch is the
+# documented exception that *does* create runs when triggered with
+# GITHUB_TOKEN, so CI is kicked explicitly against the bot's branch.
+#
+# Cadence must stay ahead of MAX_CATALOG_AGE_DAYS in scripts/data-freshness.mjs,
+# or the gate reddens main for every unrelated PR before the renewal lands.
+# web-tests/data-freshness.test.mjs asserts REFRESH_MAX_AGE_DAYS < MAX_CATALOG_AGE_DAYS.
+on:
+  schedule:
+    - cron: "23 4 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+
+concurrency:
+  group: data-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    name: Republish the public catalog
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install
+        run: |
+          npm ci
+          pip install -e ".[dev]"
+
+      - name: Refresh availability evidence from the deployed probe
+        # Exits non-zero rather than writing when the snapshot is stale, partial
+        # or the wrong shape — a degraded API must not be committed into the repo.
+        run: node scripts/refresh-provider-status.mjs
+
+      - name: Re-export the public catalog
+        run: |
+          python scripts/export-public-catalog.py \
+            --registry src/open_free_router/registry.default.yaml \
+            --status docs/provider-status.json \
+            --profiles docs/provider-profiles.json \
+            --now "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+            --output site/data/catalog.json
+
+      - name: Verify the refreshed artifact before proposing it
+        run: |
+          npm run build
+          npm run test:web
+
+      - name: Decide whether to propose a change
+        id: decide
+        # Republish when the content changed, OR when the committed catalog is
+        # older than REFRESH_MAX_AGE_DAYS. Content-only would freeze the clock:
+        # with static in-repo inputs consecutive exports differ solely in
+        # generated_at, so the age would keep climbing until the gate fires.
+        run: |
+          REFRESH_MAX_AGE_DAYS=$(node -e 'import("./scripts/data-freshness.mjs").then(m => console.log(m.REFRESH_MAX_AGE_DAYS))')
+          AGE_DAYS=$(git show HEAD:site/data/catalog.json | node -e '
+            let raw = ""; process.stdin.on("data", (c) => (raw += c)).on("end", () => {
+              const committed = JSON.parse(raw).generated_at;
+              console.log(((Date.now() - Date.parse(committed)) / 86400000).toFixed(2));
+            });
+          ')
+          # Ignore generated_at when asking "did anything real change".
+          CONTENT_CHANGED=0
+          git diff --quiet -- docs/provider-status.json || CONTENT_CHANGED=1
+          git show HEAD:site/data/catalog.json > /tmp/committed-catalog.json
+          node -e '
+            const fs = require("fs");
+            const strip = (p) => { const c = JSON.parse(fs.readFileSync(p, "utf8")); delete c.generated_at; return JSON.stringify(c); };
+            process.exit(strip("/tmp/committed-catalog.json") === strip("site/data/catalog.json") ? 0 : 1);
+          ' || CONTENT_CHANGED=1
+          echo "content_changed=$CONTENT_CHANGED" >> "$GITHUB_OUTPUT"
+          echo "age_days=$AGE_DAYS" >> "$GITHUB_OUTPUT"
+          if [ "$CONTENT_CHANGED" = "1" ] || awk "BEGIN{exit !($AGE_DAYS >= $REFRESH_MAX_AGE_DAYS)}"; then
+            echo "propose=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "propose=0" >> "$GITHUB_OUTPUT"
+          fi
+          echo "content_changed=$CONTENT_CHANGED age_days=$AGE_DAYS threshold=$REFRESH_MAX_AGE_DAYS"
+
+      - name: Open a pull request
+        if: steps.decide.outputs.propose == '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          BRANCH="data-refresh/$(date -u +%Y%m%d-%H%M)"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -b "$BRANCH"
+          git add docs/provider-status.json site/data/catalog.json
+          git commit -m "chore(data): refresh the published catalog snapshot
+
+Availability evidence fetched back from the deployed Worker's own
+/api/status and projected monotone-safely (available passes through,
+everything else becomes unverified), then re-exported from the in-repo
+registry. No credentials are involved on either side.
+
+content changed: ${{ steps.decide.outputs.content_changed }}
+committed snapshot age: ${{ steps.decide.outputs.age_days }} days"
+          git push -u origin "$BRANCH"
+          gh pr create \
+            --base "${{ github.event.repository.default_branch }}" \
+            --head "$BRANCH" \
+            --title "chore(data): refresh the published catalog snapshot" \
+            --body "$(cat <<'BODY'
+Scheduled refresh of the public catalog snapshot.
+
+- `docs/provider-status.json` — availability evidence fetched from the deployed
+  Worker's unauthenticated `/api/status` and projected monotone-safely:
+  `available` passes through, everything else becomes `unverified` with the
+  observed reason preserved, so a rate-limited probe never publishes an outage.
+- `site/data/catalog.json` — re-exported from `registry.default.yaml`.
+
+Review the diff as a data change: an `api` field or `schema_version` moving is
+worth a look before it ships.
+
+---
+_Generated by [Claude Code](https://claude.ai/code)_
+BODY
+)"
+          # A GITHUB_TOKEN push does not start ci.yml/site.yml; workflow_dispatch does.
+          gh workflow run ci.yml --ref "$BRANCH" || echo "::warning::could not dispatch ci.yml"
+          gh workflow run site.yml --ref "$BRANCH" || echo "::warning::could not dispatch site.yml"
+
+      - name: Nothing to propose
+        if: steps.decide.outputs.propose != '1'
+        run: echo "catalog unchanged and still ${{ steps.decide.outputs.age_days }} days old — inside the refresh threshold"

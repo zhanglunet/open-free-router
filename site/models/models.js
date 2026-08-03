@@ -152,15 +152,57 @@ function renderDiscovery(discovery) {
     </details>`).join("") : `<p class="empty">尚未发现满足严格零价格与 HTTPS 条件的新候选。</p>`;
 }
 
+function relativeDays(iso) {
+  const parsed = Date.parse(iso ?? "");
+  if (!Number.isFinite(parsed)) return "时间未知";
+  const days = Math.floor(Math.max(0, Date.now() - parsed) / 86400000);
+  if (days >= 1) return `${days} 天前`;
+  const hours = Math.floor(Math.max(0, Date.now() - parsed) / 3600000);
+  return hours >= 1 ? `${hours} 小时前` : "不到 1 小时前";
+}
+
+/* The static snapshot carries whatever availability was true when it was
+   exported. Rendering it as current fact is the whole defect this page had:
+   nine green provider dots, a numeric 最近可用 counter and per-row 可用 badges,
+   with nothing telling the visitor none of it was measured just now. This runs
+   unconditionally on the fallback branch — that branch is by definition the one
+   that knows /api/catalog did not answer — so there is no age threshold here to
+   drift out of step with the build gate.
+
+   Deliberately duplicated with status.js's metadataOnly() and benchmarks.js's
+   copy rather than shared: build-site.mjs hashes each JS file before rewriting
+   references inside it, and _headers marks /*.js immutable for a year, so a
+   JS→JS import would leave cached visitors fetching a renamed dependency — a
+   hard 404 that kills the page. build-site.mjs asserts all three copies exist. */
+function degradeCatalog(catalog) {
+  const blank = (entry) => ({
+    ...entry,
+    availability: "unverified",
+    latency_ms: null,
+    checked_at: "",
+    reason: "静态兜底数据，未做可用性判断",
+  });
+  return {
+    ...catalog,
+    status_as_of: "",
+    providers: (catalog.providers || []).map((provider) => ({
+      ...blank(provider),
+      models: (provider.models || []).map(blank),
+    })),
+  };
+}
+
 async function load() {
   let catalog;
+  let degraded = false;
   try {
     const response = await fetch("/api/catalog", { headers: { "Accept": "application/json" } });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     catalog = await response.json();
   } catch {
     const response = await fetch("/data/catalog.json");
-    catalog = await response.json();
+    catalog = degradeCatalog(await response.json());
+    degraded = true;
     // discovery-seed.json is already deployed alongside the catalog; using it
     // keeps the radar's candidate section populated when /api/catalog is down
     // instead of claiming zero candidates.
@@ -173,8 +215,16 @@ async function load() {
   state.rows = flatten(catalog);
   $("#provider-count").textContent = number.format(catalog.provider_count);
   $("#model-count").textContent = number.format(catalog.model_count);
-  $("#available-count").textContent = number.format(catalog.providers.filter((item) => item.availability === "available").length);
-  $("#status-time").textContent = `可用性快照：${formatTime(catalog.status_as_of)} · 状态不是 SLA`;
+  const availableCount = $("#available-count");
+  // 未验证 is three CJK glyphs in a slot typeset for two or three digits at up
+  // to 3.8rem, so the qualitative class drops the size instead of overflowing.
+  availableCount.classList.toggle("qualitative", degraded);
+  availableCount.textContent = degraded
+    ? "未验证"
+    : number.format(catalog.providers.filter((item) => item.availability === "available").length);
+  $("#status-time").textContent = degraded
+    ? `静态兜底数据 · 目录生成于 ${relativeDays(catalog.generated_at)} · 本页未做可用性判断`
+    : `可用性快照：${formatTime(catalog.status_as_of)} · 状态不是 SLA`;
   $("#provider-filter").insertAdjacentHTML("beforeend", catalog.providers.map((item) => `<option value="${html(item.id)}">${html(item.name)}</option>`).join(""));
   renderProviders(catalog);
   renderDiscovery(catalog.discovery ?? { providers: [] });

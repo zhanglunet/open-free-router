@@ -51,9 +51,12 @@ def _use_case(context: int, reasoning: bool, tools: bool) -> str:
 
 
 def _speed_tier(availability: str, latency_ms: int | None) -> str:
-    if availability != "available":
+    # Only "unavailable" may produce the affirmative claim. A model nobody has
+    # probed is not down, and worker/probe.js copies this field onto the live
+    # /api/catalog without recomputing it, so the claim would reach the board.
+    if availability == "unavailable":
         return "当前不可用"
-    if latency_ms is None:
+    if availability != "available" or latency_ms is None:
         return "未测"
     if latency_ms <= 1500:
         return "快"
@@ -62,12 +65,24 @@ def _speed_tier(availability: str, latency_ms: int | None) -> str:
     return "较慢"
 
 
-def build_public_catalog(registry: Registry, status_snapshot: dict, provider_profiles: dict | None = None) -> dict:
+def build_public_catalog(
+    registry: Registry,
+    status_snapshot: dict,
+    provider_profiles: dict | None = None,
+    now: datetime | None = None,
+) -> dict:
+    """Build the redacted public catalog.
+
+    ``now`` pins ``generated_at`` (and the free-tier evidence clock derived from
+    it) so CI can re-export with the committed timestamp and byte-diff the
+    result. Without that the export is not reproducible and the freshness gate
+    could be cleared by hand-editing a timestamp.
+    """
     statuses = status_snapshot.get("providers") or {}
     provider_profiles = provider_profiles or {}
     providers = []
     model_total = 0
-    generated_at = datetime.now(timezone.utc)
+    generated_at = now or datetime.now(timezone.utc)
     for name, provider in registry.providers.items():
         status = statuses.get(name) or {
             "availability": "unverified",
