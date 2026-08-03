@@ -7,6 +7,9 @@
   <meta name="theme-color" content="#061120">
   <meta name="description" content="模力自由港模型评测：把服务器端真实可用性、延迟、免费证据、功能密度与可选第三方 Intelligence Index 分层展示。">
   <meta property="og:title" content="模型评测 · 模力自由港">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta property="og:url" content="https://oaf.asia/benchmarks/">
+  <meta property="og:type" content="website">
   <meta property="og:description" content="不把功能标签冒充智力分：本站实测与第三方独立评测分开呈现。">
   <meta property="og:image" content="https://oaf.asia/assets/brand/og-modelport.jpg">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
@@ -21,7 +24,7 @@
   <div class="site-grid" aria-hidden="true"></div>
   <a class="skip-link" href="#chart">跳到评测图</a>
   <header class="topbar">
-    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
     <nav aria-label="评测页导航"><a href="/models/">模型雷达</a><a href="/status/">实时状态</a><a href="/compare/">工具比较</a><a href="/guide/">安装指南</a></nav>
     <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
   </header>
@@ -82,12 +85,12 @@
 
     <section class="bench-section" id="table">
       <header><p class="bench-eyebrow"><span></span> MODEL TABLE</p><h2>完整模型评测清单。</h2><p>每行任务适配分下方都列出四项得分。外部字段显示“未导入”表示整组官方快照尚未接入；“该记录缺失”才表示已有快照中该模型没有该字段，两者都不等于 0 分。</p></header>
-      <div class="bench-controls"><label>搜索模型<input id="bench-search" type="search" placeholder="模型、提供商、家族"></label><label>排序<select id="bench-sort"><option value="readiness">任务适配分</option><option value="latency">实测延迟</option><option value="intelligence">外部 Intelligence</option><option value="context">上下文</option></select></label></div>
+      <div class="bench-controls"><label>搜索模型<input id="bench-search" type="search" placeholder="模型、提供商、家族"></label><label>排序<select id="bench-sort"><option value="readiness">任务适配分</option><option value="latency">实测延迟</option><option value="intelligence">外部 Intelligence</option><option value="context">上下文</option></select></label><span id="bench-count" class="bench-count" aria-live="polite" aria-atomic="true"></span></div>
       <div class="bench-table-wrap" role="region" aria-label="模型评测表，可横向滚动" tabindex="0"><table class="bench-table"><thead><tr><th>状态</th><th>模型</th><th>任务适配分</th><th>延迟</th><th>免费证据</th><th>功能密度</th><th>AA Intelligence</th><th>AA Coding</th><th>AA Agentic</th><th>AA 任务成本</th><th>匹配</th></tr></thead><tbody id="bench-rows"><tr><td colspan="11">正在加载…</td></tr></tbody></table></div>
       <p class="bench-note">重要限制：同一模型名可能对应不同推理档位、量化、系统提示或提供商实现。本站状态与延迟来自服务器端探测，和访问者本机无关；外部分数只作为选择证据之一，不能替代你在目标任务上的真实测试。评测口径版本：自由港任务适配分 v1。</p>
     </section>
   </main>
 
-  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt=""><span><b>模力自由港</b><small>FreeModel Port · Model Evaluation</small></span></div><p>本站实测回答“能不能用”，第三方基准帮助理解“可能擅长什么”。</p><div class="footer-links"><a href="/compare/">工具比较</a><a href="/models/">模型雷达</a><a href="/logs/">开发日志</a><a href="/">返回首页</a></div></footer>
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port · Model Evaluation</small></span></div><p>本站实测回答“能不能用”，第三方基准帮助理解“可能擅长什么”。</p><div class="footer-links"><a href="/compare/">工具比较</a><a href="/models/">模型雷达</a><a href="/logs/">开发日志</a><a href="/">返回首页</a></div></footer>
 </body>
 </html>

@@ -97,6 +97,10 @@ function renderRows() {
   const labels = { available: "可用", unverified: "未验证", unavailable: "不可用" };
   const evidence = { verified: "已核验", unverified: "待补证据", expired: "证据过期", invalid: "证据错误", unknown: "目录未提供" };
   const rows = filteredRows();
+  /* Filtering silently rewrote the table with no feedback at all —
+     sighted users saw rows move, screen-reader users heard nothing. */
+  const counter = $("#bench-count");
+  if (counter) counter.textContent = `${rows.length} 个模型`;
   $("#bench-rows").innerHTML = rows.length ? rows.map((row) => {
     const breakdown = readinessBreakdown(row);
     return `<tr>

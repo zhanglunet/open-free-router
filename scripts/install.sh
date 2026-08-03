@@ -5,11 +5,15 @@ REPO_URL="https://github.com/zhanglunet/open-free-router.git"
 INSTALL_SYSTEMD=false
 INSTALL_CODEX=false
 AUTO_DISCOVERY=false
+AUTO_ADOPT=false
 for arg in "$@"; do
   case "$arg" in
     --with-systemd) INSTALL_SYSTEMD=true ;;
     --codex) INSTALL_CODEX=true ;;
     --auto-discovery) AUTO_DISCOVERY=true ;;
+    # Adoption writes new providers into the registry, so it stays
+    # behind its own flag rather than riding along with discovery.
+    --auto-adopt) AUTO_DISCOVERY=true; AUTO_ADOPT=true ;;
     *) REPO_URL="$arg" ;;
   esac
 done
@@ -65,7 +69,7 @@ discovery:
   enabled: true
   interval_hours: 24
   auto_test: $AUTO_DISCOVERY
-  auto_adopt: $AUTO_DISCOVERY
+  auto_adopt: $AUTO_ADOPT
   max_providers_per_cycle: 5
   max_models_per_provider: 3
 EOF

@@ -74,7 +74,10 @@ async function getDiscovery(env, ctx) {
 }
 
 function json(data, status = 200) {
-  return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
+  // A transient 503 must not be cached for five minutes by browsers and
+  // shared caches the way a successful catalog response is.
+  const headers = status >= 400 ? { ...JSON_HEADERS, "Cache-Control": "no-store" } : JSON_HEADERS;
+  return new Response(JSON.stringify(data), { status, headers });
 }
 
 function privateJson(data, status = 200, extraHeaders = {}) {
@@ -112,48 +115,26 @@ export function installManifest() {
     installer: "https://oaf.asia/install.sh",
     one_liner: "curl -fsSL https://oaf.asia/install.sh | bash -s -- --codex --auto-discovery",
     safe_steps: [
-      "curl -fsSLo /tmp/open-free-router-install.sh https://oaf.asia/install.sh",
-      "less /tmp/open-free-router-install.sh",
-      "bash /tmp/open-free-router-install.sh --codex --auto-discovery",
+      // mktemp, not a fixed /tmp name: on a shared host the predictable path
+      // can be pre-created by someone else, which defeats the inspect step.
+      "f=$(mktemp)",
+      "curl -fsSLo \"$f\" https://oaf.asia/install.sh",
+      "less \"$f\"",
+      "bash \"$f\" --codex --auto-discovery",
     ],
     next: ["open-free-router setup", "open-free-router serve", "codex --profile open-free-router"],
   };
 }
 
 /**
- * Security headers that only work over HTTP, not in a <meta> CSP.
+ * Security response headers live in `site/_headers`, not here.
  *
- * Browsers ignore `frame-ancestors` (and `sandbox`, `report-uri`) when the
- * policy arrives in a meta element — they log a console error and drop the
- * directive — so clickjacking protection has to be a real response header.
- * This policy is intentionally framing-only: it combines with each page's
- * own meta CSP, and CSP policies compose restrictively.
+ * wrangler.jsonc sets `run_worker_first: ["/api/*"]`, so page and asset
+ * requests are answered by Cloudflare's Asset Worker and never reach this
+ * handler — any header set here would be dead code for everything except
+ * the JSON APIs below (which carry their own headers). `_headers` is served
+ * by the asset layer and keeps edge caching intact.
  */
-const ASSET_SECURITY_HEADERS = {
-  "Content-Security-Policy": "frame-ancestors 'none'",
-  "X-Frame-Options": "DENY",
-  "X-Content-Type-Options": "nosniff",
-  "Referrer-Policy": "strict-origin-when-cross-origin",
-  "Permissions-Policy": "geolocation=(), microphone=(), camera=(), interest-cohort=()",
-};
-
-async function serveAsset(request, env) {
-  const response = await env.ASSETS.fetch(request);
-  const headers = new Headers(response.headers);
-  for (const [name, value] of Object.entries(ASSET_SECURITY_HEADERS)) {
-    headers.set(name, value);
-  }
-  // Keep the private dashboard out of search indexes even if someone links it.
-  if (new URL(request.url).pathname.startsWith("/internal/")) {
-    headers.set("X-Robots-Tag", "noindex, nofollow");
-  }
-  return new Response(response.body, {
-    status: response.status,
-    statusText: response.statusText,
-    headers,
-  });
-}
-
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
@@ -179,19 +160,30 @@ export default {
     }
     if (url.pathname === "/api/discovery") {
       try { return json(await getDiscovery(env, ctx)); }
-      catch (error) { return json({ error: "discovery_unavailable", message: error.message }, 503); }
+      catch (error) {
+        console.error(JSON.stringify({ event: "discovery_unavailable", message: String(error?.message || error) }));
+        return json({ error: "discovery_unavailable" }, 503);
+      }
     }
     if (url.pathname === "/api/catalog") {
       try {
+        // The status board polls this every 60s but only reads availability,
+        // so it asks for ?fields=status and skips the discovery half.
+        const withDiscovery = url.searchParams.get("fields") !== "status";
         // Discovery is a soft dependency: a models.dev outage must not take
         // the whole catalog (and with it the model radar) down to a 503.
         const [catalog, discovery, status] = await Promise.all([
-          loadRegistry(env), getDiscovery(env, ctx).catch(() => null), loadProviderStatus(env),
+          loadRegistry(env),
+          withDiscovery ? getDiscovery(env, ctx).catch(() => null) : Promise.resolve(null),
+          loadProviderStatus(env),
         ]);
         await refreshProviderStatusIfNeeded(env, ctx, status);
-        return json({ ...mergeServerStatus(catalog, status), discovery });
+        const merged = mergeServerStatus(catalog, status);
+        if (!withDiscovery) return json(merged);
+        return json({ ...merged, discovery });
       } catch (error) {
-        return json({ error: "catalog_unavailable", message: error.message }, 503);
+        console.error(JSON.stringify({ event: "catalog_unavailable", message: String(error?.message || error) }));
+        return json({ error: "catalog_unavailable" }, 503);
       }
     }
     if (url.pathname === "/api/status") {
@@ -199,7 +191,7 @@ export default {
       if (!status) return json({ error: "server_probe_pending" }, 503);
       return json(status);
     }
-    return serveAsset(request, env);
+    return env.ASSETS.fetch(request);
   },
 
   async scheduled(controller, env, ctx) {

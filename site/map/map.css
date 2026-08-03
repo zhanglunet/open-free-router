@@ -45,8 +45,10 @@
 .mk-poolside-us{left:28.9%;top:26.7%}
 .mk-nous{left:30.4%;top:28.4%}
 .mk-poolside-eu{left:50.65%;top:21.43%}
-.mk-sensenova{left:84.3%;top:33.5%}
-.mk-stepfun{left:85.4%;top:35.7%}
+/* Both are in Shanghai; at the map scale their true positions overlap
+   into a single unusable 30px hit box, so the pair is fanned apart. */
+.mk-sensenova{left:83.6%;top:32.6%}
+.mk-stepfun{left:86.4%;top:36.4%}
 .mk-deepseek{left:82.5%;top:36.3%}
 .mk-gitee{left:81.68%;top:40.78%}
 .mk-zen{left:38%;top:40%}
@@ -136,14 +138,20 @@
   .region-card:last-child{border-bottom:0}
   .map-latency{grid-template-columns:1fr;gap:2.5rem}
 }
+/* Marker centres sit only 10-20 px apart at narrow widths, so 8 of the 11
+   providers overlap into one unusable hit box. Give the stage a fixed wide
+   canvas below the desktop breakpoint and let the container scroll. */
+@media(max-width:1180px){
+  .map-scroll{overflow-x:auto}
+  .map-stage{min-width:1400px}
+}
 @media(max-width:640px){
   .map-hero,.map-section,.map-regions,.map-latency,.map-cta{width:calc(100% - 32px)}
   .map-hero{padding:4.5rem 0 3rem}
   .map-hero-stats article{min-height:104px}
   .map-section{padding-bottom:4rem}
   .map-regions,.map-latency{padding:4rem 0}
-  .map-scroll{overflow-x:auto}
-  .map-stage{min-width:640px}
+
   .mk-tip{min-width:138px}
   .map-legend p{margin-left:0;flex-basis:100%}
   .map-cta{margin-bottom:4.5rem;padding:3.5rem 1rem}

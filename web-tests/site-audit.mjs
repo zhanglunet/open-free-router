@@ -134,6 +134,20 @@ export async function staticAudit() {
     if (dupes.length)
       add("major", route, "重复的 id", `重复 id：${[...new Set(dupes)].join(", ")}（querySelector 与锚点会指向第一个）。`);
 
+    // ── malformed tags ──
+    // An unterminated tag swallows the ones after it; when that happens to
+    // a <meta> in <head>, the parser closes <head> early and the CSP is
+    // silently dropped (browsers only report this at runtime).
+    for (const line of html.split("\n")) {
+      if (/<(meta|link)\b[^>]*$/.test(line.trim()))
+        add("critical", route, "标签未闭合", `缺少 '>'：${line.trim().slice(0, 90)}`);
+    }
+    if (html.includes(">>"))
+      add("major", route, "多余的 '>'", "标记中出现 '>>'，通常意味着上一处编辑破坏了标签结构。");
+    const headMatch = html.match(/<head\b[^>]*>([\s\S]*?)<\/head>/i);
+    if (headMatch && !/Content-Security-Policy/i.test(headMatch[1]))
+      add("critical", route, "CSP 不在 <head> 内", "CSP meta 必须位于 <head>，否则浏览器会忽略整条策略。");
+
     // ── CSP compliance in markup ──
     if (/\bstyle\s*=\s*"/i.test(html))
       add("major", route, "内联 style 属性", "CSP style-src 'self' 会拦截，样式在生产环境不生效。");

@@ -14,7 +14,7 @@
 .channel-table td{color:#8fa8bc;font-size:.66rem;line-height:1.65}
 .channel-table code{overflow-wrap:anywhere;color:#d9eafa;font:650 .58rem var(--mono)}
 .channel-table td b,.channel-table td small{display:block}
-.channel-table td small{margin-top:.35rem;color:#698399;font-size:.58rem}
+.channel-table td small{margin-top:.35rem;color:var(--dim);font-size:.58rem}
 .channel-table .available{box-shadow:inset 3px 0 #39e58c}
 .channel-table .available td:last-child b{color:#50ec9b}
 .channel-table .conditional{box-shadow:inset 3px 0 #f2bd5b}
@@ -29,6 +29,6 @@
 .official-sources a{display:grid;gap:.4rem;padding:1.2rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);color:inherit}
 .official-sources b{color:var(--cyan);font-size:.72rem}
 .official-sources span{color:#7892a7;font-size:.62rem}
-.source-note{margin-top:1rem;color:#6e899f;font-size:.64rem;line-height:1.7}
+.source-note{margin-top:1rem;color:var(--dim);font-size:.64rem;line-height:1.7}
 @media(max-width:800px){.model-facts,.official-sources{grid-template-columns:1fr 1fr}.channel-verdict{grid-template-columns:1fr}}
 @media(max-width:640px){.model-facts,.official-sources{grid-template-columns:1fr}.model-facts article{border-right:0;border-bottom:1px solid var(--line)}.channel-table-wrap{margin-right:-16px}}
