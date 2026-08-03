@@ -84,6 +84,18 @@ for (const marker of ["npm install -g open-free-router", "Python 3.11+", "OFR_NP
 if (!modelsJs.includes("key_url") || !modelsJs.includes("key_steps_zh")) {
   throw new Error("Model radar must render provider API-key guidance");
 }
+// The static-fallback branch used the snapshot raw: green provider dots, a
+// numeric 最近可用 counter and per-row 可用 badges presented as current fact.
+// Degradation is unconditional on that branch — it is by definition the branch
+// that knows availability was not measured — so no age constant lives here.
+for (const marker of ["静态兜底数据", "function degradeCatalog"]) {
+  if (!modelsJs.includes(marker)) {
+    throw new Error(`Generated model radar is missing required fallback degradation: ${marker}`);
+  }
+}
+if (!modelsHtml.includes('value="unverified"')) {
+  throw new Error("Model radar status filter must be able to select 待验证 rows");
+}
 for (const marker of [
   "系统架构", "8337", "Claude Code", "/v1/messages", "MCP", "registry.yaml",
   "三层故障隔离", "首字节前安全 fallback", "usage.db", "二十四个功能模块",
@@ -99,6 +111,13 @@ for (const marker of ["服务器端", "Cloudflare", "每 15 分钟", "完全不�
 }
 if (!statusJs.includes("服务器探测于") || !statusJs.includes("probe_interval_minutes")) {
   throw new Error("Status page must distinguish server probe time from static catalog generation time");
+}
+// The element this fills is labelled 最近检查, and metadataOnly() blanks
+// status_as_of on the fallback path, so falling through to the export clock
+// reports a time for an availability check that never happened — and the
+// scheduled refresh would make it read "0 秒前".
+if (statusJs.includes("catalog.status_as_of || catalog.generated_at")) {
+  throw new Error("Status board must not present the catalog export time as an availability check time");
 }
 if (!statusCss.includes(".st-error[hidden]") || !statusCss.includes("display:none")) {
   throw new Error("Status error banner must remain hidden after a successful refresh");
@@ -180,6 +199,18 @@ for (const marker of ["明确计分规则", "同提供商模型目前继承同�
     throw new Error(`Generated benchmarks methodology is missing required content: ${marker}`);
   }
 }
+// 45% of 任务适配分 comes from availability (35) and latency (10), and the
+// methodology table asserts the data is a Cloudflare probe snapshot — false on
+// the static-fallback path, where this page previously showed no timestamp at
+// all.
+for (const marker of ["静态兜底数据", "function degradeCatalog"]) {
+  if (!benchmarksJs.includes(marker)) {
+    throw new Error(`Generated benchmarks page is missing required fallback degradation: ${marker}`);
+  }
+}
+if (!benchmarksHtml.includes('id="bench-freshness"')) {
+  throw new Error("Benchmarks page must render catalog freshness");
+}
 if (benchmarksJs.includes('style="') || benchmarksJs.includes("style='")) {
   throw new Error("Benchmarks dynamic markup must not use inline styles blocked by CSP");
 }
@@ -219,6 +250,10 @@ if (sitemapHtml.includes("/internal/benchmarks/") || sitemapXml.includes("/inter
 }
 if (/<script(?![^>]*src=)[^>]*>[^<]/.test(internalBenchmarksHtml)) {
   throw new Error("Internal benchmarks must not contain inline scripts");
+}
+const headersFile = await readFile(resolve(output, "_headers"), "utf8");
+if (!headersFile.includes("/data/*.json")) {
+  throw new Error("Catalog data must carry an explicit cache policy");
 }
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));

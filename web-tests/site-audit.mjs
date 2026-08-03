@@ -270,7 +270,14 @@ const MIME = {
  * Serve web/ and emulate the worker's JSON APIs from the committed data
  * files, so pages render with realistic content instead of error states.
  */
-export async function startServer(rootDir = WEB) {
+/**
+ * @param {string} rootDir built site to serve
+ * @param {{apiCatalog?: "ok"|"fail"}} options `fail` makes /api/* return 503 so
+ *   the pages' static-fallback branches become reachable. Until this existed
+ *   every test hit the happy path, which is why the fallback branch shipped
+ *   rendering a stale snapshot as current fact.
+ */
+export async function startServer(rootDir = WEB, { apiCatalog = "ok" } = {}) {
   const catalogPath = join(rootDir, "data", "catalog.json");
   const catalog = existsSync(catalogPath)
     ? JSON.parse(await readFile(catalogPath, "utf8"))
@@ -290,6 +297,9 @@ export async function startServer(rootDir = WEB) {
       res.writeHead(status, { "Content-Type": type });
       res.end(body);
     };
+    if (apiCatalog === "fail" && url.pathname.startsWith("/api/")) {
+      return send(503, JSON.stringify({ error: "catalog_unavailable" }));
+    }
     if (url.pathname === "/api/catalog") return send(200, JSON.stringify({ ...catalog, discovery }));
     if (url.pathname === "/api/status") return send(200, JSON.stringify(catalog));
     if (url.pathname === "/api/discovery") return send(200, JSON.stringify(discovery));
