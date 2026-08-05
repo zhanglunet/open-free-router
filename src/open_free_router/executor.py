@@ -22,6 +22,10 @@ from open_free_router.quota import parse_quota_headers
 
 
 MAX_ERROR_BODY = 64 * 1024
+# Ceiling for a reset an upstream declares in its headers. Daily budgets are the
+# common case and fit well under this; a monthly one simply gets re-tested once a
+# day, which is far cheaper than letting one bad header park a credential.
+DECLARED_RESET_CAP = 24 * 60 * 60.0
 
 
 @dataclass
@@ -346,16 +350,15 @@ class UpstreamExecutor:
                     observation,
                 )
                 retry_delay = parse_retry_after(retry_after)
-                # A declared reset turns recurring daily/monthly quota exhaustion
-                # into a bounded cooldown. Unknown or credit exhaustion remains
-                # terminal until the operator explicitly resets the slot.
-                if decision.kind == "quota_exhausted" and observation.next_reset_at:
-                    decision = FailureDecision(
-                        "quota_exhausted", retryable=True, credential_cooldown=True
-                    )
-                    retry_delay = max(
-                        retry_delay, observation.next_reset_at - time.time()
-                    )
+                # A reset declared in the response headers is structured evidence,
+                # unlike wording in the error body, so it sets the cooldown for any
+                # rate-limited response rather than only the ones whose text said
+                # "quota". Groq reports an exhausted daily token budget as a plain
+                # "Rate limit reached ... tokens per day", which otherwise fell back
+                # to the default cooldown and kept retrying against it all day.
+                if decision.credential_cooldown and observation.next_reset_at:
+                    declared = observation.next_reset_at - time.time()
+                    retry_delay = max(retry_delay, min(declared, DECLARED_RESET_CAP))
                 self.resilience.record_failure(
                     target.provider_name,
                     target.upstream_model_id,
