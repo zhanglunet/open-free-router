@@ -10,9 +10,12 @@
   `quota_exhausted` with `credential_terminal=True` and **permanently** disables an
   otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
   dead until a manual `/api/resilience/reset`, while their upstreams were alive).
-  Also documents P2 (`refresh` adopts models that `/models` lists but that are not
-  reachable, e.g. `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (empty-key
-  `openrouter` provider 503s indistinguishably from a genuinely down one). No code
+  More broadly, `terminal` has no exit but an operator reset — `record_success`
+  skips it, reload preserves it, and it is keyed by credential *slot*, so rotating
+  in a new key does not clear it either. Also documents P2 (`refresh` adopts models
+  that `/models` lists but that are not reachable, e.g. `groq/compound-mini`,
+  `z-ai/glm-5.2`) and P3 (`credential_missing` is computed but never surfaced, so an
+  unconfigured provider 503s indistinguishably from a genuinely down one). No code
   changes in this PR — findings and proposed fixes only, for maintainer triage.
 
 ### Data freshness (M2)

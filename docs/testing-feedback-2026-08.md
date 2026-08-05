@@ -8,6 +8,11 @@ every live model through the local proxy and managing a real multi-agent fleet.
 It is **not** an exhaustive audit — it is the findings that materially affected
 availability and debuggability.
 
+**Baseline:** the 44 models above are this deployment's local `registry.yaml` *after*
+several `refresh` runs, not the shipped template — `registry.default.yaml` declares 10
+providers / 38 models. Model counts in this report should be read against that local
+registry, not the repo default.
+
 ---
 
 ## P1 — Transient 429s permanently disable live providers (false-positive `terminal`)
@@ -70,7 +75,27 @@ A momentary rate-limit response that happens to include the word "quota" (common
 rate-limit wording) therefore **permanently** disables an otherwise-healthy provider
 until an operator manually resets it.
 
-### Why this is wrong
+### `terminal` has no recovery path at all
+
+The 429 misclassification is the trigger, but the deeper gap is that **nothing ever
+re-opens a `terminal` credential except an explicit operator reset**:
+
+- The only exit is `ResilienceManager.reset()` (`resilience.py:508`), reachable solely
+  via `resilience reset` / `POST /api/resilience/reset`.
+- `record_success` deliberately skips terminal slots
+  (`resilience.py:420`: `if credential.state != "terminal"`), so a recovered upstream
+  cannot heal the state even when traffic would succeed.
+- On reload, terminal is restored as active (`resilience.py:256`), so a restart does
+  not clear it either.
+- State is keyed by `(provider, credential_slot)`, not by the key's value — so
+  **rotating in a fresh API key does not unlock the slot**. Even a *correctly*
+  classified 401 leaves the operator stuck at 503 after they fix the credential.
+
+That last point holds regardless of how 429s are classified, and is arguably the more
+important defect: `terminal` is a one-way door with no probe, no expiry, and no
+invalidation on credential change.
+
+### Why the 429 classification is worth revisiting
 
 - A 429 is by definition *retryable*. The distinction between `quota_exhausted` and
   `rate_limited` should hinge on a **confirmed, dated reset**, not on vocabulary in
@@ -81,7 +106,14 @@ until an operator manually resets it.
 - Real consequence: a single transient blip silently knocks every model on that
   provider offline; only a human who knows to call `/api/resilience/reset` recovers it.
 
-### Proposed fix (suggested)
+**This is a deliberate design decision, not an oversight.** `tests/test_resilience.py:21-25`
+(`test_rate_limit_and_quota_have_different_recovery`) explicitly asserts the current
+split — `429` + quota wording ⇒ `credential_terminal=True, retryable=False`. Changing it
+means consciously reversing that decision and updating both that test and the semantics
+of `test_terminal_credential_is_not_downgraded_by_late_rate_limit`. This report argues
+the tradeoff is wrong in the field, but a maintainer should weigh it as a design change.
+
+### Proposed fix (direction, not a drop-in patch)
 
 Treat an unconfirmed 429 as **bounded cooldown**, and reserve `terminal` for states
 that are verifiably permanent (e.g. `credential_invalid`, `credits_exhausted`,
@@ -99,9 +131,15 @@ if status == 429:
     )
 ```
 
+Note this sketch is **not** directly applicable: the trailing comment asks for a longer
+quota-flavoured cooldown, but `record_failure` (`resilience.py:374`) draws the delay only
+from `retry_after` or the single global `credential_cooldown`, and `FailureDecision` has
+no field to carry a per-kind duration. Implementing it means adding that field first.
+
 At minimum: never persist `quota_exhausted` as `terminal` without an expiry, and let a
 periodic probe (or a half-open probe on the next request) re-open a terminal slot after
-a sane backoff.
+a sane backoff. Independently of the 429 question, terminal slots should also be
+invalidated when the underlying credential changes.
 
 **Reproduction:** hit a provider until its upstream returns any 429 whose body includes
 "quota"/"credit"/"balance"; the provider stays 503 thereafter until `reset`.
@@ -145,17 +183,22 @@ without a fresh probe on refresh, to keep the diff non-destructive.
 
 ---
 
-## P3 — `openrouter` provider ships with empty key and silently 503s
+## P3 — `credential_missing` never reaches the client; unconfigured looks identical to broken
 
 **Severity:** Low (observability), but user-confusing.
 
 ### Symptom
 
-The default/template registry includes an `openrouter` provider with `api_key: ''`.
-Every one of its 9 `or/*:free` models immediately returns `503: All routes for model
-... are temporarily unavailable` — the same 503 used for genuinely down providers, so
-from the client's perspective an *unconfigured* provider is indistinguishable from a
-*broken* one.
+An unconfigured provider is indistinguishable from a genuinely down one. In this
+deployment `openrouter` had no key, and every one of its 9 `or/*:free` models returned
+`503: All routes for model ... are temporarily unavailable` — byte-for-byte the same 503
+emitted when an upstream is actually failing.
+
+**Correction:** an earlier draft framed this as "`openrouter` ships with an empty key,"
+implying that provider is special. It is not — *all 10* providers in
+`registry.default.yaml` carry `api_key: ''`, by design; keys are filled in by
+`open-free-router setup` or via `api_key_env`. The finding here is purely about
+observability: the router knows the difference and does not tell anyone.
 
 ### Proposed fix (suggested)
 
@@ -172,13 +215,16 @@ from the client's perspective an *unconfigured* provider is indistinguishable fr
 1. **`refresh --verbose` does not exist.** Help text lists no `--verbose`; users wanting
    to see *which* models changed have no flag. Suggest `refresh --diff` or `--dry-run`
    already shows per-provider counts; add a per-model diff for clarity.
-2. **Registry backup is good hygiene but undocumented.** `serve`/`refresh` write
-   `.bak-YYYYMMDD-HHMMSS` files atomically — that is great. Consider documenting this
-   in README so operators know recovery is one `cp` away.
-3. **`/api/resilience/reset` is a critical operator tool but not in the docs.** Without
-   the P1 fix, this endpoint is the only way to un-stick a provider. It deserves a line
-   in the README and in `open-free-router status`/`doctor` hint output when a provider
-   is stuck in `terminal`.
+2. **Registry backup is good hygiene but undocumented for users.** `serve`/`refresh`
+   write `.bak-YYYYMMDD-HHMMSS` files atomically — that is great. It is described in
+   `AGENTS.md`, but not in either README, so operators have no user-facing pointer that
+   recovery is one `cp` away.
+3. **`/api/resilience/reset` is discoverable in docs but not at the moment of failure.**
+   (An earlier draft claimed it was undocumented — that was wrong: it is covered in
+   README.md:120/260/326 and README.en.md:113/224, as both a CLI command and an HTTP
+   endpoint.) The real gap is situational: when a provider is stuck in `terminal`,
+   nothing points the operator at it. `status` / `doctor` should surface stuck slots and
+   name the reset command in their hint output.
 
 ---
 
