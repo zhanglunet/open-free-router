@@ -27,7 +27,7 @@ open-free-router 已支持 OpenAI Chat Completions 代理、Codex Responses API
 | 客户端 | 协议 | 配置位置 | 关键事实 |
 |---|---|---|---|
 | Claude Code | Anthropic Messages | `~/.claude/settings.json` `env` 块 | `ANTHROPIC_AUTH_TOKEN` 走 `Authorization: Bearer`；`ANTHROPIC_API_KEY` 走 `x-api-key`；请求带 `?beta=true` 查询参数（按路径匹配）；启动时探测 `GET /v1/models` 填充 `/model` 选择器；响应必须 SSE 流式；`ANTHROPIC_DEFAULT_HAIKU_MODEL` 取代已废弃的 `ANTHROPIC_SMALL_FAST_MODEL`（两者都写以兼容旧版） |
-| Kimi CLI | OpenAI Chat Completions | `~/.kimi/config.toml` | `[providers.X] type = "openai_legacy"` + `[models.X]`（`provider` / `model` / `max_context_size`）；顶层 `default_model` 必须位于任何表头之前 |
+| Kimi CLI | OpenAI Chat Completions | `~/.kimi-code/config.toml`（旧版回退 `~/.kimi/config.toml`） | `[providers.X] type = "openai"` + `[models.X]`（`provider` / `model` / `max_context_size` / `max_output_size` / `capabilities`）；顶层 `default_model` 必须位于任何表头之前 |
 | OpenClaw | OpenAI Chat Completions | `~/.openclaw/openclaw.json`（JSON5） | `models.providers.<name>`：`baseUrl` / `apiKey` / `api: "openai-completions"` / 静态 `models` 数组（**不**自动发现 `/v1/models`）；默认模型在 `agents.defaults.model.primary`，格式 `provider/model-id`；Zod 严格校验，未知字段拒绝启动 |
 | WorkBuddy（腾讯） | OpenAI Chat Completions | `~/.workbuddy/models.json` | 扁平 JSON 数组，每模型一条：`id`/`name`/`vendor:"Custom"`/`url`(/v1 base)/`apiKey`/`supportsToolCall`/`useCustomProtocol:false`；改完需重启 WorkBuddy |
 
@@ -66,11 +66,19 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
    无法解析时拒绝写入而非覆盖。`--claude-model` / config `claude.model`
    指定主模型，默认取首个 `tool_calling: true` 模型；小模型按
    `haiku|mini|small|flash|lite|tiny|8b|9b` 线索选取。
-7. `sync --agent kimi`：`~/.kimi/config.toml` 内维护
+7. `sync --agent kimi`：`~/.kimi-code/config.toml` 内维护
    `# >>> open-free-router managed >>>` 标记块（TOML 无依赖安全重写），
-   块内 `[providers.open-free-router]`（`openai_legacy`）+ 每模型
-   `[models.ofr-*]`；顶层 `default_model` 仅在缺失或已指向 `ofr-*`
-   别名时设置；用户注释与自有 provider 原样保留。
+   块内 `[providers.open-free-router]`（`openai`）+ 每模型
+   `[models.ofr-*]`；每个 Kimi 显示名追加“来源：提供商”；顶层
+   `default_model` 仅在缺失或已指向 `ofr-*` 别名时设置；用户注释与
+   自有 provider 原样保留（用户自己写的 `[models.*]` 即使指向本路由也
+   不删除；仅回收本工具自身别名形状的历史遗留表）。
+   `--kimi-available-only` 从 Live Probe 快照读取 **45 分钟内** `ok: true`
+   的模型，只写入实测可用集合；证据过期时报错并提示重跑探测，而非沿用
+   旧结果；`kimi` 不在 `--agent` 内时直接拒绝该参数。对 Kimi Code 重提示
+   不安全的免费 Groq 模型仍会写入配置、保持可选，只是不被选为
+   `default_model`——但当它是唯一支持工具调用的路由时仍会被选中，因为
+   不可用的默认值比不安全的默认值更糟。
 8. `sync --agent openclaw`：JSON5 宽容解析；`models.providers` 去重
    （移除指向本地代理的旧条目）后写入静态模型数组（含 `cost` 零价、
    `contextWindow`、`maxTokens`）；`agents.defaults.model.primary` 仅在

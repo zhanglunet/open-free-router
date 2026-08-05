@@ -6,10 +6,13 @@ import http.client
 import json
 import threading
 import time
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from open_free_router.probe import (
+    EVIDENCE_MAX_AGE_SECONDS,
     ProbeRunner,
+    available_model_ids,
     load_probe_snapshot,
     load_status_as_probe_snapshot,
     probe_model,
@@ -246,3 +249,63 @@ def test_ui_probe_endpoints_require_auth_for_post(tmp_path):
     finally:
         ui.shutdown()
         upstream.shutdown()
+
+
+def _snapshot(entries):
+    """entries: {key: (ok, checked_at_iso)}"""
+    return {"results": {
+        key: {"ok": ok, "checked_at": checked_at}
+        for key, (ok, checked_at) in entries.items()
+    }}
+
+
+def test_available_model_ids_ages_evidence_out():
+    """A probe result is a timestamped measurement, not a standing fact."""
+    now = 1_000_000.0
+    fresh_at = datetime.fromtimestamp(now - 60, timezone.utc).isoformat(timespec="seconds")
+    old_at = datetime.fromtimestamp(
+        now - EVIDENCE_MAX_AGE_SECONDS - 60, timezone.utc
+    ).isoformat(timespec="seconds")
+
+    ids, stale = available_model_ids(_snapshot({
+        "groq/compound": (True, fresh_at),
+        "groq/stale-win": (True, old_at),
+        "groq/failed": (False, fresh_at),
+    }), now=now)
+    assert ids == {"groq/compound"}
+    # The old success is reported separately so a caller can say "re-probe"
+    # rather than "you never probed".
+    assert stale == 1
+
+
+def test_available_model_ids_treats_untrustworthy_timestamps_as_stale():
+    now = 1_000_000.0
+    future = datetime.fromtimestamp(now + 7200, timezone.utc).isoformat(timespec="seconds")
+    ids, stale = available_model_ids(_snapshot({
+        "p/missing-stamp": (True, ""),
+        "p/from-the-future": (True, future),
+        "p/garbage": (True, "not-a-date"),
+    }), now=now)
+    assert ids == set()
+    assert stale == 3
+
+
+def test_available_model_ids_survives_junk_input():
+    assert available_model_ids(None) == (set(), 0)
+    assert available_model_ids({}) == (set(), 0)
+    assert available_model_ids({"results": []}) == (set(), 0)
+    assert available_model_ids({"results": {"k": "not-a-dict", 7: {}}}) == (set(), 0)
+
+
+def test_probe_snapshot_round_trip_keeps_evidence_usable(tmp_path):
+    """The freshness check must work on what write/load actually persist."""
+    path = tmp_path / "probe-results.json"
+    checked_at = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    write_probe_snapshot({"results": {"groq/compound": {
+        "provider": "groq", "model": "compound", "display_id": "gq/compound",
+        "ok": True, "status": "http_200", "latency_ms": 12,
+        "error": "", "checked_at": checked_at,
+    }}}, path)
+    ids, stale = available_model_ids(load_probe_snapshot(path))
+    assert ids == {"groq/compound"}
+    assert stale == 0

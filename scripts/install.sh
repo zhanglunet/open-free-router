@@ -19,7 +19,27 @@ for arg in "$@"; do
 done
 INSTALL_DIR="${OPEN_FREE_ROUTER_HOME:-$HOME/.local/open-free-router}"
 CONFIG_DIR="${OPEN_FREE_ROUTER_CONFIG_HOME:-$HOME/.config/open-free-router}"
-PYTHON="${OPEN_FREE_ROUTER_PYTHON:-python3}"
+# Auto-detect Python 3.11+ (macOS default python3 is often too old)
+if [ -n "${OPEN_FREE_ROUTER_PYTHON:-}" ]; then
+  PYTHON="$OPEN_FREE_ROUTER_PYTHON"
+else
+  PYTHON=""
+  for candidate in python3.13 python3.12 python3.11 python3; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      py_version="$("$candidate" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 0.0)"
+      py_major="${py_version%%.*}"
+      py_minor="${py_version#*.}"
+      if [ "$py_major" -gt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -ge 11 ]; }; then
+        PYTHON="$candidate"
+        break
+      fi
+    fi
+  done
+  if [ -z "$PYTHON" ]; then
+    echo "❌ Python 3.11+ not found. Please install it or set OPEN_FREE_ROUTER_PYTHON." >&2
+    exit 1
+  fi
+fi
 
 echo "🆓 open-free-router installer"
 echo "   Install dir: $INSTALL_DIR"

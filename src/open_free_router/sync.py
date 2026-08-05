@@ -35,7 +35,8 @@ PI_MODELS_PATH = Path.home() / ".pi" / "agent" / "models.json"
 CODEX_PROFILE = Path.home() / ".codex" / "open-free-router.config.toml"
 CODEX_MODEL_CATALOG = Path.home() / ".codex" / "open-free-router.models.json"
 CLAUDE_SETTINGS = Path.home() / ".claude" / "settings.json"
-KIMI_CONFIG = Path.home() / ".kimi" / "config.toml"
+KIMI_CONFIG = Path.home() / ".kimi-code" / "config.toml"
+KIMI_LEGACY_CONFIG = Path.home() / ".kimi" / "config.toml"
 OPENCLAW_CONFIG = Path.home() / ".openclaw" / "openclaw.json"
 WORKBUDDY_MODELS = Path.home() / ".workbuddy" / "models.json"
 BACKUP_DIR = Path.home() / ".openclaw" / "agent-backup" / date.today().isoformat()
@@ -43,9 +44,47 @@ BACKUP_DIR = Path.home() / ".openclaw" / "agent-backup" / date.today().isoformat
 # Markers delimiting the router-managed section of Kimi CLI's config.toml.
 # TOML has no safe way to rewrite arbitrary tables without a round-trip
 # parser dependency, so our providers/models live in one marked block that
-# is replaced wholesale on each sync; user content outside it is untouched.
+# is replaced wholesale on each sync. User content outside it is untouched;
+# the one exception is a table this tool itself wrote before the managed block
+# existed, which is reclaimed rather than duplicated (see
+# _strip_unmanaged_kimi_router_tables, which identifies them by our own alias
+# prefixes and leaves user-authored tables alone even when they name us).
 KIMI_BLOCK_BEGIN = "# >>> open-free-router managed >>>"
 KIMI_BLOCK_END = "# <<< open-free-router managed <<<"
+# Aliases this tool generates: codex_model_alias() emits "ofr-*", and versions
+# before the managed block wrote "open-free-router/*" tables directly.
+KIMI_MANAGED_ALIAS_PREFIXES = ("ofr-", "open-free-router/")
+KIMI_SOURCE_LABELS = {
+    "deepseek": "DeepSeek 开放平台",
+    "google-ai-studio": "Google AI Studio",
+    "groq": "GroqCloud",
+    "nvidia-nim": "NVIDIA NIM",
+    "nous": "Nous Research",
+    "poolside": "Poolside AI",
+    "opencode-zen-free": "OpenCode Zen",
+    "openrouter": "OpenRouter",
+    "sensenova": "SenseNova",
+    "stepfun": "StepFun",
+    "gitee-ai": "Gitee AI",
+}
+KIMI_UNSAFE_DEFAULT_PROVIDERS = {
+    # Kimi Code's bootstrap prompt and tool inventory can exceed Groq's
+    # free-tier TPM even for a short user prompt, so a Groq model is a poor
+    # automatic default: the very first turn fails.
+    #
+    # It is demoted, not dropped. Removing the models outright would empty the
+    # config for anyone whose only tool-calling routes are Groq, and would deny
+    # a paid-tier account routes that work fine for it. They stay selectable;
+    # they just do not get chosen for you. If nothing else is available the
+    # fallback below still picks one, because an imperfect default beats none.
+    "groq",
+}
+KIMI_DEFAULT_DISPLAY_IDS = (
+    "nova/glm-5.2",
+    "nova/deepseek-v4-flash",
+    "nv/nvidia/nemotron-3-ultra-550b-a55b",
+    "zen/deepseek-v4-flash-free",
+)
 
 CODEX_BASE_INSTRUCTIONS = (
     "You are Codex, a coding agent working in the user's current workspace. "
@@ -553,25 +592,94 @@ def _toml_str(value: str) -> str:
     return json.dumps(value, ensure_ascii=False)
 
 
+def _toml_table_key(header: str, kind: str) -> str:
+    """Extract the bare-or-quoted key from a ``[kind.key]`` TOML header."""
+    inner = header.strip()[1:-1].strip()
+    if not inner.startswith(f"{kind}."):
+        return ""
+    key = inner[len(kind) + 1:].strip()
+    if len(key) >= 2 and key[0] == key[-1] and key[0] in "\"'":
+        key = key[1:-1]
+    return key
+
+
+def _strip_unmanaged_kimi_router_tables(text: str) -> tuple[str, list[str]]:
+    """Reclaim router tables *this tool* wrote outside the managed block.
+
+    Versions before the managed block wrote ``[providers.open-free-router]`` and
+    ``[models.*]`` entries straight into the file, so they must be removed or
+    the next sync duplicates them.
+
+    Only aliases this tool generates are eligible. A model table the user wrote
+    themselves belongs to them even when it points at the router -- aiming a
+    personal alias at the local proxy is a reasonable thing to do, and the
+    managed-block contract promises their content survives a sync.
+
+    Returns the rewritten text and the names reclaimed, so the caller can say
+    what it took rather than deleting config silently.
+    """
+    if "open-free-router" not in text:
+        return text, []
+
+    table_re = re.compile(r"(?m)^\s*\[[^\n]+]\s*$")
+    matches = list(table_re.finditer(text))
+    pieces = []
+    removed: list[str] = []
+    cursor = 0
+    for idx, match in enumerate(matches):
+        start = match.start()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        header = match.group(0).strip()
+        body = text[start:end]
+        if header == "[providers.open-free-router]":
+            name = "providers.open-free-router"
+        else:
+            alias = _toml_table_key(header, "models")
+            name = (
+                f"models.{alias}"
+                if alias
+                and alias.startswith(KIMI_MANAGED_ALIAS_PREFIXES)
+                and re.search(r'(?m)^\s*provider\s*=\s*"open-free-router"\s*$', body)
+                else ""
+            )
+        if name:
+            pieces.append(text[cursor:start])
+            removed.append(name)
+            cursor = end
+    pieces.append(text[cursor:])
+    return "".join(pieces), removed
+
+
 def sync_kimi(
     reg: Registry,
     do_write: bool = True,
     proxy_url: str = "http://127.0.0.1:8337/v1",
     proxy_token: str = "",
     explicit: bool = False,
+    include_model_ids: set[str] | None = None,
 ) -> list[str]:
-    """Sync registry → Kimi CLI ``~/.kimi/config.toml``.
+    """Sync registry → Kimi Code ``~/.kimi-code/config.toml``.
 
-    Writes one ``[providers.open-free-router]`` block (type
-    ``openai_legacy`` = Chat Completions) plus one ``[models.<alias>]``
+    Writes one ``[providers.open-free-router]`` block plus one ``[models.<alias>]``
     entry per registry model, all inside a marked managed section that is
     replaced wholesale on each sync. ``default_model`` is only set when
     missing or already pointing at a router-managed alias.
     """
-    if not explicit and not KIMI_CONFIG.parent.exists():
+    config = KIMI_CONFIG
+    # Keep using an existing legacy install rather than starting a second
+    # config beside it. This has to apply to explicit syncs too: `sync --agent
+    # kimi` is the documented command, and skipping the fallback there left the
+    # old file's managed block behind as a stale rival to the new one.
+    if (
+        not config.exists()
+        and not config.parent.exists()
+        and KIMI_LEGACY_CONFIG.exists()
+    ):
+        config = KIMI_LEGACY_CONFIG
+    if not explicit and not config.parent.exists():
         return []
 
-    text = KIMI_CONFIG.read_text() if KIMI_CONFIG.exists() else ""
+    text = config.read_text() if config.exists() else ""
 
     # Drop the previous managed block (if any).
     if KIMI_BLOCK_BEGIN in text:
@@ -585,27 +693,70 @@ def sync_kimi(
             # The managed block is always written last, so dropping from the
             # marker to EOF removes only router-owned content.
             text = text[: text.index(KIMI_BLOCK_BEGIN)]
+    text, reclaimed = _strip_unmanaged_kimi_router_tables(text)
+    if reclaimed:
+        print(f"  ↻ reclaimed unmanaged router table(s): {', '.join(reclaimed)}")
 
     lines = [KIMI_BLOCK_BEGIN]
     lines.append("[providers.open-free-router]")
-    lines.append('type = "openai_legacy"')
+    lines.append('type = "openai"')
     lines.append(f"base_url = {_toml_str(proxy_url)}")
     lines.append(f"api_key = {_toml_str(_local_proxy_key(proxy_token))}")
     changes = []
     default_alias = ""
+    preferred_default_alias = ""
+    demoted_default: set[str] = set()
+    demoted_tool_alias = ""
     for p in reg.providers.values():
         for m in p.models:
+            provider_model_id = f"{p.name}/{m.id}"
+            display_id = f"{p.model_prefix}/{m.id}"
+            if include_model_ids is not None and provider_model_id not in include_model_ids:
+                continue
             alias = codex_model_alias(p.model_prefix, m.id)
             lines.append("")
             lines.append(f"[models.{alias}]")
             lines.append('provider = "open-free-router"')
-            lines.append(f"model = {_toml_str(f'{p.model_prefix}/{m.id}')}")
+            lines.append(f"model = {_toml_str(display_id)}")
             lines.append(f"max_context_size = {m.context_window}")
-            if not default_alias and m.tool_calling:
+            lines.append(f"max_output_size = {m.max_tokens}")
+            caps = ["tool_use"]
+            if m.reasoning:
+                caps.insert(0, "thinking")
+            lines.append(
+                "capabilities = [ "
+                + ", ".join(_toml_str(cap) for cap in caps)
+                + " ]"
+            )
+            source = KIMI_SOURCE_LABELS.get(p.name, p.name)
+            lines.append(f"display_name = {_toml_str(f'{m.name}（来源：{source}）')}")
+            if not preferred_default_alias and display_id in KIMI_DEFAULT_DISPLAY_IDS:
+                preferred_default_alias = alias
+            if (
+                not default_alias and m.tool_calling
+                and p.name not in KIMI_UNSAFE_DEFAULT_PROVIDERS
+            ):
                 default_alias = alias
+            elif m.tool_calling and p.name in KIMI_UNSAFE_DEFAULT_PROVIDERS:
+                demoted_default.add(p.name)
+                if not demoted_tool_alias:
+                    demoted_tool_alias = alias
             changes.append(alias)
+    if preferred_default_alias:
+        default_alias = preferred_default_alias
+    if not default_alias:
+        # Demotion must not cost the guarantee that the default can call tools.
+        # When every tool-calling route belongs to a demoted provider, one of
+        # those still beats the blind fallback below, which would otherwise hand
+        # Kimi a model the registry says cannot call tools at all.
+        default_alias = demoted_tool_alias
     if not default_alias and changes:
         default_alias = changes[0]
+    if demoted_default and default_alias and default_alias != demoted_tool_alias:
+        print(
+            f"  ⚠ {', '.join(sorted(demoted_default))} kept but not made default: "
+            "Kimi's bootstrap prompt can exceed the free-tier per-minute budget there"
+        )
     if len(changes) != len(set(changes)):
         raise ValueError("Kimi model aliases collide; use distinct provider prefixes/model IDs")
     lines.append(KIMI_BLOCK_END)
@@ -624,7 +775,7 @@ def sync_kimi(
     existing_default = default_re.search(head)
     if existing_default:
         current = existing_default.group(1) or existing_default.group(2) or ""
-        if current.startswith("ofr-") and default_alias:
+        if (current.startswith("ofr-") or current.startswith("open-free-router/")) and default_alias:
             head = default_re.sub(default_line, head, count=1)
     elif default_alias:
         head = default_line + "\n" + head
@@ -635,10 +786,10 @@ def sync_kimi(
     text += block
 
     if do_write:
-        KIMI_CONFIG.parent.mkdir(parents=True, exist_ok=True)
-        KIMI_CONFIG.write_text(text)
-        _restrict_permissions(KIMI_CONFIG)
-        print(f"  ✓ wrote {len(changes)} Kimi CLI models ({KIMI_CONFIG})")
+        config.parent.mkdir(parents=True, exist_ok=True)
+        config.write_text(text)
+        _restrict_permissions(config)
+        print(f"  ✓ wrote {len(changes)} Kimi CLI models ({config})")
     return changes
 
 
@@ -992,6 +1143,7 @@ def sync_all(
     proxy_token: str = "",
     codex_model: str = "",
     claude_model: str = "",
+    kimi_include_model_ids: set[str] | None = None,
 ) -> dict[str, list[str]]:
     """Sync registry to all agents. Returns {agent: [changed_providers]}.
 
@@ -1032,6 +1184,8 @@ def sync_all(
                     kwargs["codex_model"] = codex_model
                 if agent == "claude":
                     kwargs["claude_model"] = claude_model
+                if agent == "kimi":
+                    kwargs["include_model_ids"] = kimi_include_model_ids
                 if agent in _EXPLICIT_AWARE:
                     kwargs["explicit"] = explicit
                 changes = fn(reg, **kwargs)

@@ -5,7 +5,7 @@ const CLIENTS = [
   { id: 'codex', name: 'Codex', desc: '使用 Responses API 与隔离配置档，不影响原有 Codex 配置。', path: '~/.codex/open-free-router.config.toml' },
   { id: 'claude', name: 'Claude Code', desc: '通过 Anthropic Messages 兼容接口接入本地免费模型。', path: '~/.claude/settings.json' },
   { id: 'opencode', name: 'OpenCode', desc: '生成 OpenAI 兼容提供商及模型目录。', path: '~/.config/opencode/opencode.jsonc' },
-  { id: 'kimi', name: 'Kimi CLI', desc: '写入独立提供商和模型别名，保留用户默认模型。', path: '~/.kimi/config.toml' },
+  { id: 'kimi', name: 'Kimi CLI', desc: '写入独立提供商和模型别名，保留用户默认模型。', path: '~/.kimi-code/config.toml' },
   { id: 'openclaw', name: 'OpenClaw', desc: '同步本地路由提供商并维护可用主模型。', path: '~/.openclaw/openclaw.json' },
   { id: 'workbuddy', name: 'WorkBuddy', desc: '写入去重后的本地免费模型列表。', path: '~/.workbuddy/models.json' },
   { id: 'pi', name: 'Pi', desc: '同步统一模型目录，所有请求经本地路由。', path: '~/.pi/agent/models.json' },

@@ -22,6 +22,11 @@ from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
 PROBE_TIMEOUT = 45
 PROBE_MAX_WORKERS = 4
+# How long a successful probe stays usable as proof a model is available now.
+# Mirrors STATUS_STALE_MS in worker/probe.js so the local and published views
+# age evidence on the same clock; anything older is a historical record, not a
+# statement about the present.
+EVIDENCE_MAX_AGE_SECONDS = 45 * 60
 
 # Upstream error bodies occasionally echo the credential they rejected.
 # Probe results flow to the unauthenticated GET /api/probe and into the
@@ -288,6 +293,52 @@ def load_probe_snapshot(path: Path) -> dict | None:
     if not isinstance(raw, dict) or not isinstance(raw.get("results"), dict):
         return None
     return _safe_probe_snapshot(raw)
+
+
+def available_model_ids(
+    snapshot: dict | None,
+    now: float | None = None,
+    max_age: float = EVIDENCE_MAX_AGE_SECONDS,
+) -> tuple[set[str], int]:
+    """Return ``provider/model`` IDs whose latest probe succeeded *and* is fresh.
+
+    A probe result is a measurement with a timestamp, not a standing fact. The
+    dashboard's availability view already ages evidence out; callers that write
+    client configs from the same file must do so too, or a probe from last week
+    becomes a claim about right now.
+
+    Returns ``(fresh_ok, stale_ok)`` so a caller can distinguish "never probed"
+    from "probed too long ago" -- those need different advice. A result whose
+    ``checked_at`` is missing or unparseable counts as stale, since freshness
+    cannot be shown.
+    """
+    if not isinstance(snapshot, dict):
+        return set(), 0
+    results = snapshot.get("results")
+    if not isinstance(results, dict):
+        return set(), 0
+    now = time.time() if now is None else now
+    fresh: set[str] = set()
+    stale = 0
+    for key, result in results.items():
+        if not isinstance(key, str) or not isinstance(result, dict):
+            continue
+        if result.get("ok") is not True:
+            continue
+        try:
+            checked = datetime.fromisoformat(str(result.get("checked_at") or ""))
+        except ValueError:
+            stale += 1
+            continue
+        if checked.tzinfo is None:
+            checked = checked.replace(tzinfo=timezone.utc)
+        if 0 <= now - checked.timestamp() <= max_age:
+            fresh.add(key)
+        else:
+            # Also counts a timestamp from the future, which cannot be trusted
+            # to describe the present either.
+            stale += 1
+    return fresh, stale
 
 
 def load_status_as_probe_snapshot(path: Path) -> dict | None:

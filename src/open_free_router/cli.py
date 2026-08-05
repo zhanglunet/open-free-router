@@ -180,7 +180,33 @@ def cmd_sync(args):
         agents = [a.strip() for a in args.agent.split(",")]
 
     do_write = not args.diff
-    results = sync_all(
+    kimi_include_model_ids = None
+    if getattr(args, "kimi_available_only", False):
+        # The filter only reaches sync_kimi, so refuse rather than silently
+        # doing nothing (or aborting an unrelated agent's sync) when Kimi is
+        # not among the selected clients.
+        if agents is not None and "kimi" not in agents:
+            raise SystemExit(
+                "--kimi-available-only applies to the kimi client; "
+                "add kimi to --agent or drop the flag."
+            )
+        from open_free_router.probe import (
+            EVIDENCE_MAX_AGE_SECONDS, available_model_ids, load_probe_snapshot,
+        )
+        snapshot = load_probe_snapshot(cfg.data_dir / "probe-results.json")
+        kimi_include_model_ids, stale = available_model_ids(snapshot)
+        if not kimi_include_model_ids:
+            minutes = int(EVIDENCE_MAX_AGE_SECONDS // 60)
+            raise SystemExit(
+                f"No model has passed a Live Status probe in the last {minutes} minutes"
+                + (
+                    f"; {stale} earlier success(es) are too old to prove availability now. "
+                    "Re-run the dashboard Live Status probe."
+                    if stale else
+                    ". Run the dashboard Live Status probe first."
+                )
+            )
+    synced = sync_all(
         reg,
         do_write=do_write,
         agents=agents,
@@ -188,11 +214,12 @@ def cmd_sync(args):
         proxy_token=proxy_token,
         codex_model=args.codex_model or cfg.codex_model,
         claude_model=args.claude_model or cfg.claude_model,
+        kimi_include_model_ids=kimi_include_model_ids,
     )
 
     label = "DIFF" if args.diff else "SYNC"
     print(f"\n=== {label} ===")
-    for agent, changes in results.items():
+    for agent, changes in synced.items():
         status = "✔" if do_write else "?"
         print(f"  {status} {agent}: {changes}")
 
@@ -719,6 +746,11 @@ def main():
     p_sync.add_argument("--diff", action="store_true", help="show diff only, don't write")
     p_sync.add_argument("--codex-model", help="registry model ID for the Codex profile")
     p_sync.add_argument("--claude-model", help="registry model ID for Claude Code's main model")
+    p_sync.add_argument(
+        "--kimi-available-only",
+        action="store_true",
+        help="for Kimi Code, include only models that passed the latest Live Status probe",
+    )
     p_sync.set_defaults(func=cmd_sync)
 
     p_token = sub.add_parser("token", help="print the local inference proxy token")

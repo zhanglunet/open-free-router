@@ -80,7 +80,7 @@ codex --version</code></pre></li>
         <a href="#client-claude"><b>Claude Code</b><small>Anthropic Messages</small></a>
         <a href="#codex-cli"><b>Codex CLI</b><small>Responses API</small></a>
         <a href="#client-opencode"><b>OpenCode</b><small>Chat Completions</small></a>
-        <a href="#client-kimi"><b>Kimi CLI</b><small>openai_legacy</small></a>
+        <a href="#client-kimi"><b>Kimi CLI</b><small>openai</small></a>
         <a href="#client-openclaw"><b>OpenClaw</b><small>openai-completions</small></a>
         <a href="#client-workbuddy"><b>WorkBuddy</b><small>自定义模型</small></a>
         <a href="#client-hermes"><b>Hermes</b><small>自动发现模型</small></a>
@@ -133,23 +133,24 @@ codex --version</code></pre></li>
       </article>
 
       <article class="client-block" id="client-kimi">
-        <div class="client-head"><span class="client-logo">KI</span><div><h3>Kimi CLI（kimi code）</h3><p>月之暗面官方终端 Agent · <code>~/.kimi/config.toml</code></p></div><span class="client-proto">OPENAI_LEGACY</span></div>
+        <div class="client-head"><span class="client-logo">KI</span><div><h3>Kimi CLI（kimi code）</h3><p>月之暗面官方终端 Agent · <code>~/.kimi-code/config.toml</code></p></div><span class="client-proto">OPENAI</span></div>
         <div class="client-body">
           <ol class="timeline">
-            <li><b>同步配置</b><pre><code>open-free-router sync --agent kimi</code></pre><p>在 config.toml 中维护一个带标记的托管区块，用户注释与自有 provider 原样保留。</p></li>
+            <li><b>同步配置</b><pre><code>open-free-router sync --agent kimi --kimi-available-only</code></pre><p>在 config.toml 中维护一个带标记的托管区块，只写入最近 Live Probe 实测可用的模型，并给每个模型显示名标注来源。</p></li>
             <li><b>启动并切换模型</b><pre><code>kimi
 /model</code></pre><p><code>ofr-</code> 前缀的模型即来自本地免费代理；<code>default_model</code> 已自动指向首个工具模型。</p></li>
           </ol>
           <figure class="client-shot" aria-label="Kimi CLI 配置托管区块示意">
-            <figcaption><span></span><span></span><span></span><b>~/.kimi/config.toml</b></figcaption>
+            <figcaption><span></span><span></span><span></span><b>~/.kimi-code/config.toml</b></figcaption>
             <pre><code># &gt;&gt;&gt; open-free-router managed &gt;&gt;&gt;
 [providers.open-free-router]
-type = "openai_legacy"
+type = "openai"
 base_url = "http://127.0.0.1:8337/v1"
 
-[models.ofr-gq-gpt-oss-120b]
+[models.ofr-nova-glm-5-2]
 provider = "open-free-router"
-model = "gq/gpt-oss-120b"
+model = "nova/glm-5.2"
+display_name = "glm-5.2（来源：SenseNova）"
 # &lt;&lt;&lt; open-free-router managed &lt;&lt;&lt;</code></pre>
             <p class="shot-note">✓ 标记区块整体替换 · 用户手写内容不动 · <code>--model</code> 启动参数优先级最高</p>
           </figure>
