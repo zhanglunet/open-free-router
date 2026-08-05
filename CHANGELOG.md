@@ -70,6 +70,20 @@
   on every run, so it is opt-in and the `serve` scheduler never enables it; a
   skipped model is simply not adopted this round and is offered again next
   refresh.
+- A reset declared in the response headers now sets the cooldown for any
+  rate-limited response, not only the ones whose body happened to say "quota".
+  Groq reports an exhausted daily token budget as a plain "Rate limit reached
+  ... tokens per day", which matched no marker and fell back to the 60-second
+  default, so the router retried against a day-long budget all day. Headers are
+  structured evidence in a way error prose is not; a declared reset is capped at
+  24 hours so one bad header cannot park a credential.
+- A 403 is now scoped to the model, not the credential. Providers return it for a
+  model the account is not entitled to — NVIDIA NIM gates several that way — and
+  classifying it as `credential_invalid` took every other model on that provider
+  down with the one that was refused. The refused model is locked out; the
+  credential is only convicted once three distinct models on the same slot have
+  been refused, which is evidence rather than error-body vocabulary. A success
+  clears that accumulated evidence.
 - README documents the `.bak-YYYYMMDD-HHMMSS` snapshots and their 10-file
   retention, which previously appeared only in `AGENTS.md`.
 - Reported in `docs/testing-feedback-2026-08.md` (P1, P2, P3, minor note 2).
