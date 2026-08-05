@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Resilience recovery
+
+- A 429 no longer disables a credential permanently. Quota-flavoured wording
+  ("quota"/"credit"/"balance") still earns an eight-times-longer cooldown, but
+  never a terminal stop — that wording is ordinary rate-limit copy, and treating
+  it as proof of exhaustion took two healthy providers offline in field testing
+  until an operator ran `/api/resilience/reset` by hand.
+- `terminal` is now a long stop rather than a one-way door. After a backoff
+  window one request is let through to re-test the condition; a success clears
+  the state and a failure doubles the window up to 8×. A rotated API key
+  therefore recovers on its own, without the manager storing anything derived
+  from the credential.
+- Runtime state written before this change reloads with a bounded window instead
+  of inheriting a permanent stop.
+- A 503 now says why nothing was attempted. When every candidate was skipped for
+  want of an API key the router returns a `configuration_error` naming
+  `open-free-router setup`, instead of the same opaque "temporarily unavailable"
+  used for genuinely failing upstreams; mixed cases list the distinct reasons.
+- Reported in `docs/testing-feedback-2026-08.md` (P1, P3).
+
 ### Data freshness (M2)
 
 - Provider availability on `/api/catalog` is now derived from the model evidence
