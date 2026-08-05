@@ -6,17 +6,47 @@
 
 - Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
   10-provider / 44-model deployment. Highlights a P1 false-positive: a transient
-  upstream 429 whose body mentions "quota"/"credit"/"balance" is classified as
-  `quota_exhausted` with `credential_terminal=True` and **permanently** disables an
+  upstream 429 whose body mentions "quota"/"credit"/"balance" was classified as
+  `quota_exhausted` with `credential_terminal=True` and **permanently** disabled an
   otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
   dead until a manual `/api/resilience/reset`, while their upstreams were alive).
-  More broadly, `terminal` has no exit but an operator reset — `record_success`
-  skips it, reload preserves it, and it is keyed by credential *slot*, so rotating
-  in a new key does not clear it either. Also documents P2 (`refresh` adopts models
-  that `/models` lists but that are not reachable, e.g. `groq/compound-mini`,
-  `z-ai/glm-5.2`) and P3 (`credential_missing` is computed but never surfaced, so an
-  unconfigured provider 503s indistinguishably from a genuinely down one). No code
-  changes in this PR — findings and proposed fixes only, for maintainer triage.
+  More broadly, `terminal` had no exit but an operator reset — `record_success`
+  skipped it, reload preserved it, and it is keyed by credential *slot*, so
+  rotating in a new key did not clear it either. Also documents P2 (`refresh`
+  adopts models that `/models` lists but that are not reachable, e.g.
+  `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (`credential_missing` is computed
+  but never surfaced, so an unconfigured provider 503s indistinguishably from a
+  genuinely down one). The fixes ship in the same cycle — see below.
+
+### Resilience recovery
+
+- A 429 no longer disables a credential permanently. Quota-flavoured wording
+  ("quota"/"credit"/"balance") still earns an eight-times-longer cooldown, but
+  never a terminal stop — that wording is ordinary rate-limit copy, and treating
+  it as proof of exhaustion took two healthy providers offline in field testing
+  until an operator ran `/api/resilience/reset` by hand.
+- `terminal` is now a long stop rather than a one-way door. After a backoff
+  window one request is let through to re-test the condition; a success clears
+  the state and a failure doubles the window up to 8×. A rotated API key
+  therefore recovers on its own, without the manager storing anything derived
+  from the credential.
+- Runtime state written before this change reloads with a bounded window instead
+  of inheriting a permanent stop.
+- A 503 now says why nothing was attempted. When every candidate was skipped for
+  want of an API key the router returns a `configuration_error` naming
+  `open-free-router setup`, instead of the same opaque "temporarily unavailable"
+  used for genuinely failing upstreams; mixed cases list the distinct reasons.
+- `refresh --probe-new` validates models that are not yet in the registry with a
+  real 1-token request before adopting them, so `GET /models` listing a model no
+  longer implies `/chat/completions` accepts it. Pre-existing models are never
+  re-probed, a probe that could not reach the upstream adopts rather than
+  rejects, and a provider is never emptied by probing. It spends free-tier quota
+  on every run, so it is opt-in and the `serve` scheduler never enables it; a
+  skipped model is simply not adopted this round and is offered again next
+  refresh.
+- README documents the `.bak-YYYYMMDD-HHMMSS` snapshots and their 10-file
+  retention, which previously appeared only in `AGENTS.md`.
+- Reported in `docs/testing-feedback-2026-08.md` (P1, P2, P3, minor note 2).
 
 ### Data freshness (M2)
 

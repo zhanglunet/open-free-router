@@ -103,6 +103,7 @@ ofr serve
 | `open-free-router serve` | **★ One command:** proxy(8337) + UI(9057) + scheduler(12h) |
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
 | `open-free-router refresh [--source NAME] [--dry-run]` | Refresh free models from APIs |
+| `open-free-router refresh --probe-new` | Same, but adopt a new model only if a real 1-token request succeeds. Spends free-tier quota, so it is off by default and the scheduler never runs it |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | Add a provider |
 | `open-free-router sync --agent codex,claude,kimi,…` | Sync 9 client configs; `--codex-model` / `--claude-model` pick defaults |
 | `open-free-router mcp [--print-config]` | Built-in MCP stdio server; print host registration snippets |
@@ -176,6 +177,7 @@ First `serve` auto-creates config + registry from defaults — no manual setup n
 - On first start, the dashboard generates a random token at `<config dir>/ui.token` (mode 0600). The browser will prompt for it once per session when you save config, add a provider, or trigger a refresh. Requests without a valid token get a 401.
 - The inference proxy generates a separate `<config dir>/proxy.token` (mode 0600). Every inference POST requires that bearer token. Synced agent configs receive only this local token, never an upstream provider key.
 - `registry.yaml` stores provider API keys **in plaintext** with mode 0600. Treat it and its backups as sensitive; never commit or share them.
+- Every write to `config.yaml` / `registry.yaml` first drops an atomic `.bak-YYYYMMDD-HHMMSS` snapshot beside the original, so recovering from a bad refresh or edit is one `cp` away. Only the 10 most recent snapshots per file are kept; older ones are pruned automatically.
 
 ## Architecture
 

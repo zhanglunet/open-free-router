@@ -42,7 +42,10 @@ class Daemon:
         interval_hours = self.cfg.refresh_interval_hours
         while not self._stop.wait(interval_hours * 3600):
             print(f"[scheduler] refreshing free models (every {interval_hours}h)...")
-            results = refresh(self.reg)
+            # Never probe on the schedule: validating candidates spends real
+            # free-tier quota every cycle and can trip the rate limits it is
+            # meant to detect. Operators opt in with `refresh --probe-new`.
+            results = refresh(self.reg, probe_new=False)
             if any(results.values()):
                 self.reg.save(self.cfg.registry_path)
                 rebuild_proxy_index()
