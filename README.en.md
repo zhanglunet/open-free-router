@@ -154,6 +154,10 @@ ui:
 
 refresh_interval_hours: 12
 
+sync:
+  exclude: []           # agents `serve` must not auto-sync, e.g. [claude];
+                        # excluded clients are still written by `sync --agent <name>`
+
 analytics:
   retention_days: 30
 

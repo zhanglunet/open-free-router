@@ -166,6 +166,9 @@ ui:
 
 refresh_interval_hours: 12
 
+sync:
+  exclude: []           # serve 自动同步时跳过的 agent，例如 [claude]；被跳过者仍可 sync --agent 手动写入
+
 discovery:
   enabled: true
   interval_hours: 24
@@ -351,9 +354,12 @@ claude                                        # 免费模型自动出现在 /mod
 
 代理在 `/v1/messages` 实现 Anthropic Messages API（含流式事件与工具调用），
 `ANTHROPIC_BASE_URL` 指向 `http://127.0.0.1:8337`，`ANTHROPIC_AUTH_TOKEN`
-只携带本地代理 token。合并写入保留 settings.json 其他设置；删除 env 块中
-`ANTHROPIC_*` 键即可恢复官方模型。`--claude-model` 或 config.yaml
-`claude.model` 指定主模型，默认取首个 `tool_calling: true` 模型。
+只携带本地代理 token。合并写入保留 settings.json 其他设置。`--claude-model`
+或 config.yaml `claude.model` 指定主模型，默认取首个 `tool_calling: true` 模型。
+
+要恢复官方模型，删除 env 块中的 `ANTHROPIC_*` 键**并**在 config.yaml 里设置
+`sync: {exclude: [claude]}`——否则 `serve` 启动和定时同步时会把这些键写回去。
+排除之后仍可用 `sync --agent claude` 随时手动切回来。
 
 ## MCP 接口
 

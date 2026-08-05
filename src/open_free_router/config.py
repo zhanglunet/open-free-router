@@ -54,6 +54,11 @@ class Config:
         self.discovery_max_providers = int(discovery.get("max_providers_per_cycle", 5))
         self.discovery_max_models = int(discovery.get("max_models_per_provider", 3))
 
+        # Agents that `serve` must not auto-sync. Listed clients keep whatever the
+        # user configured by hand; `sync --agent <name>` still writes them on demand.
+        # Empty by default, so the daemon keeps syncing everything it detects.
+        self.sync_exclude = list(self._raw.get("sync", {}).get("exclude", []) or [])
+
         # proxy upstream timeout
         self.upstream_timeout = int(self._raw.get("upstream_timeout", 120))
 
