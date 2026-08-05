@@ -257,3 +257,37 @@ def test_explicit_keyless_route_omits_authorization_header():
             result.close()
     finally:
         server.shutdown()
+
+
+def test_unconfigured_provider_is_distinguishable_from_a_broken_one():
+    """A missing key and a failing upstream used to return the same opaque 503."""
+    from open_free_router.executor import _unavailable_body
+
+    unconfigured = json.loads(
+        _unavailable_body("or/gemma-4-26b:free", [
+            {"model": "or/gemma-4-26b:free", "reason": "credential_missing"},
+        ])
+    )["error"]
+    assert unconfigured["reason"] == "credential_missing"
+    assert unconfigured["type"] == "configuration_error"
+    assert "open-free-router setup" in unconfigured["message"]
+
+    broken = json.loads(
+        _unavailable_body("gai/gemini-2.5-flash", [
+            {"model": "gai/gemini-2.5-flash", "reason": "provider_circuit_open"},
+        ])
+    )["error"]
+    assert broken["type"] == "upstream_error"
+    assert "reason" not in broken
+    assert broken["reasons"] == ["provider_circuit_open"]
+
+    mixed = json.loads(
+        _unavailable_body("auto", [
+            {"model": "a", "reason": "credential_missing"},
+            {"model": "b", "reason": "credential_cooldown"},
+            {"model": "c", "reason": "credential_missing"},
+        ])
+    )["error"]
+    assert mixed["type"] == "upstream_error"
+    assert mixed["reasons"] == ["credential_cooldown", "credential_missing"]
+    assert "open-free-router setup" in mixed["message"]

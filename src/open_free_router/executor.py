@@ -85,6 +85,38 @@ def _error_body(message: str) -> bytes:
     return json.dumps({"error": {"message": safe, "type": "upstream_error"}}).encode()
 
 
+def _unavailable_body(requested_model: str, rejected: list[dict[str, str]]) -> bytes:
+    """Explain why nothing was attempted, so unconfigured never looks like broken.
+
+    The router already knows the difference between a provider with no key and
+    one that is genuinely failing; both used to return the same opaque 503.
+    Reasons are bounded internal tokens and carry no provider identity, and the
+    proxy is already token-authenticated, so naming them is safe here.
+    """
+    reasons = sorted({str(item.get("reason", "")) for item in rejected} - {""})
+    if reasons == ["credential_missing"]:
+        return json.dumps({"error": {
+            "message": (
+                f"No API key is configured for any provider serving model "
+                f"'{requested_model}'. Run 'open-free-router setup' to add one."
+            ),
+            "type": "configuration_error",
+            "reason": "credential_missing",
+        }}).encode()
+    body = {
+        "message": f"All routes for model '{requested_model}' are temporarily unavailable.",
+        "type": "upstream_error",
+    }
+    if reasons:
+        body["reasons"] = reasons[:8]
+        if "credential_missing" in reasons:
+            body["message"] += (
+                " Some candidates have no API key configured; run"
+                " 'open-free-router setup' to add one."
+            )
+    return json.dumps({"error": body}).encode()
+
+
 class UpstreamExecutor:
     """Open one upstream response, trying safe alternatives before returning."""
 
@@ -389,7 +421,7 @@ class UpstreamExecutor:
         result = RouteFailure(
             request_id,
             503,
-            _error_body(f"All routes for model '{requested_model}' are temporarily unavailable."),
+            _unavailable_body(requested_model, rejected),
             "application/json",
             None,
             attempts,
