@@ -51,8 +51,6 @@
   default, so the router retried against a day-long budget all day. Headers are
   structured evidence in a way error prose is not; a declared reset is capped at
   24 hours so one bad header cannot park a credential.
-- README documents the `.bak-YYYYMMDD-HHMMSS` snapshots and their 10-file
-  retention, which previously appeared only in `AGENTS.md`.
 - A 403 is now scoped to the model, not the credential. Providers return it for a
   model the account is not entitled to — NVIDIA NIM gates several that way — and
   classifying it as `credential_invalid` took every other model on that provider
@@ -60,6 +58,8 @@
   credential is only convicted once three distinct models on the same slot have
   been refused, which is evidence rather than error-body vocabulary. A success
   clears that accumulated evidence.
+- README documents the `.bak-YYYYMMDD-HHMMSS` snapshots and their 10-file
+  retention, which previously appeared only in `AGENTS.md`.
 - Reported in `docs/testing-feedback-2026-08.md` (P1, P2, P3, minor note 2).
 
 ### Data freshness (M2)
