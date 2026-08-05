@@ -706,6 +706,7 @@ def sync_kimi(
     default_alias = ""
     preferred_default_alias = ""
     demoted_default: set[str] = set()
+    demoted_tool_alias = ""
     for p in reg.providers.values():
         for m in p.models:
             provider_model_id = f"{p.name}/{m.id}"
@@ -738,16 +739,24 @@ def sync_kimi(
                 default_alias = alias
             elif m.tool_calling and p.name in KIMI_UNSAFE_DEFAULT_PROVIDERS:
                 demoted_default.add(p.name)
+                if not demoted_tool_alias:
+                    demoted_tool_alias = alias
             changes.append(alias)
-    if demoted_default and default_alias:
+    if preferred_default_alias:
+        default_alias = preferred_default_alias
+    if not default_alias:
+        # Demotion must not cost the guarantee that the default can call tools.
+        # When every tool-calling route belongs to a demoted provider, one of
+        # those still beats the blind fallback below, which would otherwise hand
+        # Kimi a model the registry says cannot call tools at all.
+        default_alias = demoted_tool_alias
+    if not default_alias and changes:
+        default_alias = changes[0]
+    if demoted_default and default_alias and default_alias != demoted_tool_alias:
         print(
             f"  ⚠ {', '.join(sorted(demoted_default))} kept but not made default: "
             "Kimi's bootstrap prompt can exceed the free-tier per-minute budget there"
         )
-    if preferred_default_alias:
-        default_alias = preferred_default_alias
-    if not default_alias and changes:
-        default_alias = changes[0]
     if len(changes) != len(set(changes)):
         raise ValueError("Kimi model aliases collide; use distinct provider prefixes/model IDs")
     lines.append(KIMI_BLOCK_END)

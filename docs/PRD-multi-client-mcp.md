@@ -71,9 +71,14 @@ Codex、Claude Code、Kimi CLI、OpenClaw、WorkBuddy）共享注册表内全部
    块内 `[providers.open-free-router]`（`openai`）+ 每模型
    `[models.ofr-*]`；每个 Kimi 显示名追加“来源：提供商”；顶层
    `default_model` 仅在缺失或已指向 `ofr-*` 别名时设置；用户注释与
-   自有 provider 原样保留。`--kimi-available-only` 从最新 Live Probe
-   快照读取 `ok: true` 模型，只写入实测可用集合，并排除对 Kimi Code
-   重提示不安全的免费 Groq 模型。
+   自有 provider 原样保留（用户自己写的 `[models.*]` 即使指向本路由也
+   不删除；仅回收本工具自身别名形状的历史遗留表）。
+   `--kimi-available-only` 从 Live Probe 快照读取 **45 分钟内** `ok: true`
+   的模型，只写入实测可用集合；证据过期时报错并提示重跑探测，而非沿用
+   旧结果；`kimi` 不在 `--agent` 内时直接拒绝该参数。对 Kimi Code 重提示
+   不安全的免费 Groq 模型仍会写入配置、保持可选，只是不被选为
+   `default_model`——但当它是唯一支持工具调用的路由时仍会被选中，因为
+   不可用的默认值比不安全的默认值更糟。
 8. `sync --agent openclaw`：JSON5 宽容解析；`models.providers` 去重
    （移除指向本地代理的旧条目）后写入静态模型数组（含 `cost` 零价、
    `contextWindow`、`maxTokens`）；`agents.defaults.model.primary` 仅在

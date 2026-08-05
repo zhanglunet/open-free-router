@@ -369,6 +369,9 @@ def test_sync_all_reaches_new_agents_explicitly(tmp_path):
     paths = {
         "CLAUDE_SETTINGS": tmp_path / "claude" / "settings.json",
         "KIMI_CONFIG": tmp_path / "kimi" / "config.toml",
+        # Pinned too: KIMI_CONFIG's parent does not exist here, which is exactly
+        # the condition that sends sync_kimi to the legacy path.
+        "KIMI_LEGACY_CONFIG": tmp_path / "kimi-legacy" / "config.toml",
         "OPENCLAW_CONFIG": tmp_path / "openclaw" / "openclaw.json",
         "WORKBUDDY_MODELS": tmp_path / "wb" / "models.json",
         "BACKUP_DIR": tmp_path / "backup",
@@ -376,6 +379,7 @@ def test_sync_all_reaches_new_agents_explicitly(tmp_path):
     with (
         patch("open_free_router.sync.CLAUDE_SETTINGS", paths["CLAUDE_SETTINGS"]),
         patch("open_free_router.sync.KIMI_CONFIG", paths["KIMI_CONFIG"]),
+        patch("open_free_router.sync.KIMI_LEGACY_CONFIG", paths["KIMI_LEGACY_CONFIG"]),
         patch("open_free_router.sync.OPENCLAW_CONFIG", paths["OPENCLAW_CONFIG"]),
         patch("open_free_router.sync.WORKBUDDY_MODELS", paths["WORKBUDDY_MODELS"]),
         patch("open_free_router.sync.BACKUP_DIR", paths["BACKUP_DIR"]),
@@ -469,3 +473,51 @@ def test_kimi_sync_still_defaults_to_an_unsafe_provider_when_it_is_all_there_is(
         sync_kimi(reg, proxy_token="local-proxy-token", explicit=True)
     data = tomllib.loads(config.read_text())
     assert data["default_model"] == "ofr-gq-gpt-oss"
+
+
+def test_demoted_provider_still_supplies_a_tool_calling_default(tmp_path):
+    """Demotion must not cost the guarantee that the default can call tools.
+
+    The shipped groq block lists a non-tool-calling model first, so a blind
+    changes[0] fallback hands Kimi a model the registry says cannot call tools.
+    """
+    config = tmp_path / "config.toml"
+    reg = Registry({
+        "groq": {
+            "upstream_url": "https://api.groq.com/openai/v1",
+            "api_key": "k", "prefix": "gq",
+            "models": [
+                {"id": "llama-70b", "name": "Llama"},                      # no tools
+                {"id": "gpt-oss", "name": "GPT OSS", "tool_calling": True},
+            ],
+        }
+    })
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(reg, proxy_token="local-proxy-token", explicit=True)
+    data = tomllib.loads(config.read_text())
+    assert data["default_model"] == "ofr-gq-gpt-oss"
+
+
+def test_unsafe_provider_models_survive_the_available_only_filter(tmp_path):
+    """The Groq fix keeps the models; only the default choice avoids them."""
+    config = tmp_path / "config.toml"
+    reg = Registry({
+        "groq": {
+            "upstream_url": "https://api.groq.com/openai/v1",
+            "api_key": "k", "prefix": "gq",
+            "models": [{"id": "gpt-oss", "name": "GPT OSS", "tool_calling": True}],
+        },
+        "nvidia-nim": {
+            "upstream_url": "https://integrate.api.nvidia.com/v1",
+            "api_key": "k", "prefix": "nv",
+            "models": [{"id": "nemotron", "name": "Nemotron", "tool_calling": True}],
+        },
+    })
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(
+            reg, proxy_token="local-proxy-token", explicit=True,
+            include_model_ids={"groq/gpt-oss", "nvidia-nim/nemotron"},
+        )
+    data = tomllib.loads(config.read_text())
+    assert "ofr-gq-gpt-oss" in data["models"]
+    assert data["default_model"] == "ofr-nv-nemotron"
