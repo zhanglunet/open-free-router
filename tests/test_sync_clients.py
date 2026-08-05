@@ -99,11 +99,14 @@ def test_kimi_sync_writes_valid_toml_managed_block(tmp_path):
     assert "# user comment" in text                     # user content preserved
     assert data["providers"]["mine"]["type"] == "kimi"  # user provider intact
     ofr = data["providers"]["open-free-router"]
-    assert ofr["type"] == "openai_legacy"
+    assert ofr["type"] == "openai"
     assert ofr["base_url"] == "http://127.0.0.1:8337/v1"
     assert ofr["api_key"] == "local-proxy-token"
     assert data["models"]["ofr-gq-gpt-oss"]["model"] == "gq/gpt-oss"
     assert data["models"]["ofr-gq-gpt-oss"]["provider"] == "open-free-router"
+    assert data["models"]["ofr-gq-gpt-oss"]["max_output_size"] == 8192
+    assert data["models"]["ofr-gq-gpt-oss"]["capabilities"] == ["tool_use"]
+    assert data["models"]["ofr-gq-gpt-oss"]["display_name"] == "gpt-oss（来源：GroqCloud）"
     assert data["default_model"] == "ofr-gq-gpt-oss"    # tool-calling model chosen
     assert changed == ["ofr-gq-gpt-oss", "ofr-gq-llama-8b-mini"]
     assert "upstream-secret-must-not-leak" not in text
@@ -265,6 +268,62 @@ def test_kimi_sync_recovers_from_orphan_managed_block(tmp_path):
     tomllib.loads(text)  # must parse
     assert text.count("[providers.open-free-router]") == 1
     assert "# user" in text
+
+
+def test_kimi_sync_adopts_unmanaged_router_tables_without_duplicates(tmp_path):
+    config = tmp_path / "config.toml"
+    config.write_text(
+        'default_model = "open-free-router/old"\n'
+        '[providers.mine]\n'
+        'type = "openai"\n'
+        '[providers.open-free-router]\n'
+        'type = "openai"\n'
+        'api_key = "stale-token"\n'
+        'base_url = "http://127.0.0.1:8337/v1"\n'
+        '[models."open-free-router/old"]\n'
+        'provider = "open-free-router"\n'
+        'model = "gq/old"\n'
+        '[models.mine]\n'
+        'provider = "mine"\n'
+        'model = "kept"\n'
+    )
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(_registry(), proxy_token="local-proxy-token", explicit=True)
+    text = config.read_text()
+    data = tomllib.loads(text)
+    assert text.count("[providers.open-free-router]") == 1
+    assert "stale-token" not in text
+    assert "open-free-router/old" not in data["models"]
+    assert data["providers"]["mine"]["type"] == "openai"
+    assert data["models"]["mine"]["provider"] == "mine"
+    assert data["providers"]["open-free-router"]["api_key"] == "local-proxy-token"
+    assert data["default_model"] == "ofr-gq-gpt-oss"
+
+
+def test_kimi_sync_can_include_only_probe_available_models(tmp_path):
+    config = tmp_path / "config.toml"
+    reg = Registry({
+        "nvidia-nim": {
+            "upstream_url": "https://integrate.api.nvidia.com/v1",
+            "api_key": "upstream-secret-must-not-leak",
+            "prefix": "nv",
+            "models": [
+                {"id": "glm-5.2", "name": "GLM-5.2", "tool_calling": True},
+                {"id": "slow-one", "name": "Slow One"},
+            ],
+        }
+    })
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        changed = sync_kimi(
+            reg,
+            proxy_token="local-proxy-token",
+            explicit=True,
+            include_model_ids={"nvidia-nim/glm-5.2"},
+        )
+    data = tomllib.loads(config.read_text())
+    assert changed == ["ofr-nv-glm-5-2"]
+    assert "ofr-nv-slow-one" not in data["models"]
+    assert data["models"]["ofr-nv-glm-5-2"]["display_name"] == "GLM-5.2（来源：NVIDIA NIM）"
 
 
 def test_openclaw_sync_keeps_user_selected_router_model(tmp_path):

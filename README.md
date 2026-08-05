@@ -52,7 +52,7 @@ bash "$f" --codex --auto-discovery
 | **Claude Code** | Anthropic Messages | `sync --agent claude` | `~/.claude/settings.json` `env` 块（合并写入） |
 | **OpenCode** | Chat Completions | `sync --agent opencode` | `~/.config/opencode/opencode.jsonc` |
 | **Hermes** | Chat Completions | `sync --agent hermes` | `~/.hermes/config.yaml`（模型运行时自动发现） |
-| **Kimi CLI**（kimi code） | Chat Completions | `sync --agent kimi` | `~/.kimi/config.toml`（托管标记块） |
+| **Kimi CLI**（kimi code） | Chat Completions | `sync --agent kimi` | `~/.kimi-code/config.toml`（托管标记块；旧版回退 `~/.kimi/config.toml`） |
 | **OpenClaw** | Chat Completions | `sync --agent openclaw` | `~/.openclaw/openclaw.json`（静态模型目录） |
 | **WorkBuddy** | Chat Completions | `sync --agent workbuddy` | `~/.workbuddy/models.json`（重启生效） |
 | **Pi / OMP** | Chat Completions | serve 自动维护 | `~/.pi/agent/models.json` / `~/.omp/agent/models.yml` |
@@ -113,6 +113,7 @@ ofr serve
 | `open-free-router discover --test --adopt` | 用声明的环境变量实测候选，只接入真实成功模型 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
 | `open-free-router sync --agent codex,claude,kimi,…` | 同步 9 个客户端配置；`--codex-model` / `--claude-model` 指定默认模型 |
+| `open-free-router sync --agent kimi --kimi-available-only` | Kimi Code 只写入最近 Live Probe 实测可用的模型，并在显示名标注来源 |
 | `open-free-router mcp [--print-config]` | 内置 MCP stdio 服务器；`--print-config` 打印宿主注册片段 |
 | `open-free-router status [--json]` | 一屏健康摘要（注册表 / 密钥 / 端口可达性） |
 | `open-free-router models [--json]` | 列出全部模型与能力标记（T=工具 R=推理） |

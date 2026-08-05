@@ -1,9 +1,35 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-03T14:19:12.721Z",
+  "updated_at": "2026-08-04T23:19:56.324Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-05-kimi-code-模型来源标注与可用筛选",
+      "date": "2026-08-05",
+      "type": "improvement",
+      "version": "开发更新",
+      "title": "Kimi Code 模型来源标注与可用筛选",
+      "summary": "Kimi Code 同步增加 open-free-router 来源标注，并支持只写入 Live Probe 实测可用模型，减少切到坏模型或限流模型的概率。",
+      "items": [
+        "Kimi 模型显示名加入来源提供商",
+        "新增 --kimi-available-only 读取探测快照过滤模型",
+        "补充同步测试覆盖来源标注与可用筛选"
+      ]
+    },
+    {
+      "id": "2026-08-05-修复-kimi-code-新版配置接入",
+      "date": "2026-08-05",
+      "type": "improvement",
+      "version": "开发更新",
+      "title": "修复 Kimi Code 新版配置接入",
+      "summary": "Kimi Code 0.32 使用 ~/.kimi-code/config.toml，修正同步路径并接管旧 open-free-router 配置块，避免本地代理 token 失效。",
+      "items": [
+        "同步目标改为新版 Kimi Code 配置路径，并保留旧版回退",
+        "接管旧手工 open-free-router provider/models，防止重复 TOML 表",
+        "模型配置补充输出上限、能力标记和中文友好显示"
+      ]
+    },
     {
       "id": "2026-08-03-移除-gitee-ai-并按上游回复识别账号级错误",
       "date": "2026-08-03",

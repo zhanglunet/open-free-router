@@ -180,6 +180,20 @@ def cmd_sync(args):
         agents = [a.strip() for a in args.agent.split(",")]
 
     do_write = not args.diff
+    kimi_include_model_ids = None
+    if getattr(args, "kimi_available_only", False):
+        from open_free_router.probe import load_probe_snapshot
+        snapshot = load_probe_snapshot(cfg.data_dir / "probe-results.json")
+        results = snapshot.get("results", {}) if isinstance(snapshot, dict) else {}
+        kimi_include_model_ids = {
+            key for key, result in results.items()
+            if isinstance(key, str) and isinstance(result, dict) and result.get("ok") is True
+        }
+        if not kimi_include_model_ids:
+            raise SystemExit(
+                "No available model evidence found in probe-results.json; "
+                "run the dashboard Live Status probe first."
+            )
     results = sync_all(
         reg,
         do_write=do_write,
@@ -188,6 +202,7 @@ def cmd_sync(args):
         proxy_token=proxy_token,
         codex_model=args.codex_model or cfg.codex_model,
         claude_model=args.claude_model or cfg.claude_model,
+        kimi_include_model_ids=kimi_include_model_ids,
     )
 
     label = "DIFF" if args.diff else "SYNC"
@@ -719,6 +734,11 @@ def main():
     p_sync.add_argument("--diff", action="store_true", help="show diff only, don't write")
     p_sync.add_argument("--codex-model", help="registry model ID for the Codex profile")
     p_sync.add_argument("--claude-model", help="registry model ID for Claude Code's main model")
+    p_sync.add_argument(
+        "--kimi-available-only",
+        action="store_true",
+        help="for Kimi Code, include only models that passed the latest Live Status probe",
+    )
     p_sync.set_defaults(func=cmd_sync)
 
     p_token = sub.add_parser("token", help="print the local inference proxy token")
