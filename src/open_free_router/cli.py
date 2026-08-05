@@ -182,19 +182,31 @@ def cmd_sync(args):
     do_write = not args.diff
     kimi_include_model_ids = None
     if getattr(args, "kimi_available_only", False):
-        from open_free_router.probe import load_probe_snapshot
-        snapshot = load_probe_snapshot(cfg.data_dir / "probe-results.json")
-        results = snapshot.get("results", {}) if isinstance(snapshot, dict) else {}
-        kimi_include_model_ids = {
-            key for key, result in results.items()
-            if isinstance(key, str) and isinstance(result, dict) and result.get("ok") is True
-        }
-        if not kimi_include_model_ids:
+        # The filter only reaches sync_kimi, so refuse rather than silently
+        # doing nothing (or aborting an unrelated agent's sync) when Kimi is
+        # not among the selected clients.
+        if agents is not None and "kimi" not in agents:
             raise SystemExit(
-                "No available model evidence found in probe-results.json; "
-                "run the dashboard Live Status probe first."
+                "--kimi-available-only applies to the kimi client; "
+                "add kimi to --agent or drop the flag."
             )
-    results = sync_all(
+        from open_free_router.probe import (
+            EVIDENCE_MAX_AGE_SECONDS, available_model_ids, load_probe_snapshot,
+        )
+        snapshot = load_probe_snapshot(cfg.data_dir / "probe-results.json")
+        kimi_include_model_ids, stale = available_model_ids(snapshot)
+        if not kimi_include_model_ids:
+            minutes = int(EVIDENCE_MAX_AGE_SECONDS // 60)
+            raise SystemExit(
+                f"No model has passed a Live Status probe in the last {minutes} minutes"
+                + (
+                    f"; {stale} earlier success(es) are too old to prove availability now. "
+                    "Re-run the dashboard Live Status probe."
+                    if stale else
+                    ". Run the dashboard Live Status probe first."
+                )
+            )
+    synced = sync_all(
         reg,
         do_write=do_write,
         agents=agents,
@@ -207,7 +219,7 @@ def cmd_sync(args):
 
     label = "DIFF" if args.diff else "SYNC"
     print(f"\n=== {label} ===")
-    for agent, changes in results.items():
+    for agent, changes in synced.items():
         status = "✔" if do_write else "?"
         print(f"  {status} {agent}: {changes}")
 

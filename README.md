@@ -113,7 +113,7 @@ ofr serve
 | `open-free-router discover --test --adopt` | 用声明的环境变量实测候选，只接入真实成功模型 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
 | `open-free-router sync --agent codex,claude,kimi,…` | 同步 9 个客户端配置；`--codex-model` / `--claude-model` 指定默认模型 |
-| `open-free-router sync --agent kimi --kimi-available-only` | Kimi Code 只写入最近 Live Probe 实测可用的模型，并在显示名标注来源 |
+| `open-free-router sync --agent kimi --kimi-available-only` | Kimi Code 只写入 45 分钟内 Live Probe 实测可用的模型，并在显示名标注来源；证据过期会报错而非沿用旧结果 |
 | `open-free-router mcp [--print-config]` | 内置 MCP stdio 服务器；`--print-config` 打印宿主注册片段 |
 | `open-free-router status [--json]` | 一屏健康摘要（注册表 / 密钥 / 端口可达性） |
 | `open-free-router models [--json]` | 列出全部模型与能力标记（T=工具 R=推理） |

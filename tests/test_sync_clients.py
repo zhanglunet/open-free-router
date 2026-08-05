@@ -391,3 +391,81 @@ def test_sync_all_reaches_new_agents_explicitly(tmp_path):
         assert not any(str(c).startswith("ERROR") for c in changes), results
     for key in ("CLAUDE_SETTINGS", "KIMI_CONFIG", "OPENCLAW_CONFIG", "WORKBUDDY_MODELS"):
         assert paths[key].exists()
+
+
+def test_kimi_sync_keeps_a_user_authored_table_that_points_at_the_router(tmp_path):
+    """Aiming a personal alias at the local proxy is the user's call, not ours."""
+    config = tmp_path / "config.toml"
+    config.write_text(
+        '[providers.open-free-router]\n'
+        'type = "openai"\n'
+        'api_key = "stale-token"\n'
+        '[models."ofr-gq-retired"]\n'
+        'provider = "open-free-router"\n'
+        'model = "gq/retired"\n'
+        '[models.my-favourite]\n'
+        'provider = "open-free-router"\n'
+        'model = "gq/gpt-oss"\n'
+        'max_context_size = 4096\n'
+    )
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(_registry(), proxy_token="local-proxy-token", explicit=True)
+    data = tomllib.loads(config.read_text())
+    # Ours by alias shape, so reclaimed rather than duplicated.
+    assert "ofr-gq-retired" not in data["models"]
+    assert "stale-token" not in config.read_text()
+    # Theirs, even though it names us.
+    assert data["models"]["my-favourite"]["model"] == "gq/gpt-oss"
+
+
+def test_kimi_sync_falls_back_to_legacy_config_on_an_explicit_sync(tmp_path):
+    """`sync --agent kimi` is explicit; it must not start a rival config."""
+    legacy = tmp_path / "kimi" / "config.toml"
+    legacy.parent.mkdir(parents=True)
+    legacy.write_text("# user comment\n")
+    modern = tmp_path / "kimi-code" / "config.toml"
+    with patch("open_free_router.sync.KIMI_CONFIG", modern), \
+         patch("open_free_router.sync.KIMI_LEGACY_CONFIG", legacy):
+        sync_kimi(_registry(), proxy_token="local-proxy-token", explicit=True)
+    assert not modern.exists()
+    assert "open-free-router" in legacy.read_text()
+    assert "# user comment" in legacy.read_text()
+
+
+def test_kimi_sync_keeps_unsafe_default_providers_but_does_not_choose_them(tmp_path):
+    config = tmp_path / "config.toml"
+    reg = Registry({
+        "groq": {
+            "upstream_url": "https://api.groq.com/openai/v1",
+            "api_key": "k", "prefix": "gq",
+            "models": [{"id": "gpt-oss", "name": "GPT OSS", "tool_calling": True}],
+        },
+        "nvidia-nim": {
+            "upstream_url": "https://integrate.api.nvidia.com/v1",
+            "api_key": "k", "prefix": "nv",
+            "models": [{"id": "nemotron", "name": "Nemotron", "tool_calling": True}],
+        },
+    })
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(reg, proxy_token="local-proxy-token", explicit=True)
+    data = tomllib.loads(config.read_text())
+    # Still selectable...
+    assert "ofr-gq-gpt-oss" in data["models"]
+    # ...but a working provider wins the default.
+    assert data["default_model"] == "ofr-nv-nemotron"
+
+
+def test_kimi_sync_still_defaults_to_an_unsafe_provider_when_it_is_all_there_is(tmp_path):
+    """An imperfect default beats leaving the user with none."""
+    config = tmp_path / "config.toml"
+    reg = Registry({
+        "groq": {
+            "upstream_url": "https://api.groq.com/openai/v1",
+            "api_key": "k", "prefix": "gq",
+            "models": [{"id": "gpt-oss", "name": "GPT OSS", "tool_calling": True}],
+        }
+    })
+    with patch("open_free_router.sync.KIMI_CONFIG", config):
+        sync_kimi(reg, proxy_token="local-proxy-token", explicit=True)
+    data = tomllib.loads(config.read_text())
+    assert data["default_model"] == "ofr-gq-gpt-oss"

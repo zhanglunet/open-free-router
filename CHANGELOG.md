@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### Kimi Code
+
+- Kimi Code's config moves to `~/.kimi-code/config.toml`. An existing
+  `~/.kimi/config.toml` keeps being used instead, including on an explicit
+  `sync --agent kimi`, so an upgrade does not leave a stale managed block behind
+  in a second file.
+- New `sync --agent kimi --kimi-available-only` writes only models that passed a
+  Live Status probe **within the last 45 minutes** — the same window the
+  published status view ages evidence on. Older successes are reported as stale
+  and refuse the sync rather than being replayed as a claim about the present.
+  The flag is rejected up front when Kimi is not among the selected clients.
+- Model entries gain `max_output_size`, `capabilities` and a `display_name`
+  naming the upstream source.
+- Tables that earlier versions wrote outside the managed block are reclaimed
+  instead of duplicated. Only this tool's own alias shapes (`ofr-*`,
+  `open-free-router/*`) qualify: a model table the user wrote themselves is left
+  alone even when it points at the router, and whatever is reclaimed is named on
+  stdout rather than removed silently.
+- A provider whose per-minute budget cannot fit Kimi's bootstrap prompt is no
+  longer chosen as `default_model` when an alternative exists. It stays in the
+  config and stays selectable — dropping it would empty the config for anyone
+  whose only tool-calling routes are there, and would deny a paid tier routes
+  that work for it.
+- `install.sh` picks the newest Python 3.11+ on the system instead of assuming
+  `python3` is recent enough, which it often is not on macOS.
+
 ### Testing feedback (field report)
 
 - Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
