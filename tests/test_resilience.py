@@ -18,6 +18,51 @@ def test_failure_classification_keeps_scopes_separate():
     assert classify_failure(400, "invalid role").retryable is False
 
 
+def test_403_is_scoped_to_the_model_not_the_credential():
+    """401 is about the caller; 403 is about the resource being asked for."""
+    forbidden = classify_failure(403)
+    assert forbidden.model_lockout is True
+    assert forbidden.credential_terminal is False
+    assert forbidden.retryable is True
+    assert classify_failure(401).credential_terminal is True
+
+
+def test_one_forbidden_model_leaves_the_rest_of_the_provider_usable():
+    manager = ResilienceManager(model_cooldown=100)
+    manager.record_failure("nv", "z-ai/glm-5.2", classify_failure(403), now=100)
+    assert manager.can_attempt("nv", "z-ai/glm-5.2", now=101) == (False, "model_lockout")
+    # The credential is untouched, so every other model on the provider still runs.
+    assert manager.can_attempt("nv", "nvidia/nemotron-3-ultra", now=101) == (True, "ready")
+    assert manager.can_attempt("nv", "deepseek-ai/deepseek-v4-flash", now=101) == (True, "ready")
+
+
+def test_enough_forbidden_models_still_convicts_the_credential():
+    """A key that is refused everywhere is the key's fault, not each model's."""
+    manager = ResilienceManager(model_cooldown=100, credential_forbidden_threshold=3)
+    for index, model in enumerate(("m1", "m2")):
+        manager.record_failure("nv", model, classify_failure(403), now=100 + index)
+    assert manager.can_attempt("nv", "untouched", now=110) == (True, "ready")
+
+    manager.record_failure("nv", "m3", classify_failure(403), now=102)
+    blocked, reason = manager.can_attempt("nv", "untouched", now=110)
+    assert blocked is False and reason == "credential_credential_forbidden"
+    # Evidence is capped, and repeats of a known model do not re-convict.
+    manager.record_failure("nv", "m4", classify_failure(403), now=103)
+    assert len(manager.snapshot()["credentials"]["nv:slot-0"]["forbidden_models"]) == 3
+
+
+def test_a_working_key_clears_stale_forbidden_evidence():
+    manager = ResilienceManager(model_cooldown=100, credential_forbidden_threshold=3)
+    manager.record_failure("nv", "m1", classify_failure(403), now=100)
+    manager.record_failure("nv", "m2", classify_failure(403), now=101)
+    manager.record_success("nv", "nemotron", now=102)
+    assert manager.snapshot()["credentials"]["nv:slot-0"]["forbidden_models"] == []
+    # Two fresh refusals must not tip a slot that already proved itself.
+    manager.record_failure("nv", "m1", classify_failure(403), now=103)
+    manager.record_failure("nv", "m2", classify_failure(403), now=104)
+    assert manager.can_attempt("nv", "untouched", now=105) == (True, "ready")
+
+
 def test_rate_limit_and_quota_recover_on_different_timescales_but_both_recover():
     limited = classify_failure(429, "rate limited")
     exhausted = classify_failure(429, "quota exhausted")
