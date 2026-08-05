@@ -1,5 +1,6 @@
 import json
 import threading
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecutor
@@ -150,6 +151,49 @@ def test_bad_credential_switches_slot_without_switching_model():
             result.response.read()
         finally:
             result.close()
+    finally:
+        server.shutdown()
+
+
+def test_declared_reset_sets_the_cooldown_even_without_quota_wording():
+    """Groq reports an exhausted daily token budget as a plain rate limit.
+
+    The body says "Rate limit reached ... tokens per day" and contains none of
+    the words the classifier looks for, so this used to fall back to the 60s
+    default and retry against a day-long budget all day. The headers declare the
+    real reset, and headers are evidence in a way error prose is not.
+    """
+    class DailyBudgetHandler(_ConfiguredHandler):
+        def do_POST(self):
+            self.rfile.read(int(self.headers.get("Content-Length", 0)))
+            body = json.dumps({"error": {"message": (
+                "Rate limit reached for model `llama-3.3-70b-versatile` in "
+                "organization `org_x` service tier `on_demand` on tokens per day "
+                "(TPD): Limit 100000, Used 97507, Requested 3289."
+            )}}).encode()
+            self.send_response(429)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.send_header("X-RateLimit-Reset-Tokens", "1h")
+            self.end_headers()
+            self.wfile.write(body)
+
+    server = _start(DailyBudgetHandler)
+    try:
+        registry = Registry({
+            "provider": _provider(server.server_address[1], "p", ["placeholder"])
+        })
+        manager = ResilienceManager(credential_cooldown=60)
+        started = time.time()
+        result = UpstreamExecutor(
+            RoutePlanner(registry), manager, timeout=5
+        ).execute("p/model", "chat/completions", {"messages": []})
+        assert isinstance(result, RouteFailure)
+        state = manager.snapshot()["credentials"]["provider:slot-0"]
+        # No quota wording, so the kind stays rate_limited -- but the wait comes
+        # from the declared reset, not from the 60s default.
+        assert state["reason"] == "rate_limited"
+        assert state["cooldown_until"] - started > 3000
     finally:
         server.shutdown()
 
