@@ -29,6 +29,23 @@ def test_runtime_state_is_owner_only_atomic_and_restored(tmp_path):
     assert "upstream/model-b" in restored["models"]
 
 
+def test_legacy_terminal_state_reloads_with_a_bounded_probe_window(tmp_path):
+    """State written before terminal carried a window must not stay permanent."""
+    path = tmp_path / "runtime-state.json"
+    path.write_text(json.dumps({
+        "schema_version": 1,
+        "providers": {},
+        "models": [],
+        "credentials": [
+            {"provider": "p", "slot": 0, "state": "terminal", "reason": "quota_exhausted"},
+        ],
+    }))
+    manager = ResilienceManager(state_path=path, credential_terminal_probe=60)
+    now = time.time()
+    assert manager.can_attempt("p", "m", now=now)[0] is False
+    assert manager.can_attempt("p", "m", now=now + 61) == (True, "ready")
+
+
 def test_corrupt_runtime_state_is_quarantined_and_recovered(tmp_path):
     path = tmp_path / "runtime-state.json"
     path.write_text("{not-json")

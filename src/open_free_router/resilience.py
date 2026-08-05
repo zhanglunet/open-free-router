@@ -18,6 +18,7 @@ from datetime import timezone
 
 
 PROVIDER_FAILURE_CODES = frozenset({408, 500, 502, 503, 504})
+QUOTA_COOLDOWN_SCALE = 8.0
 CONTEXT_ERROR_MARKERS = (
     "context length",
     "context window",
@@ -35,6 +36,7 @@ class FailureDecision:
     credential_terminal: bool = False
     credential_cooldown: bool = False
     model_lockout: bool = False
+    cooldown_scale: float = 1.0
 
 
 def classify_failure(status: int, message: str = "") -> FailureDecision:
@@ -43,12 +45,17 @@ def classify_failure(status: int, message: str = "") -> FailureDecision:
     if status in PROVIDER_FAILURE_CODES:
         return FailureDecision("provider_unavailable", True, provider_failure=True)
     if status == 429:
+        # A 429 is retryable by definition. Quota-flavoured wording earns a much
+        # longer cooldown, but never a terminal stop: the words "quota", "credit"
+        # and "balance" are common in ordinary rate-limit copy, and treating them
+        # as proof of permanent exhaustion took healthy providers offline until an
+        # operator intervened by hand.
         quota = any(marker in lowered for marker in ("quota", "credit", "balance"))
         return FailureDecision(
             "quota_exhausted" if quota else "rate_limited",
-            retryable=not quota,
-            credential_cooldown=not quota,
-            credential_terminal=quota,
+            retryable=True,
+            credential_cooldown=True,
+            cooldown_scale=QUOTA_COOLDOWN_SCALE if quota else 1.0,
         )
     if status in (401, 403):
         return FailureDecision("credential_invalid", credential_terminal=True)
@@ -96,6 +103,9 @@ class CredentialState:
     reason: str = ""
     quota: dict = field(default_factory=dict)
     last_success_at: float = 0.0
+    terminal_since: float = 0.0
+    terminal_failures: int = 0
+    probe_in_flight: bool = False
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -145,11 +155,13 @@ class ResilienceManager:
         credential_cooldown: float = 60.0,
         model_cooldown: float = 120.0,
         state_path: str | Path | None = None,
+        credential_terminal_probe: float = 900.0,
     ):
         self.provider_threshold = max(1, int(provider_threshold))
         self.provider_cooldown = max(0.0, float(provider_cooldown))
         self.credential_cooldown = max(0.0, float(credential_cooldown))
         self.model_cooldown = max(0.0, float(model_cooldown))
+        self.credential_terminal_probe = max(0.0, float(credential_terminal_probe))
         self._providers: dict[str, ProviderState] = {}
         self._credentials: dict[tuple[str, int], CredentialState] = {}
         self._models: dict[tuple[str, str], ModelState] = {}
@@ -257,10 +269,23 @@ class ResilienceManager:
                 if active or quota or last_success_at:
                     if not active:
                         state, until = "ready", 0.0
+                    terminal = state == "terminal"
                     credentials[(str(item["provider"]), int(item.get("slot", 0)))] = (
                         CredentialState(
                             state, until, str(item.get("reason", "")),
                             quota, last_success_at,
+                            # State written before this field existed anchors its
+                            # window at load, so a legacy terminal slot waits one
+                            # bounded interval instead of inheriting a permanent stop.
+                            terminal_since=(
+                                _safe_float(item.get("terminal_since"), now) if terminal else 0.0
+                            ),
+                            terminal_failures=(
+                                max(0, min(4, int(item.get("terminal_failures", 0))))
+                                if terminal else 0
+                            ),
+                            # A probe cannot survive the process that reserved it.
+                            probe_in_flight=False,
                         )
                     )
             models: dict[tuple[str, str], ModelState] = {}
@@ -282,18 +307,32 @@ class ResilienceManager:
             self._models = {}
             self._quarantine_corrupt_state()
 
+    def _terminal_probe_delay(self, credential: CredentialState) -> float:
+        """Backoff before a terminal slot earns its next recovery probe."""
+        multiplier = min(8, 2 ** max(0, credential.terminal_failures - 1))
+        return self.credential_terminal_probe * multiplier
+
     def can_attempt(
         self, provider: str, model: str, credential_slot: int = 0, now: float | None = None
     ) -> tuple[bool, str]:
         now = time.time() if now is None else now
         with self._lock:
             credential = self._credentials.get((provider, credential_slot))
+            terminal_probe = False
             if credential:
                 if credential.state == "terminal":
-                    return False, f"credential_{credential.reason or 'terminal'}"
-                if credential.state == "cooldown" and now < credential.cooldown_until:
+                    # Terminal is a long stop, not a one-way door. Once the backoff
+                    # window elapses one request is allowed through to find out
+                    # whether the condition still holds -- which is also how a
+                    # rotated credential recovers without an operator reset.
+                    if now < credential.terminal_since + self._terminal_probe_delay(credential):
+                        if credential.probe_in_flight:
+                            return False, "credential_terminal_probe_busy"
+                        return False, f"credential_{credential.reason or 'terminal'}"
+                    terminal_probe = True
+                elif credential.state == "cooldown" and now < credential.cooldown_until:
                     return False, "credential_cooldown"
-                if credential.state == "cooldown":
+                elif credential.state == "cooldown":
                     credential.state = "ready"
                     credential.reason = ""
                     credential.cooldown_until = 0.0
@@ -318,6 +357,12 @@ class ResilienceManager:
                         return False, "provider_circuit_open"
                     provider_state.state = "half_open"
                     provider_state.probe_in_flight = True
+            if terminal_probe:
+                # Reserve by restarting the window, so a concurrent caller inside
+                # the same lock sees a closed window rather than racing this probe.
+                credential.terminal_since = now
+                credential.probe_in_flight = True
+                self._persist_locked()
             return True, "ready"
 
     def record_failure(
@@ -358,22 +403,39 @@ class ResilienceManager:
                     state.probe_in_flight = False
                     changed = True
 
+            key = (provider, credential_slot)
+            current = self._credentials.get(key)
+            was_probe = bool(current and current.probe_in_flight)
+            if was_probe:
+                # The recovery probe came back failing; release it whichever
+                # branch below handles the failure, so the reservation can never
+                # outlive the attempt that took it.
+                current.probe_in_flight = False
+                changed = True
+
             if decision.credential_terminal:
-                key = (provider, credential_slot)
-                current = self._credentials.get(key)
-                new_state = CredentialState(
-                    state="terminal",
-                    reason=decision.kind,
-                    quota=current.quota if current else {},
-                    last_success_at=current.last_success_at if current else 0.0,
-                )
-                if self._credentials.get(key) != new_state:
-                    self._credentials[key] = new_state
-                    changed = True
+                already_terminal = bool(current and current.state == "terminal")
+                # A duplicate in-flight failure against an already-terminal slot
+                # must not extend the penalty; only a failed recovery probe is
+                # fresh evidence that the condition still holds.
+                if not already_terminal or was_probe:
+                    new_state = CredentialState(
+                        state="terminal",
+                        reason=decision.kind,
+                        quota=current.quota if current else {},
+                        last_success_at=current.last_success_at if current else 0.0,
+                        terminal_since=now,
+                        terminal_failures=min(
+                            4, (current.terminal_failures if already_terminal else 0) + 1
+                        ),
+                    )
+                    if self._credentials.get(key) != new_state:
+                        self._credentials[key] = new_state
+                        changed = True
             elif decision.credential_cooldown:
-                delay = retry_after if retry_after > 0 else self.credential_cooldown
-                key = (provider, credential_slot)
-                current = self._credentials.get(key)
+                delay = retry_after if retry_after > 0 else (
+                    self.credential_cooldown * max(0.0, decision.cooldown_scale)
+                )
                 if not (current and current.state == "terminal") and (
                     not current or current.state != "cooldown" or current.cooldown_until <= now
                 ):
@@ -417,12 +479,20 @@ class ResilienceManager:
                 (provider, credential_slot), CredentialState()
             )
             credential.last_success_at = now
-            if credential.state != "terminal" and (
-                credential.state != "ready" or credential.cooldown_until or credential.reason
+            # A success is proof the credential works, including one that arrived
+            # on a terminal slot's recovery probe. Clearing terminal here is what
+            # lets a restored quota or a rotated key heal without an operator.
+            if (
+                credential.state != "ready" or credential.cooldown_until
+                or credential.reason or credential.terminal_since
+                or credential.terminal_failures or credential.probe_in_flight
             ):
                 credential.state = "ready"
                 credential.cooldown_until = 0.0
                 credential.reason = ""
+                credential.terminal_since = 0.0
+                credential.terminal_failures = 0
+                credential.probe_in_flight = False
                 changed = True
             if self._models.pop((provider, model), None) is not None:
                 changed = True

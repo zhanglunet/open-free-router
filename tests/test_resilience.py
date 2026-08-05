@@ -18,11 +18,63 @@ def test_failure_classification_keeps_scopes_separate():
     assert classify_failure(400, "invalid role").retryable is False
 
 
-def test_rate_limit_and_quota_have_different_recovery():
+def test_rate_limit_and_quota_recover_on_different_timescales_but_both_recover():
     limited = classify_failure(429, "rate limited")
     exhausted = classify_failure(429, "quota exhausted")
     assert limited.credential_cooldown is True and limited.retryable is True
-    assert exhausted.credential_terminal is True and exhausted.retryable is False
+    # Quota wording earns a far longer wait, but a 429 never becomes terminal:
+    # "quota"/"credit"/"balance" appear in ordinary rate-limit copy, and treating
+    # them as permanent took healthy providers offline until a manual reset.
+    assert exhausted.credential_cooldown is True and exhausted.retryable is True
+    assert exhausted.credential_terminal is False
+    assert exhausted.cooldown_scale > limited.cooldown_scale
+
+
+def test_quota_flavoured_429_waits_longer_than_a_plain_rate_limit():
+    manager = ResilienceManager(credential_cooldown=60)
+    manager.record_failure("p", "m", classify_failure(429, "rate limited"), now=100)
+    manager.record_failure("p", "m", classify_failure(429, "quota exceeded"), credential_slot=1, now=100)
+    states = manager.snapshot()["credentials"]
+    assert states["p:slot-0"]["cooldown_until"] == 160
+    assert states["p:slot-1"]["cooldown_until"] == 100 + 60 * 8
+
+
+def test_terminal_credential_earns_a_bounded_recovery_probe():
+    manager = ResilienceManager(credential_terminal_probe=900)
+    manager.record_failure("p", "m", classify_failure(401), now=100)
+    assert manager.can_attempt("p", "m", now=500) == (False, "credential_credential_invalid")
+    # Once the window elapses exactly one request is let through to re-test.
+    assert manager.can_attempt("p", "m", now=1001) == (True, "ready")
+    assert manager.can_attempt("p", "m", now=1002) == (False, "credential_terminal_probe_busy")
+    # A successful probe clears terminal outright -- this is how a rotated key
+    # recovers without an operator calling reset.
+    manager.record_success("p", "m", now=1003)
+    assert manager.can_attempt("p", "m", now=1004) == (True, "ready")
+    assert manager.snapshot()["credentials"]["p:slot-0"]["state"] == "ready"
+
+
+def test_failed_recovery_probe_backs_off_but_duplicates_do_not():
+    manager = ResilienceManager(credential_terminal_probe=100)
+    manager.record_failure("p", "m", classify_failure(401), now=0)
+    # Duplicate in-flight failures against a terminal slot must not extend it.
+    manager.record_failure("p", "m", classify_failure(401), now=10)
+    assert manager.can_attempt("p", "m", now=101) == (True, "ready")
+    # That probe failed, so the next window doubles rather than staying flat.
+    manager.record_failure("p", "m", classify_failure(401), now=102)
+    assert manager.can_attempt("p", "m", now=250) == (False, "credential_credential_invalid")
+    assert manager.can_attempt("p", "m", now=302) == (True, "ready")
+
+
+def test_terminal_probe_reservation_is_released_by_any_outcome():
+    manager = ResilienceManager(credential_terminal_probe=100, credential_cooldown=10)
+    manager.record_failure("p", "m", classify_failure(401), now=0)
+    assert manager.can_attempt("p", "m", now=101) == (True, "ready")
+    # A probe that comes back 429 keeps the slot terminal, but must not leave the
+    # reservation set -- otherwise the slot would never be probed again.
+    manager.record_failure("p", "m", classify_failure(429), now=102)
+    assert manager.snapshot()["credentials"]["p:slot-0"]["probe_in_flight"] is False
+    assert manager.snapshot()["credentials"]["p:slot-0"]["state"] == "terminal"
+    assert manager.can_attempt("p", "m", now=202) == (True, "ready")
 
 
 def test_terminal_credential_is_not_downgraded_by_late_rate_limit():
