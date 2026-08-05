@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### Testing feedback (field report)
+
+- Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
+  10-provider / 44-model deployment. Highlights a P1 false-positive: a transient
+  upstream 429 whose body mentions "quota"/"credit"/"balance" was classified as
+  `quota_exhausted` with `credential_terminal=True` and **permanently** disabled an
+  otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
+  dead until a manual `/api/resilience/reset`, while their upstreams were alive).
+  More broadly, `terminal` had no exit but an operator reset — `record_success`
+  skipped it, reload preserved it, and it is keyed by credential *slot*, so
+  rotating in a new key did not clear it either. Also documents P2 (`refresh`
+  adopts models that `/models` lists but that are not reachable, e.g.
+  `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (`credential_missing` is computed
+  but never surfaced, so an unconfigured provider 503s indistinguishably from a
+  genuinely down one). The fixes ship in the same cycle — see below.
+
 ### Resilience recovery
 
 - A 429 no longer disables a credential permanently. Quota-flavoured wording
