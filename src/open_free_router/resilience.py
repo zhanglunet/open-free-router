@@ -37,6 +37,7 @@ class FailureDecision:
     credential_cooldown: bool = False
     model_lockout: bool = False
     cooldown_scale: float = 1.0
+    credential_forbidden: bool = False
 
 
 def classify_failure(status: int, message: str = "") -> FailureDecision:
@@ -57,8 +58,17 @@ def classify_failure(status: int, message: str = "") -> FailureDecision:
             credential_cooldown=True,
             cooldown_scale=QUOTA_COOLDOWN_SCALE if quota else 1.0,
         )
-    if status in (401, 403):
+    if status == 401:
         return FailureDecision("credential_invalid", credential_terminal=True)
+    if status == 403:
+        # 403 is about the resource, not the caller. Providers return it for a
+        # model this account is not entitled to -- NVIDIA NIM gates several that
+        # way -- so blaming the credential took every other model on the provider
+        # down with it. Lock the model, and only conclude the credential is bad
+        # once enough distinct models on the same slot agree.
+        return FailureDecision(
+            "model_forbidden", True, model_lockout=True, credential_forbidden=True,
+        )
     if status == 402:
         return FailureDecision("credits_exhausted", credential_terminal=True)
     if status == 404:
@@ -106,6 +116,9 @@ class CredentialState:
     terminal_since: float = 0.0
     terminal_failures: int = 0
     probe_in_flight: bool = False
+    # Distinct models this slot was forbidden from, bounded by the escalation
+    # threshold. Model IDs are already registry-public; no credential material.
+    forbidden_models: list = field(default_factory=list)
 
 
 def _safe_float(value, default: float = 0.0) -> float:
@@ -156,7 +169,9 @@ class ResilienceManager:
         model_cooldown: float = 120.0,
         state_path: str | Path | None = None,
         credential_terminal_probe: float = 900.0,
+        credential_forbidden_threshold: int = 3,
     ):
+        self.credential_forbidden_threshold = max(1, int(credential_forbidden_threshold))
         self.provider_threshold = max(1, int(provider_threshold))
         self.provider_cooldown = max(0.0, float(provider_cooldown))
         self.credential_cooldown = max(0.0, float(credential_cooldown))
@@ -185,6 +200,7 @@ class ResilienceManager:
                 {"provider": provider, "slot": slot, **asdict(state)}
                 for (provider, slot), state in self._credentials.items()
                 if state.state != "ready"
+                or state.forbidden_models
                 or state.quota
                 or state.last_success_at
             ],
@@ -265,8 +281,12 @@ class ResilienceManager:
                 until = float(item.get("cooldown_until", 0.0))
                 quota = _safe_quota(item.get("quota", {})) if item.get("quota") else {}
                 last_success_at = _safe_float(item.get("last_success_at", 0.0))
+                forbidden = [
+                    str(entry)[:256] for entry in item.get("forbidden_models", [])
+                    if isinstance(entry, str)
+                ][:self.credential_forbidden_threshold]
                 active = state == "terminal" or (state == "cooldown" and until > now)
-                if active or quota or last_success_at:
+                if active or quota or last_success_at or forbidden:
                     if not active:
                         state, until = "ready", 0.0
                     terminal = state == "terminal"
@@ -286,6 +306,7 @@ class ResilienceManager:
                             ),
                             # A probe cannot survive the process that reserved it.
                             probe_in_flight=False,
+                            forbidden_models=forbidden,
                         )
                     )
             models: dict[tuple[str, str], ModelState] = {}
@@ -413,6 +434,30 @@ class ResilienceManager:
                 current.probe_in_flight = False
                 changed = True
 
+            if decision.credential_forbidden:
+                # Accumulate evidence across models rather than reading it out of
+                # the error body. One forbidden model says nothing about the key;
+                # several distinct ones on the same slot say the key is the
+                # problem, and that is the signal an operator needs.
+                credential = self._credentials.setdefault(key, CredentialState())
+                current = credential
+                if (
+                    model not in credential.forbidden_models
+                    and len(credential.forbidden_models) < self.credential_forbidden_threshold
+                ):
+                    credential.forbidden_models.append(model)
+                    changed = True
+                if (
+                    credential.state != "terminal"
+                    and len(credential.forbidden_models) >= self.credential_forbidden_threshold
+                ):
+                    credential.state = "terminal"
+                    credential.reason = "credential_forbidden"
+                    credential.terminal_since = now
+                    credential.terminal_failures = max(1, credential.terminal_failures)
+                    credential.cooldown_until = 0.0
+                    changed = True
+
             if decision.credential_terminal:
                 already_terminal = bool(current and current.state == "terminal")
                 # A duplicate in-flight failure against an already-terminal slot
@@ -486,6 +531,7 @@ class ResilienceManager:
                 credential.state != "ready" or credential.cooldown_until
                 or credential.reason or credential.terminal_since
                 or credential.terminal_failures or credential.probe_in_flight
+                or credential.forbidden_models
             ):
                 credential.state = "ready"
                 credential.cooldown_until = 0.0
@@ -493,6 +539,9 @@ class ResilienceManager:
                 credential.terminal_since = 0.0
                 credential.terminal_failures = 0
                 credential.probe_in_flight = False
+                # The key just worked, so accumulated forbidden-model evidence
+                # against it is stale; the models keep their own lockouts.
+                credential.forbidden_models = []
                 changed = True
             if self._models.pop((provider, model), None) is not None:
                 changed = True
