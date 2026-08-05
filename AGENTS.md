@@ -13,7 +13,7 @@
 | `open-free-router serve` | **★ One command:** proxy(8337) + UI(9057) + scheduler (configurable interval, default 12h) |
 | `open-free-router ui` | Web dashboard standalone |
 | `open-free-router setup` | Interactive wizard: fill in API keys for all providers |
-| `open-free-router refresh [--source NAME] [--dry-run]` | Poll provider APIs for free model changes |
+| `open-free-router refresh [--source NAME] [--dry-run] [--probe-new]` | Poll provider APIs for free model changes; `--probe-new` adopts a new model only if a real 1-token request succeeds (off by default, never run by the scheduler) |
 | `open-free-router discover [--dry-run] [--output PATH]` | Find review-only free-provider candidates from the public directory |
 | `open-free-router discover --test --adopt` | Test candidates with declared credential env vars and adopt only successful models |
 | `open-free-router add NAME --base-url URL [--upstream-url URL] [--model ID] [--auto-refresh]` | Add a provider to registry |

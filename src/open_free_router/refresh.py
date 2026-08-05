@@ -2,9 +2,11 @@
 """Refresh free model lists from provider APIs via pluggable sources."""
 from __future__ import annotations
 
-from typing import Dict
+from concurrent.futures import ThreadPoolExecutor
+from typing import Dict, List
 
-from open_free_router.registry import Registry
+from open_free_router.probe import probe_model
+from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 
 from open_free_router.refresh_sources import (
     openrouter,
@@ -34,8 +36,60 @@ SOURCE_MAP = {
 }
 
 
-def refresh(reg: Registry, provider_name: str | None = None) -> Dict[str, bool]:
+PROBE_MAX_WORKERS = 4
+
+# A probe that never reached the upstream proves nothing about the model, so
+# these outcomes adopt the candidate rather than rejecting it.
+_UNVALIDATABLE = ("no_key", "no_endpoint")
+
+
+def _validate_new_models(
+    provider: ProviderConfig, name: str, candidates: List[ModelInfo], timeout: int
+) -> List[ModelInfo]:
+    """Drop newly-offered models that fail a real 1-token request.
+
+    A provider listing a model under ``GET /models`` does not mean
+    ``/chat/completions`` accepts it, so opting into this trades refresh time
+    and a little free-tier quota for a registry without dead routes.
+
+    Skipping is not a permanent verdict: a model that is merely rate-limited
+    right now simply is not adopted this round, and the next refresh offers it
+    again. That keeps a transient 429 from costing more than one cycle -- the
+    same reasoning that stops a transient 429 from stopping a credential.
+    """
+    if not candidates:
+        return []
+    print(f"  probing {len(candidates)} new {name} model(s)...")
+    with ThreadPoolExecutor(max_workers=PROBE_MAX_WORKERS) as pool:
+        results = list(pool.map(
+            lambda model: (model, probe_model(provider, model, timeout=timeout)), candidates,
+        ))
+    kept = []
+    for model, result in results:
+        if result.get("ok"):
+            kept.append(model)
+        elif result.get("status") in _UNVALIDATABLE:
+            print(f"    ? {model.id} adopted unvalidated ({result.get('status')})")
+            kept.append(model)
+        else:
+            reason = result.get("status") or "failed"
+            print(f"    ✗ {model.id} skipped ({reason}); will be offered again next refresh")
+    return kept
+
+
+def refresh(
+    reg: Registry,
+    provider_name: str | None = None,
+    probe_new: bool = False,
+    probe_timeout: int = 30,
+) -> Dict[str, bool]:
     """Refresh one or all providers' model lists.
+
+    ``probe_new`` validates models that are not already in the registry with a
+    real 1-token request before adopting them, and is off by default: it costs
+    free-tier quota on every call, so the scheduler in serve.py never enables
+    it. Pre-existing models are never re-probed, keeping the diff
+    non-destructive.
 
     Returns a dict of provider name -> **did this provider's model list
     actually change**. This is deliberately *not* "did the fetch succeed" —
@@ -72,6 +126,17 @@ def refresh(reg: Registry, provider_name: str | None = None) -> Dict[str, bool]:
             print(f"  ⚠ {name} fetch returned no models")
             results[name] = False
             continue
+
+        if probe_new:
+            known = {m.id for m in p.models}
+            candidates = [m for m in new_models if m.id not in known]
+            if candidates:
+                kept = {m.id for m in _validate_new_models(p, name, candidates, probe_timeout)}
+                new_models = [m for m in new_models if m.id in known or m.id in kept]
+                if not new_models:
+                    print(f"  ⚠ {name} has no models left after probing")
+                    results[name] = False
+                    continue
 
         def fingerprint(model):
             return (

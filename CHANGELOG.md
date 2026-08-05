@@ -20,7 +20,17 @@
   want of an API key the router returns a `configuration_error` naming
   `open-free-router setup`, instead of the same opaque "temporarily unavailable"
   used for genuinely failing upstreams; mixed cases list the distinct reasons.
-- Reported in `docs/testing-feedback-2026-08.md` (P1, P3).
+- `refresh --probe-new` validates models that are not yet in the registry with a
+  real 1-token request before adopting them, so `GET /models` listing a model no
+  longer implies `/chat/completions` accepts it. Pre-existing models are never
+  re-probed, a probe that could not reach the upstream adopts rather than
+  rejects, and a provider is never emptied by probing. It spends free-tier quota
+  on every run, so it is opt-in and the `serve` scheduler never enables it; a
+  skipped model is simply not adopted this round and is offered again next
+  refresh.
+- README documents the `.bak-YYYYMMDD-HHMMSS` snapshots and their 10-file
+  retention, which previously appeared only in `AGENTS.md`.
+- Reported in `docs/testing-feedback-2026-08.md` (P1, P2, P3, minor note 2).
 
 ### Data freshness (M2)
 

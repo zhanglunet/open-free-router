@@ -108,6 +108,7 @@ ofr serve
 | `open-free-router serve` | **★ 一条命令启动：** proxy(8337) + UI(9057) + 定时刷新(12h) |
 | `open-free-router setup` | 交互式向导：填写各上游源 API key |
 | `open-free-router refresh [--source NAME] [--dry-run]` | 拉取免费模型列表 |
+| `open-free-router refresh --probe-new` | 同上，但新模型需通过 1-token 实测才接入；消耗免费额度，默认关闭，定时刷新不会执行 |
 | `open-free-router discover [--dry-run]` | 从公开目录发现待人工验证的候选免费提供商 |
 | `open-free-router discover --test --adopt` | 用声明的环境变量实测候选，只接入真实成功模型 |
 | `open-free-router add NAME --base-url URL [--model ID] [--auto-refresh]` | 添加 provider |
@@ -268,6 +269,7 @@ Token 的 `/api/resilience` 与 `/api/resilience/reset` 提供，状态使用 Ke
 - 仪表盘首次启动会在 `<config目录>/ui.token` 生成一个随机 token（权限 0600），浏览器打开仪表盘执行"保存配置 / 添加 Provider / 刷新"等操作时会提示输入一次该 token（本次会话内记住）。没有 token 的请求会被拒绝（401）。
 - 推理代理首次启动会生成独立的 `<config目录>/proxy.token`（权限 0600）；所有 POST 推理请求必须携带该 bearer token。下游 Agent 配置只写入本地 proxy token，不再复制上游 Provider API key。
 - `registry.yaml` 中保存的是各 Provider 的**明文** API key，并强制使用 0600 权限；该文件和备份仍应视为敏感文件，不要提交到版本库或分享给他人。
+- 每次写入 `config.yaml` / `registry.yaml` 前都会先原子生成一份 `.bak-YYYYMMDD-HHMMSS` 快照，与原文件同目录。误刷或误改后直接 `cp` 回来即可恢复；每个文件只保留最近 10 份，更早的会自动清理。
 
 ## 架构
 

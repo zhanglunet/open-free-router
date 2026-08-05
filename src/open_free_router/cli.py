@@ -51,7 +51,12 @@ def cmd_refresh(args):
     reg = Registry.load(cfg.registry_path)
 
     source = args.source
-    results = refresh(reg, provider_name=source)
+    results = refresh(
+        reg,
+        provider_name=source,
+        probe_new=args.probe_new,
+        probe_timeout=args.probe_timeout,
+    )
 
     if source and source not in results:
         print(f"Unknown source: {source}. Available: {sorted(set(results) | {'openrouter','nvidia-nim'})}")
@@ -676,6 +681,16 @@ def main():
     p_refresh = sub.add_parser("refresh", help="refresh free model lists from APIs")
     p_refresh.add_argument("--source", help="only refresh this source")
     p_refresh.add_argument("--dry-run", action="store_true")
+    p_refresh.add_argument(
+        "--probe-new", action="store_true",
+        help="validate models not yet in the registry with a real 1-token request "
+             "before adopting them; costs free-tier quota, so it is off by default "
+             "and the scheduler never runs it",
+    )
+    p_refresh.add_argument(
+        "--probe-timeout", type=int, default=30,
+        help="per-model probe timeout in seconds (default 30, with --probe-new)",
+    )
     p_refresh.set_defaults(func=cmd_refresh)
 
     p_ui = sub.add_parser("ui", help="start web dashboard")

@@ -284,7 +284,10 @@ class _UIHandler(BaseHTTPRequestHandler):
             data = {}
         provider_name = data.get("provider")
         from open_free_router.refresh import refresh
-        results = refresh(self.reg, provider_name=provider_name)
+        # No probing from the dashboard button: it would spend free-tier quota
+        # on a click and block the response for the probe timeout. Operators opt
+        # in deliberately with `refresh --probe-new`.
+        results = refresh(self.reg, provider_name=provider_name, probe_new=False)
         changed = any(v for v in results.values())
         if changed:
             assert self.reg is not None
