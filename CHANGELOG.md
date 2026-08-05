@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Testing feedback (field report)
+
+- Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
+  10-provider / 44-model deployment. Highlights a P1 false-positive: a transient
+  upstream 429 whose body mentions "quota"/"credit"/"balance" is classified as
+  `quota_exhausted` with `credential_terminal=True` and **permanently** disables an
+  otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
+  dead until a manual `/api/resilience/reset`, while their upstreams were alive).
+  Also documents P2 (`refresh` adopts models that `/models` lists but that are not
+  reachable, e.g. `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (empty-key
+  `openrouter` provider 503s indistinguishably from a genuinely down one). No code
+  changes in this PR — findings and proposed fixes only, for maintainer triage.
+
 ### Data freshness (M2)
 
 - Provider availability on `/api/catalog` is now derived from the model evidence
