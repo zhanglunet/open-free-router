@@ -131,7 +131,7 @@ src/open_free_router/
 - Run: `pip install -e ".[dev]" && python3 -m pytest tests/ -v`
 - No CI/CD configured yet
 
-## Supported providers (11)
+## Supported providers (10)
 
 openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside
 

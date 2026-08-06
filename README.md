@@ -13,7 +13,7 @@
 > 可解释智能评分、本机使用分析、协议兼容矩阵、扩展测试与项目文档网站。
 > 详见 [`NOTICE.md`](NOTICE.md)。
 
-**当前稳定版：v0.3.0** · Python 3.11+ · MIT · 275 个 Python 测试 + 14 个网站测试 + 4 个 npm 测试
+**当前稳定版：v0.4.0** · Python 3.11+ · MIT · 321 个 Python 测试 + 74 个网站测试 + 4 个 npm 测试
 
 **一条命令跑起所有服务：** proxy(8337) + UI(9057) + 定时刷新(12h)
 
@@ -97,7 +97,7 @@ open-free-router doctor
 ofr serve
 ```
 
-[`open-free-router@0.3.0`](https://www.npmjs.com/package/open-free-router) 是 Python CLI 的薄启动器：检查 Node.js 18+ 与 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。API Key 仍只由本机配置管理，npm 引导器不会读取或上传凭据。
+[npm 上的 `open-free-router`](https://www.npmjs.com/package/open-free-router) 是 Python CLI 的薄启动器：检查 Node.js 18+ 与 Python 3.11+，在用户缓存目录创建隔离虚拟环境，再安装包内同版本 Python 源码。API Key 仍只由本机配置管理，npm 引导器不会读取或上传凭据。
 
 环境检查、首次引导、Codex 接入、缓存位置、升级卸载与常见错误见官网的 [npm 完整教程](https://oaf.asia/guide/npm/)。
 
@@ -429,7 +429,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-当前测试覆盖 **275 个 Python 用例 + 14 个网站用例 + 4 个 npm 用例**：registry/config、刷新源、九客户端同步（含
+当前测试覆盖 **321 个 Python 用例 + 74 个网站用例 + 4 个 npm 用例**：registry/config、刷新源、九客户端同步（含
 Claude/Kimi/OpenClaw/WorkBuddy 适配器）、代理鉴权（Bearer + x-api-key）、
 Responses 与 Messages 的文本/工具/流式转换、真实流式转发、实时探测、
 MCP 握手与工具调用、Codex profile，以及 P0 虚拟路由、首字节前安全 fallback、

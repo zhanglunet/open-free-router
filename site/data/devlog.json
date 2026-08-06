@@ -1,9 +1,26 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-04T23:19:56.324Z",
+  "updated_at": "2026-08-06T01:11:30.152Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-08-06-v0-4-0-故障隔离修复与证据保鲜",
+      "date": "2026-08-06",
+      "type": "milestone",
+      "version": "v0.4.0",
+      "title": "v0.4.0：故障隔离修复与证据保鲜",
+      "summary": "本轮从一次 PR 审查出发，修掉六处「用弱信号推强结论」的缺陷：瞬时 429 不再永久禁用凭证、403 按模型而非凭证归因、声明式重置对所有限流生效、探测证据 45 分钟过期、refresh 可选实测探活、sync 支持排除名单。",
+      "items": [
+        "429 与 terminal 凭证获得有界恢复探测，换 key 亦可自愈",
+        "403 锁定模型而非凭证，三个不同模型被拒才判定密钥失效",
+        "响应头声明的重置时间对任何 429 生效，上限 24 小时",
+        "refresh --probe-new 以 1-token 实测决定新模型是否接入",
+        "Kimi Code 迁移至 ~/.kimi-code 并支持只写入实测可用模型",
+        "config.yaml sync.exclude 可让自动同步跳过指定客户端",
+        "测试从 275 增至 321，新增 conftest 隔离开发者真实家目录"
+      ]
+    },
     {
       "id": "2026-08-05-kimi-code-模型来源标注与可用筛选",
       "date": "2026-08-05",
