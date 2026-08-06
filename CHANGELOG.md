@@ -1,61 +1,6 @@
 # Changelog
 
-## Unreleased
-
-### Sync exclusions
-
-- New `sync.exclude` in `config.yaml` lists agents the daemon must not auto-sync.
-  Deleting the `ANTHROPIC_*` keys from `~/.claude/settings.json` to go back to
-  official models did not stick before: `serve` wrote them again on startup and
-  on every scheduled sync, so the README's own instruction did not work.
-- Honoured by `serve` (startup, scheduler and discovery auto-adopt) and by a bare
-  `sync`, which makes the same "everything you detect" request. Naming a client
-  with `sync --agent <name>` is an explicit ask and overrides the exclusion,
-  which is how an excluded client gets written on demand.
-- Excluding never switches `sync_all` into explicit mode, so it cannot
-  force-create configs for clients that were never installed.
-
-### Kimi Code
-
-- Kimi Code's config moves to `~/.kimi-code/config.toml`. An existing
-  `~/.kimi/config.toml` keeps being used instead, including on an explicit
-  `sync --agent kimi`, so an upgrade does not leave a stale managed block behind
-  in a second file.
-- New `sync --agent kimi --kimi-available-only` writes only models that passed a
-  Live Status probe **within the last 45 minutes** — the same window the
-  published status view ages evidence on. Older successes are reported as stale
-  and refuse the sync rather than being replayed as a claim about the present.
-  The flag is rejected up front when Kimi is not among the selected clients.
-- Model entries gain `max_output_size`, `capabilities` and a `display_name`
-  naming the upstream source.
-- Tables that earlier versions wrote outside the managed block are reclaimed
-  instead of duplicated. Only this tool's own alias shapes (`ofr-*`,
-  `open-free-router/*`) qualify: a model table the user wrote themselves is left
-  alone even when it points at the router, and whatever is reclaimed is named on
-  stdout rather than removed silently.
-- A provider whose per-minute budget cannot fit Kimi's bootstrap prompt is no
-  longer chosen as `default_model` when an alternative exists. It stays in the
-  config and stays selectable — dropping it would empty the config for anyone
-  whose only tool-calling routes are there, and would deny a paid tier routes
-  that work for it.
-- `install.sh` picks the newest Python 3.11+ on the system instead of assuming
-  `python3` is recent enough, which it often is not on macOS.
-
-### Testing feedback (field report)
-
-- Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
-  10-provider / 44-model deployment. Highlights a P1 false-positive: a transient
-  upstream 429 whose body mentions "quota"/"credit"/"balance" was classified as
-  `quota_exhausted` with `credential_terminal=True` and **permanently** disabled an
-  otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
-  dead until a manual `/api/resilience/reset`, while their upstreams were alive).
-  More broadly, `terminal` had no exit but an operator reset — `record_success`
-  skipped it, reload preserved it, and it is keyed by credential *slot*, so
-  rotating in a new key did not clear it either. Also documents P2 (`refresh`
-  adopts models that `/models` lists but that are not reachable, e.g.
-  `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (`credential_missing` is computed
-  but never surfaced, so an unconfigured provider 503s indistinguishably from a
-  genuinely down one). The fixes ship in the same cycle — see below.
+## 0.4.0 - 2026-08-06
 
 ### Resilience recovery
 
@@ -137,9 +82,67 @@
 - The site audit gains a degraded pass that serves the build with `/api/*`
   failing and requires each fallback page to say so.
 
+### Packaging
+
 - Published the public `open-free-router@0.3.0` npm bootstrap package with
   `open-free-router` and `ofr` commands; verified a clean registry install,
-  isolated Python environment creation and CLI startup.
+  isolated Python environment creation and CLI startup. (Landed after the 0.3.0
+  tag, so it is recorded here.)
+
+### Kimi Code
+
+- Kimi Code's config moves to `~/.kimi-code/config.toml`. An existing
+  `~/.kimi/config.toml` keeps being used instead, including on an explicit
+  `sync --agent kimi`, so an upgrade does not leave a stale managed block behind
+  in a second file.
+- New `sync --agent kimi --kimi-available-only` writes only models that passed a
+  Live Status probe **within the last 45 minutes** — the same window the
+  published status view ages evidence on. Older successes are reported as stale
+  and refuse the sync rather than being replayed as a claim about the present.
+  The flag is rejected up front when Kimi is not among the selected clients.
+- Model entries gain `max_output_size`, `capabilities` and a `display_name`
+  naming the upstream source.
+- Tables that earlier versions wrote outside the managed block are reclaimed
+  instead of duplicated. Only this tool's own alias shapes (`ofr-*`,
+  `open-free-router/*`) qualify: a model table the user wrote themselves is left
+  alone even when it points at the router, and whatever is reclaimed is named on
+  stdout rather than removed silently.
+- A provider whose per-minute budget cannot fit Kimi's bootstrap prompt is no
+  longer chosen as `default_model` when an alternative exists. It stays in the
+  config and stays selectable — dropping it would empty the config for anyone
+  whose only tool-calling routes are there, and would deny a paid tier routes
+  that work for it.
+- `install.sh` picks the newest Python 3.11+ on the system instead of assuming
+  `python3` is recent enough, which it often is not on macOS.
+
+### Sync exclusions
+
+- New `sync.exclude` in `config.yaml` lists agents the daemon must not auto-sync.
+  Deleting the `ANTHROPIC_*` keys from `~/.claude/settings.json` to go back to
+  official models did not stick before: `serve` wrote them again on startup and
+  on every scheduled sync, so the README's own instruction did not work.
+- Honoured by `serve` (startup, scheduler and discovery auto-adopt) and by a bare
+  `sync`, which makes the same "everything you detect" request. Naming a client
+  with `sync --agent <name>` is an explicit ask and overrides the exclusion,
+  which is how an excluded client gets written on demand.
+- Excluding never switches `sync_all` into explicit mode, so it cannot
+  force-create configs for clients that were never installed.
+
+### Testing feedback (field report)
+
+- Added `docs/testing-feedback-2026-08.md` — a field testing report from a live
+  10-provider / 44-model deployment. Highlights a P1 false-positive: a transient
+  upstream 429 whose body mentions "quota"/"credit"/"balance" was classified as
+  `quota_exhausted` with `credential_terminal=True` and **permanently** disabled an
+  otherwise-healthy provider (both `google-ai-studio` and `sensenova` were stuck
+  dead until a manual `/api/resilience/reset`, while their upstreams were alive).
+  More broadly, `terminal` had no exit but an operator reset — `record_success`
+  skipped it, reload preserved it, and it is keyed by credential *slot*, so
+  rotating in a new key did not clear it either. Also documents P2 (`refresh`
+  adopts models that `/models` lists but that are not reachable, e.g.
+  `groq/compound-mini`, `z-ai/glm-5.2`) and P3 (`credential_missing` is computed
+  but never surfaced, so an unconfigured provider 503s indistinguishably from a
+  genuinely down one). The fixes ship in the same cycle — see below.
 
 ## 0.3.0 - 2026-08-02
 

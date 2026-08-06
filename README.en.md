@@ -12,7 +12,7 @@
 > explainable scoring, local analytics, a protocol matrix, expanded tests, and the project
 > documentation site. See [`NOTICE.md`](NOTICE.md).
 
-**Current stable release: v0.3.0** · Python 3.11+ · MIT · 275 Python tests + 14 web tests + 4 npm tests
+**Current stable release: v0.4.0** · Python 3.11+ · MIT · 321 Python tests + 74 web tests + 4 npm tests
 
 **One command to run everything:** proxy(8337) + UI(9057) + scheduler(12h)
 
@@ -94,7 +94,7 @@ open-free-router doctor
 ofr serve
 ```
 
-[`open-free-router@0.3.0`](https://www.npmjs.com/package/open-free-router) is a thin bootstrapper that checks for Node.js 18+ and Python 3.11+, creates a versioned virtual environment in the user cache, and installs the bundled Python source. API keys remain local; the npm bootstrapper does not read or upload credentials.
+The [`open-free-router` npm package](https://www.npmjs.com/package/open-free-router) is a thin bootstrapper that checks for Node.js 18+ and Python 3.11+, creates a versioned virtual environment in the user cache, and installs the bundled Python source. API keys remain local; the npm bootstrapper does not read or upload credentials.
 
 ## Commands
 
@@ -250,7 +250,7 @@ pip install -e ".[dev]"
 python3 -m pytest tests/ -v
 ```
 
-275 Python tests, 14 web tests, and 4 npm tests cover registry/config, refresh sources, nine-client sync, proxy authentication, all three client protocols, streaming/tool behavior, virtual routing, safe fallback, three-level resilience, quota, explainable scoring, analytics/export guards, MCP permissions, protocol diagnostics, live probing, benchmark importing, npm bootstrap packaging, and the Cloudflare catalog/status site.
+321 Python tests, 74 web tests, and 4 npm tests cover registry/config, refresh sources, nine-client sync, proxy authentication, all three client protocols, streaming/tool behavior, virtual routing, safe fallback, three-level resilience, quota, explainable scoring, analytics/export guards, MCP permissions, protocol diagnostics, live probing, benchmark importing, npm bootstrap packaging, and the Cloudflare catalog/status site.
 
 ## Claude Code integration
 
