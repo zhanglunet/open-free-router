@@ -521,3 +521,49 @@ def test_unsafe_provider_models_survive_the_available_only_filter(tmp_path):
     data = tomllib.loads(config.read_text())
     assert "ofr-gq-gpt-oss" in data["models"]
     assert data["default_model"] == "ofr-nv-nemotron"
+
+
+# ── sync_all(exclude=...) ──
+
+def test_sync_all_exclude_skips_agent_without_forcing_explicit_mode(tmp_path):
+    """``exclude`` must drop an agent while leaving detect-only semantics intact.
+
+    Passing ``agents=[...]`` would flip ``sync_all`` into explicit mode, which
+    force-creates configs for clients that were never installed. ``exclude``
+    must not have that side effect.
+    """
+    claude = tmp_path / "claude" / "settings.json"
+    claude.parent.mkdir()
+    claude.write_text(json.dumps({"env": {"ANTHROPIC_BASE_URL": "https://api.anthropic.com"}}))
+    kimi = tmp_path / "kimi" / "config.toml"
+    kimi.parent.mkdir()
+    kimi.write_text("")
+    openclaw = tmp_path / "openclaw" / "openclaw.json"  # never installed
+
+    with (
+        patch("open_free_router.sync.DEFAULT_AGENTS", ["claude", "kimi", "openclaw"]),
+        patch("open_free_router.sync.CLAUDE_SETTINGS", claude),
+        patch("open_free_router.sync.KIMI_CONFIG", kimi),
+        patch("open_free_router.sync.OPENCLAW_CONFIG", openclaw),
+        patch("open_free_router.sync.BACKUP_DIR", tmp_path / "backup"),
+    ):
+        # agents=None is the whole point: passing a list would set explicit=True
+        # and prove nothing about detect-only semantics surviving an exclusion.
+        results = sync_all(_registry(), exclude=["claude"], proxy_token="tok")
+
+    assert "claude" not in results          # excluded agent never ran
+    assert results["kimi"]                  # siblings still synced
+    # Detect-only survived: an uninstalled client was not force-created, which
+    # is exactly what would have happened had exclude flipped on explicit mode.
+    assert not openclaw.exists()
+    # the excluded client keeps the user's own configuration untouched
+    assert json.loads(claude.read_text())["env"]["ANTHROPIC_BASE_URL"] == "https://api.anthropic.com"
+
+
+def test_sync_all_exclude_defaults_to_no_op():
+    """Omitting ``exclude`` keeps every agent in the run."""
+    with patch("open_free_router.sync.DEFAULT_AGENTS", ["kimi"]):
+        for kwargs in ({}, {"exclude": None}, {"exclude": []}):
+            with patch("open_free_router.sync.sync_kimi", return_value=["gq/gpt-oss"]) as fn:
+                sync_all(_registry(), do_write=False, **kwargs)
+            assert fn.called, kwargs

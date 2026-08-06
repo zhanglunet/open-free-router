@@ -1144,16 +1144,23 @@ def sync_all(
     codex_model: str = "",
     claude_model: str = "",
     kimi_include_model_ids: set[str] | None = None,
+    exclude: list[str] | None = None,
 ) -> dict[str, list[str]]:
     """Sync registry to all agents. Returns {agent: [changed_providers]}.
 
     When ``agents`` is None, every default agent whose config is detected
     gets synced. An explicit agent list forces config creation even for
     clients that haven't run on this machine yet.
+
+    ``exclude`` drops agents from the run without switching to explicit mode,
+    so callers can opt out of one client while leaving the detect-only
+    semantics (and every other client) untouched.
     """
     explicit = agents is not None
     if agents is None:
         agents = DEFAULT_AGENTS
+    if exclude:
+        agents = [a for a in agents if a not in exclude]
 
     if do_write:
         _backup()

@@ -215,6 +215,11 @@ def cmd_sync(args):
         codex_model=args.codex_model or cfg.codex_model,
         claude_model=args.claude_model or cfg.claude_model,
         kimi_include_model_ids=kimi_include_model_ids,
+        # A bare `sync` means "everything you detect", which is the same request
+        # the daemon makes -- so it honours the same exclusions. Naming a client
+        # with --agent is an explicit ask and overrides them, which is how an
+        # excluded client gets written on demand.
+        exclude=None if agents else cfg.sync_exclude,
     )
 
     label = "DIFF" if args.diff else "SYNC"

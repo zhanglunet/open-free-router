@@ -52,7 +52,7 @@ class Daemon:
                 print("[scheduler] registry updated")
             proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
             write_pi_models(self.reg, proxy_url=proxy_url)
-            sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
+            sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token, exclude=self.cfg.sync_exclude)
 
     def _discovery_scheduler(self):
         if not self.cfg.discovery_enabled:
@@ -73,7 +73,7 @@ class Daemon:
                         self.reg.save(self.cfg.registry_path)
                         rebuild_proxy_index()
                         proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
-                        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
+                        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token, exclude=self.cfg.sync_exclude)
                         print(f"[discovery] auto-adopted: {', '.join(adopted)}")
                 save_discovery(snapshot, self.cfg.discovery_path)
                 print(
@@ -115,7 +115,7 @@ class Daemon:
         # Write Pi models on startup
         proxy_url = f"http://{self.cfg.proxy_host}:{self.cfg.proxy_port}/v1"
         write_pi_models(self.reg, proxy_url=proxy_url)
-        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token)
+        sync_all(self.reg, proxy_url=proxy_url, proxy_token=self.proxy_token, exclude=self.cfg.sync_exclude)
 
         threads = [
             threading.Thread(target=run_ui, args=(self.cfg, self.cfg.ui_port, self.reg), daemon=True),

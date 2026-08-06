@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Sync exclusions
+
+- New `sync.exclude` in `config.yaml` lists agents the daemon must not auto-sync.
+  Deleting the `ANTHROPIC_*` keys from `~/.claude/settings.json` to go back to
+  official models did not stick before: `serve` wrote them again on startup and
+  on every scheduled sync, so the README's own instruction did not work.
+- Honoured by `serve` (startup, scheduler and discovery auto-adopt) and by a bare
+  `sync`, which makes the same "everything you detect" request. Naming a client
+  with `sync --agent <name>` is an explicit ask and overrides the exclusion,
+  which is how an excluded client gets written on demand.
+- Excluding never switches `sync_all` into explicit mode, so it cannot
+  force-create configs for clients that were never installed.
+
 ### Kimi Code
 
 - Kimi Code's config moves to `~/.kimi-code/config.toml`. An existing
