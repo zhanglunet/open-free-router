@@ -77,3 +77,43 @@ def test_fresh_evidence_gets_past_the_gate(tmp_path, monkeypatch):
     fresh = datetime.now(timezone.utc).isoformat(timespec="seconds")
     _install_config(tmp_path, monkeypatch, checked_at=fresh)
     cmd_sync(_args())  # must not raise
+
+
+def _install_config_with_exclude(tmp_path, monkeypatch, exclude):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir(parents=True, exist_ok=True)
+    config_path = tmp_path / "config.yaml"
+    config_path.write_text(yaml.safe_dump({
+        "registry": str(tmp_path / "registry.yaml"),
+        "data_dir": str(data_dir),
+        "sync": {"exclude": exclude},
+    }))
+    monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config_path))
+
+
+def _captured_exclude(monkeypatch):
+    """Record the exclude= sync_all was called with."""
+    seen = {}
+
+    def fake_sync_all(reg, **kwargs):
+        seen["exclude"] = kwargs.get("exclude")
+        return {}
+
+    monkeypatch.setattr("open_free_router.sync.sync_all", fake_sync_all)
+    return seen
+
+
+def test_bare_sync_honours_the_configured_exclusions(tmp_path, monkeypatch):
+    """A bare `sync` is the same "everything you detect" ask the daemon makes."""
+    _install_config_with_exclude(tmp_path, monkeypatch, ["claude"])
+    seen = _captured_exclude(monkeypatch)
+    cmd_sync(_args(agent=None, kimi_available_only=False))
+    assert seen["exclude"] == ["claude"]
+
+
+def test_naming_an_agent_overrides_the_exclusions(tmp_path, monkeypatch):
+    """--agent is an explicit ask; it is how an excluded client gets written."""
+    _install_config_with_exclude(tmp_path, monkeypatch, ["claude"])
+    seen = _captured_exclude(monkeypatch)
+    cmd_sync(_args(agent="claude", kimi_available_only=False))
+    assert seen["exclude"] is None

@@ -359,7 +359,8 @@ claude                                        # 免费模型自动出现在 /mod
 
 要恢复官方模型，删除 env 块中的 `ANTHROPIC_*` 键**并**在 config.yaml 里设置
 `sync: {exclude: [claude]}`——否则 `serve` 启动和定时同步时会把这些键写回去。
-排除之后仍可用 `sync --agent claude` 随时手动切回来。
+排除对 `serve` 与不带 `--agent` 的 `sync`（两者都是"同步所有检测到的客户端"）
+同样生效；显式 `sync --agent claude` 是主动请求，会覆盖排除，随时手动切回来。
 
 ## MCP 接口
 

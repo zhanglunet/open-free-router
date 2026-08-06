@@ -541,20 +541,21 @@ def test_sync_all_exclude_skips_agent_without_forcing_explicit_mode(tmp_path):
     openclaw = tmp_path / "openclaw" / "openclaw.json"  # never installed
 
     with (
+        patch("open_free_router.sync.DEFAULT_AGENTS", ["claude", "kimi", "openclaw"]),
         patch("open_free_router.sync.CLAUDE_SETTINGS", claude),
         patch("open_free_router.sync.KIMI_CONFIG", kimi),
         patch("open_free_router.sync.OPENCLAW_CONFIG", openclaw),
         patch("open_free_router.sync.BACKUP_DIR", tmp_path / "backup"),
     ):
-        results = sync_all(
-            _registry(),
-            agents=["claude", "kimi", "openclaw"],
-            exclude=["claude"],
-            proxy_token="tok",
-        )
+        # agents=None is the whole point: passing a list would set explicit=True
+        # and prove nothing about detect-only semantics surviving an exclusion.
+        results = sync_all(_registry(), exclude=["claude"], proxy_token="tok")
 
     assert "claude" not in results          # excluded agent never ran
     assert results["kimi"]                  # siblings still synced
+    # Detect-only survived: an uninstalled client was not force-created, which
+    # is exactly what would have happened had exclude flipped on explicit mode.
+    assert not openclaw.exists()
     # the excluded client keeps the user's own configuration untouched
     assert json.loads(claude.read_text())["env"]["ANTHROPIC_BASE_URL"] == "https://api.anthropic.com"
 

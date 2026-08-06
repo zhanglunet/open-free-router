@@ -156,7 +156,8 @@ refresh_interval_hours: 12
 
 sync:
   exclude: []           # agents `serve` must not auto-sync, e.g. [claude];
-                        # excluded clients are still written by `sync --agent <name>`
+                        # also honoured by a bare `sync`; naming a client with
+                        # `sync --agent <name>` is explicit and overrides it
 
 analytics:
   retention_days: 30
