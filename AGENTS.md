@@ -1,5 +1,9 @@
 # open-free-router — AGENTS.md
 
+This file describes **what the project is**: entrypoints, architecture and the
+conventions the code follows. For **how to change it** — the working agreements
+this repo has arrived at through actual defects — see [`CLAUDE.md`](CLAUDE.md).
+
 ## Entrypoint
 
 - CLI: `open-free-router` (defined in `pyproject.toml` → `open_free_router.cli:main`)
