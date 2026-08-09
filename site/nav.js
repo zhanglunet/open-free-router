@@ -14,6 +14,7 @@ if (header) {
     ["npm 安装", "/guide/npm/"],
     ["推荐文章", "/stories/free-model-port/"],
     ["开发日志", "/logs/"],
+    ["开发周报", "/weekly/"],
     ["品牌页面", "/brand/"],
     ["站点地图", "/sitemap/"],
   ];

@@ -30,6 +30,7 @@ const sitemapXml = await readFile(resolve(output, "sitemap.xml"), "utf8");
 const robotsTxt = await readFile(resolve(output, "robots.txt"), "utf8");
 const logsHtml = await readFile(resolve(output, "logs", "index.html"), "utf8");
 const logsJs = await readFile(resolve(output, "logs", "logs.js"), "utf8");
+const weeklyHtml = await readFile(resolve(output, "weekly", "index.html"), "utf8");
 const storyHtml = await readFile(resolve(output, "stories", "free-model-port", "index.html"), "utf8");
 const storyJs = await readFile(resolve(output, "stories", "free-model-port", "article.js"), "utf8");
 const compareHtml = await readFile(resolve(output, "compare", "index.html"), "utf8");
@@ -135,6 +136,9 @@ for (const marker of ["开发日志", "搜索历史", "/data/devlog.json", "推�
 if (!Array.isArray(devlog.entries) || devlog.entries.length < 5) {
   throw new Error("Development log must contain structured historical entries");
 }
+for (const marker of ["开发周报", "2026-W32", "本周最重要的一件事", "324 passed / 1 failed", "/weekly/"]) {
+  if (!weeklyHtml.includes(marker)) throw new Error(`Generated weekly report is missing required content: ${marker}`);
+}
 for (const entry of devlog.entries) {
   if (!entry.id || !entry.date || !entry.type || !entry.title || !entry.summary) {
     throw new Error(`Development log entry is incomplete: ${entry.id || "unknown"}`);
@@ -239,14 +243,14 @@ for (const marker of ["OmniRoute", "9Router", "LiteLLM", "Free Router", "比较�
 for (const marker of ["八道闸门", "models.dev", "44 家 / 322 模型", "58 / 58 通过", "OFR_*_API_KEY", "ready ≠ 永久免费", "auto_adopt: false", "非空 message.content", "DEEPSEEK V4 FLASH", "OpenCode Zen", "NVIDIA NIM", "HTTP 404", "软件自由，不是免费云算力"]) {
   if (!validationHtml.includes(marker)) throw new Error(`Generated candidate validation page is missing required content: ${marker}`);
 }
-for (const route of ["/", "/models/", "/status/", "/validation/", "/benchmarks/", "/compare/", "/architecture/", "/map/", "/guide/", "/guide/npm/", "/stories/free-model-port/", "/logs/", "/brand/", "/sitemap/"]) {
+for (const route of ["/", "/models/", "/status/", "/validation/", "/benchmarks/", "/compare/", "/architecture/", "/map/", "/guide/", "/guide/npm/", "/stories/free-model-port/", "/logs/", "/weekly/", "/brand/", "/sitemap/"]) {
   if (!sitemapHtml.includes(`href="${route}"`)) throw new Error(`Generated site map is missing route: ${route}`);
 }
-for (const marker of ["页面关系结构", "全部页面链接", "推荐路径", "14 PAGES"]) {
+for (const marker of ["页面关系结构", "全部页面链接", "推荐路径", "15 PAGES"]) {
   if (!sitemapHtml.includes(marker)) throw new Error(`Generated site map is missing required content: ${marker}`);
 }
-if ((sitemapXml.match(/<url>/g) || []).length !== 14 || !robotsTxt.includes("https://oaf.asia/sitemap.xml")) {
-  throw new Error("Machine-readable sitemap and robots.txt must expose all 14 public pages");
+if ((sitemapXml.match(/<url>/g) || []).length !== 15 || !robotsTxt.includes("https://oaf.asia/sitemap.xml")) {
+  throw new Error("Machine-readable sitemap and robots.txt must expose all 15 public pages");
 }
 for (const marker of ["模型评测", "任务适配分", "Artificial Analysis", "不从图片猜分", "35%", "25%", "30%", "10%"]) {
   if (!benchmarksHtml.includes(marker) && !benchmarksJs.includes(marker)) {
@@ -320,7 +324,7 @@ if (!headersFile.includes("/data/*.json")) {
 }
 await readFile(resolve(output, "assets", "map", "world-dots.svg"));
 await readFile(resolve(output, "assets", "brand", "og-free-model-port-share.jpg"));
-for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, sitemapHtml, logsHtml, storyHtml, compareHtml, validationHtml, benchmarksHtml]) {
+for (const page of [html, modelsHtml, guideHtml, npmGuideHtml, brandHtml, architectureHtml, statusHtml, mapHtml, sitemapHtml, logsHtml, weeklyHtml, storyHtml, compareHtml, validationHtml, benchmarksHtml]) {
   if (/<script(?![^>]*src=)[^>]*>[^<]/.test(page)) {
     throw new Error("Site pages must not contain inline scripts (CSP script-src 'self')");
   }

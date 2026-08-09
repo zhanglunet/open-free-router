@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <meta name="theme-color" content="#061120">
+  <meta name="description" content="Open Free Router 2026 年第 32 周开发周报：v0.4.0、数据新鲜度、故障恢复、客户端同步与质量验证。">
+  <meta property="og:type" content="article">
+  <meta property="og:title" content="开发周报 2026-W32 · 模力自由港">
+  <meta property="og:url" content="https://oaf.asia/weekly/">
+  <meta property="og:description" content="基于 Git 历史和真实测试结果的本周项目开发周报。">
+  <meta property="og:image" content="https://oaf.asia/assets/brand/og-free-model-port-share.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'; script-src 'self'; img-src 'self' data:; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>开发周报 2026-W32 · 模力自由港</title>
+  <link rel="icon" type="image/png" href="/assets/brand/favicon.png">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/weekly/weekly.css">
+  <script src="/nav.js" defer></script>
+</head>
+<body>
+  <div class="site-grid" aria-hidden="true"></div>
+  <a class="skip-link" href="#report">跳到周报正文</a>
+  <header class="topbar">
+    <a class="brand" href="/" aria-label="模力自由港首页"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port</small></span></a>
+    <nav aria-label="周报页导航"><a href="#summary">本周结论</a><a href="#delivery">交付内容</a><a href="#quality">质量验证</a><a href="#next">下周计划</a></nav>
+    <a class="repo-link" href="https://github.com/zhanglunet/open-free-router" rel="noreferrer">GitHub ↗</a>
+  </header>
+
+  <main id="report">
+    <section class="weekly-hero">
+      <p class="weekly-eyebrow"><span></span> ENGINEERING WEEKLY · 2026-W32</p>
+      <h1>把“能用”，推进到<br><em>可验证、可恢复。</em></h1>
+      <p class="weekly-lead">Open Free Router 项目开发周报 · 2026-08-03 至 2026-08-09</p>
+      <div class="weekly-meta"><span>52 个非 merge 提交</span><span>v0.4.0 已发布</span><span>数据来源：Git 历史 + 实测</span></div>
+    </section>
+
+    <section class="weekly-section" id="summary">
+      <div class="section-label">01 · EXECUTIVE SUMMARY</div>
+      <div class="summary-grid">
+        <article><b>本周最重要的一件事</b><h2>完成 v0.4.0 稳定性与数据可信度收口。</h2><p>模型证据新鲜度、429/403 故障隔离、terminal 自动恢复和新模型真实请求准入完成落地。</p></article>
+        <article><b>本周最大风险</b><h2>默认 registry 与协议矩阵契约暂不一致。</h2><p>当前默认 registry 已有 11 个 provider，但测试仍断言 10 个；该缺口已稳定复现。</p></article>
+        <article><b>发布判断</b><h2>线上页面可发布，代码质量缺口需继续收口。</h2><p>网站 74 项、npm 4 项和静态审计通过；Python 为 324 passed / 1 failed，浏览器审计尚未运行。</p></article>
+      </div>
+    </section>
+
+    <section class="weekly-section" id="delivery">
+      <div class="section-label">02 · DELIVERY</div>
+      <div class="delivery-grid">
+        <article><span class="delivery-no">A</span><h2>故障恢复与隔离</h2><ul><li>429 不再因错误文案永久禁用 credential。</li><li>403 按模型隔离，多个模型拒绝后才归因 credential。</li><li>terminal 状态增加有界恢复探测，声明式 reset header 对所有 429 生效。</li></ul></article>
+        <article><span class="delivery-no">B</span><h2>数据新鲜度与模型目录</h2><ul><li>公开 catalog 改用模型级、带时效的实测证据。</li><li>过期、缺失、未来时间戳和降级数据不再冒充实时事实。</li><li><code>refresh --probe-new</code> 以真实 1-token 请求决定是否采用新模型。</li></ul></article>
+        <article><span class="delivery-no">C</span><h2>客户端与站点工程化</h2><ul><li>Kimi Code 支持新版配置路径和实测可用模型筛选。</li><li><code>sync.exclude</code> 在裸 sync/serve 自动同步路径生效。</li><li>完成全站审计、CI、内容 hash 资源指纹和 v0.4.0 发布。</li></ul></article>
+      </div>
+    </section>
+
+    <section class="weekly-section" id="quality">
+      <div class="section-label">03 · QUALITY GATE</div>
+      <div class="quality-panel">
+        <div class="quality-row"><span>Python suite</span><strong class="warn">324 passed / 1 failed</strong><small>协议矩阵仍断言 10 个 provider，实际为 11 个</small></div>
+        <div class="quality-row"><span>Web tests</span><strong class="ok">74 passed</strong><small>通过</small></div>
+        <div class="quality-row"><span>npm tests</span><strong class="ok">4 passed</strong><small>通过</small></div>
+        <div class="quality-row"><span>Static site audit</span><strong class="ok">通过</strong><small>浏览器层因未安装 playwright-core 跳过</small></div>
+      </div>
+      <p class="evidence-note">证据提交：<code>727d296</code>（v0.4.0）、<code>2c87211</code>、<code>bd66450</code>、<code>b01939a</code>、<code>1a4a4ac</code>、<code>d388da7</code>。</p>
+    </section>
+
+    <section class="weekly-section" id="next">
+      <div class="section-label">04 · NEXT WEEK</div>
+      <div class="next-grid"><ol><li>修复或参数化 provider 数量契约，补跑完整 Python suite。</li><li>完成 BigModel GLM Coding endpoint 的受控 probe 和兼容性验证。</li><li>审核 Codex 直连适配器的凭据、白名单与流式 Responses 转换。</li><li>安装 Playwright 后补跑浏览器层站点审计。</li></ol><aside><b>工作区边界</b><p>GLM Coding refresh source、Codex 直连适配器和相关 registry 改动仍未提交，本周报未将其计入已交付成果。</p></aside></div>
+    </section>
+  </main>
+  <footer><div class="footer-brand"><img src="/assets/brand/modelport-mark-192.png" alt="" width="38" height="38"><span><b>模力自由港</b><small>FreeModel Port · Engineering Weekly</small></span></div><p>本页基于仓库 Git 历史与真实验证结果生成。</p><div class="footer-links"><a href="/logs/">开发日志</a><a href="/guide/">安装指南</a><a href="/">返回首页</a></div></footer>
+</body>
+</html>
