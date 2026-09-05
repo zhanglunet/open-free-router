@@ -106,6 +106,32 @@ async function handleInternalBenchmarks(request, env) {
   return privateJson({ error: "method_not_allowed" }, 405, { Allow: url.pathname.endsWith("/refresh") ? "POST" : "GET" });
 }
 
+// 六小时格子：`*/15` 这条 cron 里，哪些触发要顺带刷新目录与基准。
+//
+// 目录/基准原本挂在自己那条 `17 */6 * * *` 上。合并的动机不在本项目——
+// Workers **Free** 档的 cron 触发器是「每账号 5 条」且已占满，本 Worker 一个人占了 2 条，
+// 别的项目因此配不上定时任务。折进 `*/15` 之后腾出一格，**本项目行为不变**：
+// 仍是每 6 小时一次、每天 4 次，只是从 :17 移到 :00，且不增加任何调用次数。
+//
+// 判据取 `controller.scheduledTime` 而不是 `Date.now()`：cron 是尽力而为的触发，
+// 真实执行时刻可能晚几十秒；scheduledTime 是**计划时刻**，用它判格子，迟到不会让这一格丢掉。
+//
+// 为什么钉「分钟 === 0」而不是「=== 15」：`*/15` 只是当下的节奏。任何 `*/N`（N 整除 60）
+// 都会在整点触发，钉在 0 分让这段逻辑不随节奏调整而**静默失效**——而静默失效正是它替换掉的
+// 那种写法的毛病：`controller.cron === "17 */6 * * *"` 是个必须与 wrangler.jsonc 逐字相同的
+// 字符串，改了配置这里不报错，只是不再执行。
+//
+// 拿不到计划时刻时返回 false（跳过本轮）而不是 true：目录刷新单次约 245 ms CPU，
+// 误判成「每格都跑」会把它从 4 次/天变成 96 次/天。漏跑有兜底——`getDiscovery` 在快照
+// 超过 7 小时时会自行补刷。
+//
+// （本段用行注释而非 /** */：cron 表达式里的 `*/` 会把块注释提前闭合。）
+export function isSixHourlySlot(scheduledTime) {
+  const at = new Date(scheduledTime);
+  if (Number.isNaN(at.getTime())) return false;
+  return at.getUTCHours() % 6 === 0 && at.getUTCMinutes() === 0;
+}
+
 export function installManifest() {
   return {
     name: "open-free-router",
@@ -195,14 +221,13 @@ export default {
   },
 
   async scheduled(controller, env, ctx) {
-    const tasks = [];
-    if (controller.cron === "17 */6 * * *") {
+    const tasks = [refreshProviderStatus(env)];
+    if (isSixHourlySlot(controller.scheduledTime)) {
       tasks.push(refreshDiscovery(env));
       if (env.ARTIFICIAL_ANALYSIS_API_KEY) {
         tasks.push(loadRegistry(env).then((catalog) => refreshInternalBenchmarks(env, catalog)));
       }
     }
-    if (controller.cron === "*/15 * * * *") tasks.push(refreshProviderStatus(env));
     ctx.waitUntil(Promise.allSettled(tasks).then((outcomes) => {
       for (const outcome of outcomes) {
         if (outcome.status === "rejected") {
