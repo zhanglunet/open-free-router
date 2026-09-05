@@ -22,8 +22,12 @@
       "id": "19ad870a7eb244ba91fb7f5ea08d9bb3"
     }
   ],
+  // 只留一条 cron。Workers **Free** 档的触发器额度是「每账号 5 条」，账号已经占满，
+  // 而本 Worker 原本一个人占了 2 条，别的项目因此配不上定时任务。
+  // 目录与基准刷新已折进下面这条 `*/15` 的整点格（见 worker/index.js 的 isSixHourlySlot），
+  // 仍是每 6 小时一次、每天 4 次，只是触发时刻从 :17 移到 :00。
   "triggers": {
-    "crons": ["*/15 * * * *", "17 */6 * * *"]
+    "crons": ["*/15 * * * *"]
   },
   "secrets": {
     "required": [
