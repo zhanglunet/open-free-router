@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-09-05T09:58:58+00:00",
-  "status_as_of": "2026-09-05T09:45:28.442Z",
+  "generated_at": "2026-09-06T08:44:23+00:00",
+  "status_as_of": "2026-09-06T08:30:31.036Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 10,
   "model_count": 38,
@@ -13,8 +13,8 @@
       "api": "https://generativelanguage.googleapis.com/v1beta/openai",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
-      "latency_ms": 442,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 1413,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 2,
       "models": [
         {
@@ -101,8 +101,8 @@
       "api": "https://api.groq.com/openai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 4/6 个模型可用",
-      "latency_ms": 171,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 282,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 6,
       "models": [
         {
@@ -288,8 +288,8 @@
       "api": "https://integrate.api.nvidia.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/5 个模型可用",
-      "latency_ms": 427,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 10851,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 5,
       "models": [
         {
@@ -309,7 +309,7 @@
           "family_zh": "MiniMax",
           "description_zh": "MiniMax 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "较慢",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -449,9 +449,9 @@
       "prefix": "or",
       "api": "https://openrouter.ai/api/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 5/9 个模型可用",
-      "latency_ms": 350,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "reason": "Cloudflare 服务器已验证 4/9 个模型可用",
+      "latency_ms": 420,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 9,
       "models": [
         {
@@ -541,12 +541,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "Google Gemma",
           "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -713,8 +713,8 @@
       "api": "https://inference.poolside.ai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 611,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 716,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 2,
       "models": [
         {
@@ -800,8 +800,8 @@
       "api": "https://token.sensenova.cn/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 1472,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 2857,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 2,
       "models": [
         {
@@ -846,7 +846,7 @@
           "family_zh": "智谱 GLM",
           "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "中等",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -887,8 +887,8 @@
       "api": "https://api.stepfun.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/1 个模型可用",
-      "latency_ms": 1687,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "latency_ms": 1842,
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 1,
       "models": [
         {
@@ -950,7 +950,7 @@
       "availability": "unverified",
       "reason": "服务器凭据无效或没有访问权限",
       "latency_ms": null,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 2,
       "models": [
         {
@@ -1037,7 +1037,7 @@
       "availability": "unverified",
       "reason": "模型或接口在提供商侧不存在",
       "latency_ms": null,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 2,
       "models": [
         {
@@ -1123,7 +1123,7 @@
       "availability": "unverified",
       "reason": "提供商对服务器探测请求限流",
       "latency_ms": null,
-      "checked_at": "2026-09-05T09:45:28.442Z",
+      "checked_at": "2026-09-06T08:30:31.036Z",
       "model_count": 7,
       "models": [
         {
