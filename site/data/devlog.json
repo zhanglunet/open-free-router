@@ -1,9 +1,28 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-08-09T00:00:00.000Z",
+  "updated_at": "2026-10-17T00:00:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-10-17-route-query-路由查询",
+      "date": "2026-10-17",
+      "type": "feature",
+      "version": "v0.4.0",
+      "title": "新增 route query：查这次请求会路由到哪个上游",
+      "summary": "新增 `open-free-router route query` 命令：输入模型 ID、虚拟模型名或空（“找个能用的”），只读返回这次请求会被路由到哪个上游及结构化原因。空输入时只在“配好凭证且有新鲜探测证据”的候选里按可解释评分选最优；无探测数据时明确报告可用性未知，不猜测、不推荐不可用模型。",
+      "items": [
+        "显式模型 / 虚拟模型复用代理同一套路由逻辑，不另起一套",
+        "空输入按凭证就绪 + 45 分钟新鲜探测证据过滤后再按评分排序",
+        "无证据时返回可用性未知（fail-closed），口径与面板探测页一致"
+      ],
+      "links": [
+        {
+          "label": "仓库",
+          "url": "https://github.com/zhanglunet/open-free-router"
+        }
+      ]
+    },
     {
       "id": "2026-08-09-开发周报页面上线",
       "date": "2026-08-09",
@@ -17,7 +36,10 @@
         "同步站点导航、站点地图和 XML Sitemap"
       ],
       "links": [
-        {"label": "查看开发周报", "url": "/weekly/"}
+        {
+          "label": "查看开发周报",
+          "url": "/weekly/"
+        }
       ]
     },
     {
