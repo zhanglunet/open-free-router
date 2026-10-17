@@ -1,0 +1,134 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL="https://github.com/zhanglunet/open-free-router.git"
+INSTALL_SYSTEMD=false
+INSTALL_CODEX=false
+AUTO_DISCOVERY=false
+AUTO_ADOPT=false
+for arg in "$@"; do
+  case "$arg" in
+    --with-systemd) INSTALL_SYSTEMD=true ;;
+    --codex) INSTALL_CODEX=true ;;
+    --auto-discovery) AUTO_DISCOVERY=true ;;
+    # Adoption writes new providers into the registry, so it stays
+    # behind its own flag rather than riding along with discovery.
+    --auto-adopt) AUTO_DISCOVERY=true; AUTO_ADOPT=true ;;
+    *) REPO_URL="$arg" ;;
+  esac
+done
+INSTALL_DIR="${OPEN_FREE_ROUTER_HOME:-$HOME/.local/open-free-router}"
+CONFIG_DIR="${OPEN_FREE_ROUTER_CONFIG_HOME:-$HOME/.config/open-free-router}"
+# Auto-detect Python 3.11+ (macOS default python3 is often too old)
+if [ -n "${OPEN_FREE_ROUTER_PYTHON:-}" ]; then
+  PYTHON="$OPEN_FREE_ROUTER_PYTHON"
+else
+  PYTHON=""
+  for candidate in python3.13 python3.12 python3.11 python3; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      py_version="$("$candidate" -c 'import sys; print("%d.%d" % sys.version_info[:2])' 2>/dev/null || echo 0.0)"
+      py_major="${py_version%%.*}"
+      py_minor="${py_version#*.}"
+      if [ "$py_major" -gt 3 ] || { [ "$py_major" -eq 3 ] && [ "$py_minor" -ge 11 ]; }; then
+        PYTHON="$candidate"
+        break
+      fi
+    fi
+  done
+  if [ -z "$PYTHON" ]; then
+    echo "❌ Python 3.11+ not found. Please install it or set OPEN_FREE_ROUTER_PYTHON." >&2
+    exit 1
+  fi
+fi
+
+echo "🆓 open-free-router installer"
+echo "   Install dir: $INSTALL_DIR"
+echo "   Config dir:  $CONFIG_DIR"
+echo ""
+
+if [ -d "$INSTALL_DIR/.git" ]; then
+  echo "⏳ Updating existing installation..."
+  git -C "$INSTALL_DIR" pull --ff-only
+else
+  echo "⏳ Cloning repository..."
+  git clone "$REPO_URL" "$INSTALL_DIR"
+fi
+
+echo "⏳ Setting up Python environment..."
+cd "$INSTALL_DIR"
+"$PYTHON" -m venv .venv
+source .venv/bin/activate
+pip install --disable-pip-version-check --timeout 30 --retries 1 -q -e .
+
+# Symlink to system path if writable
+if [ -w /usr/local/bin ]; then
+  ln -sf "$INSTALL_DIR/.venv/bin/open-free-router" /usr/local/bin/open-free-router
+else
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$INSTALL_DIR/.venv/bin/open-free-router" "$HOME/.local/bin/open-free-router"
+fi
+
+mkdir -p "$CONFIG_DIR"
+
+if [ ! -f "$CONFIG_DIR/config.yaml" ]; then
+  echo "⏳ Creating default config..."
+  cat > "$CONFIG_DIR/config.yaml" <<EOF
+registry: $CONFIG_DIR/registry.yaml
+
+proxy:
+  host: 127.0.0.1
+  port: 8337
+
+ui:
+  host: 127.0.0.1
+  port: 9057
+
+refresh_interval_hours: 12
+
+discovery:
+  enabled: true
+  interval_hours: 24
+  auto_test: $AUTO_DISCOVERY
+  auto_adopt: $AUTO_ADOPT
+  max_providers_per_cycle: 5
+  max_models_per_provider: 3
+EOF
+fi
+
+if [ "$INSTALL_CODEX" = true ]; then
+  echo "⏳ Creating isolated Codex profile..."
+  "$INSTALL_DIR/.venv/bin/open-free-router" sync --agent codex
+fi
+
+echo ""
+echo "✔ Installation complete"
+echo "  Install: $INSTALL_DIR"
+echo "  Config:  $CONFIG_DIR/config.yaml"
+echo ""
+echo "Next steps:"
+echo "  1. Edit $CONFIG_DIR/registry.yaml and add your API keys"
+echo "  2. Or run:  open-free-router setup"
+echo "  3. Start:   open-free-router serve"
+if [ "$INSTALL_CODEX" = true ]; then
+  echo "  4. Codex:   codex --profile open-free-router"
+fi
+if [ ! -w /usr/local/bin ]; then
+  echo "  PATH: add $HOME/.local/bin to PATH if open-free-router is not found"
+fi
+echo ""
+
+# Optional: install systemd service for auto-start
+if [ "$INSTALL_SYSTEMD" = true ] || [ "${OPEN_FREE_ROUTER_SYSTEMD:-}" = "1" ]; then
+  if command -v systemctl >/dev/null 2>&1; then
+    echo "⏳ Installing systemd service..."
+    sed "s|/opt/open-free-router|$INSTALL_DIR|g" "$INSTALL_DIR/contrib/systemd/open-free-router.service" \
+      > /etc/systemd/system/open-free-router.service
+    systemctl daemon-reload
+    systemctl enable open-free-router.service
+    echo "✔ systemd service installed and enabled"
+    echo "  Start:  systemctl start open-free-router"
+    echo "  Status: systemctl status open-free-router"
+  else
+    echo "⚠ systemctl not found, skipping systemd setup"
+  fi
+fi

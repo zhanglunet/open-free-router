@@ -1,0 +1,96 @@
+# plugins/openfree-router/clients.yaml
+# PRD-015/T2：9 客户端同步打包规范（声明式）
+#
+# 设计原则：
+# - 唯一写入入口：`open-free-router sync --agent <name>`（幂等；写入前自动备份旧配置到 ~/.openclaw/agent-backup/<日期>/）
+# - 每个客户端 = 一条同步命令 + 一个配置文件 + 一条验证命令，不散落手工步骤
+# - 代理地址默认 http://127.0.0.1:8337（proxy）/ 9057（UI），可在 ~/.config/open-free-router/config.yaml 修改
+# - 同步的检测规则：只同步"已安装"的客户端（配置目录已存在）；--agent 显式指定时即使客户端没装过也会创建配置
+version: "1.0"
+
+proxy:
+  health_url: "http://127.0.0.1:8337/health"
+  models_url: "http://127.0.0.1:8337/v1/models"
+  ui_url: "http://127.0.0.1:9057"
+
+install_order:
+  - "bash scripts/install.sh --auto-discovery   # 克隆仓库 + venv + pip install -e ."
+  - "open-free-router setup                      # 交互式填写各家 API key（可选；无 key 也可先跑起来）"
+  - "open-free-router serve                      # 启动 proxy(8337) + UI(9057) + 定时探测"
+  - "open-free-router sync                       # 同步本机已安装客户端的配置（逐个见下表）"
+
+clients:
+  codex:
+    display_name: "Codex CLI"
+    protocol: "Responses API"
+    sync: "open-free-router sync --agent codex"
+    config_file: "~/.codex/open-free-router.config.toml"
+    notes: "独立 profile，不污染用户默认 Codex 配置；启动用 codex --profile open-free-router"
+    verify: "test -f ~/.codex/open-free-router.config.toml && grep -q '127.0.0.1:8337' ~/.codex/open-free-router.config.toml && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'codex ok'"
+
+  claude:
+    display_name: "Claude Code"
+    protocol: "Anthropic Messages"
+    sync: "open-free-router sync --agent claude"
+    config_file: "~/.claude/settings.json"
+    notes: "env 块合并写入，保留用户已有 settings"
+    verify: "grep -q '127.0.0.1:8337' ~/.claude/settings.json && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'claude ok'"
+
+  opencode:
+    display_name: "OpenCode"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent opencode"
+    config_file: "~/.config/opencode/opencode.jsonc"
+    notes: ""
+    verify: "test -f ~/.config/opencode/opencode.jsonc && grep -q '127.0.0.1:8337' ~/.config/opencode/opencode.jsonc && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'opencode ok'"
+
+  hermes:
+    display_name: "Hermes"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent hermes"
+    config_file: "~/.hermes/config.yaml"
+    notes: "模型运行时自动发现"
+    verify: "test -f ~/.hermes/config.yaml && grep -q '127.0.0.1:8337' ~/.hermes/config.yaml && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'hermes ok'"
+
+  kimi:
+    display_name: "Kimi CLI"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent kimi"
+    config_file: "~/.kimi-code/config.toml"
+    notes: "托管标记块（>>> open-free-router managed >>>）；旧版回退 ~/.kimi/config.toml；--kimi-available-only 只写 45 分钟内 Live Probe 实测可用的模型"
+    verify: "test -f ~/.kimi-code/config.toml && grep -q '127.0.0.1:8337' ~/.kimi-code/config.toml && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'kimi ok'"
+
+  openclaw:
+    display_name: "OpenClaw"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent openclaw"
+    config_file: "~/.openclaw/openclaw.json"
+    notes: "静态模型目录"
+    verify: "test -f ~/.openclaw/openclaw.json && grep -q '127.0.0.1:8337' ~/.openclaw/openclaw.json && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'openclaw ok'"
+
+  workbuddy:
+    display_name: "WorkBuddy"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent workbuddy"
+    config_file: "~/.workbuddy/models.json"
+    notes: "改配置后重启 WorkBuddy 生效"
+    verify: "test -f ~/.workbuddy/models.json && grep -q '127.0.0.1:8337' ~/.workbuddy/models.json && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'workbuddy ok'"
+
+  pi:
+    display_name: "Pi"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent pi"
+    config_file: "~/.pi/agent/models.json"
+    notes: ""
+    verify: "test -f ~/.pi/agent/models.json && grep -q '127.0.0.1:8337' ~/.pi/agent/models.json && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'pi ok'"
+
+  omp:
+    display_name: "OMP"
+    protocol: "Chat Completions"
+    sync: "open-free-router sync --agent omp"
+    config_file: "~/.omp/agent/models.yml"
+    notes: ""
+    verify: "test -f ~/.omp/agent/models.yml && grep -q '127.0.0.1:8337' ~/.omp/agent/models.yml && curl -sf http://127.0.0.1:8337/health | grep -q ok && echo 'omp ok'"
+
+# 聚合检查：一次看全 9 个客户端的配置状态
+aggregate_check: "open-free-router doctor"

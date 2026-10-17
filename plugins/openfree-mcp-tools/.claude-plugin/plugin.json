@@ -1,0 +1,1 @@
+{"description":"只读 MCP tools：查可用免费模型 / 查可解释智能评分 / 查实时可用性探测状态（PRD-014）","keywords":["mcp","model-availability","readonly"],"license":"MIT","name":"openfree-mcp-tools","version":"0.1.0"}
