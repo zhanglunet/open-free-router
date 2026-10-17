@@ -225,6 +225,16 @@ try {
   // Tarball, vendored checkout or shallow export: no git metadata. The wall
   // clock is strictly stricter, so this direction fails safe.
 }
+if (process.env.FRESHNESS_ANCHOR === "now") {
+  // data-refresh workflow sets this: the catalog being verified was just
+  // exported with generated_at=now against a stale HEAD. Anchoring to HEAD
+  // would read it as "from the future" and fail the workflow's own verify
+  // step forever -- no PR, HEAD never advances (self-deadlock of 2026-09).
+  // The age decision lives in the workflow's decide step; here the wall
+  // clock is the honest anchor and only the shape check still matters.
+  anchorMs = Date.now();
+  anchorLabel = "墙钟（FRESHNESS_ANCHOR=now，由调用方显式指定）";
+}
 const freshness = checkCatalogFreshness(publishedCatalog, { anchorMs });
 console.log(`新鲜度锚点：${anchorLabel}`);
 for (const line of freshness.info) console.log(`  · ${line}`);
