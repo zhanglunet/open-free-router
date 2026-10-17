@@ -6,7 +6,8 @@
 
 ```
 plugins/openfree-router/
-├── .claude-plugin/plugin.json  # 插件清单（含 install.steps）
+├── .claude-plugin/plugin.json  # 插件清单（仅官方支持字段）
+├── commands/install.md         # 安装命令（官方 command 组件，替代原来的 install.steps）
 ├── clients.yaml                # 9 客户端声明式打包规范（同步命令/配置文件/验证命令）
 ├── scripts/install.sh          # 一键安装脚本（与仓库根 scripts/install.sh 同步，见下注）
 └── README.md                   # 本文件
