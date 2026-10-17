@@ -1,4 +1,5 @@
 import json
+from datetime import datetime, timezone
 from types import SimpleNamespace
 
 from open_free_router.cli import cmd_route_query
@@ -7,8 +8,22 @@ from open_free_router.cli import cmd_route_query
 def _setup(tmp_path, monkeypatch, registry_text, config_text=""):
     (tmp_path / "registry.yaml").write_text(registry_text)
     config = tmp_path / "config.yaml"
-    config.write_text("registry: registry.yaml\n" + config_text)
+    config.write_text(
+        "registry: registry.yaml\n" f"data_dir: {tmp_path}\n" + config_text
+    )
     monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
+
+
+def _write_probe_snapshot(tmp_path, results):
+    (tmp_path / "probe-results.json").write_text(json.dumps({"results": results}))
+
+
+def _fresh_result():
+    return {
+        "ok": True,
+        "checked_at": datetime.now(timezone.utc).isoformat(),
+        "latency_ms": 120,
+    }
 
 
 def _query(capsys, model):
@@ -72,14 +87,17 @@ def test_route_query_empty_picks_highest_scored_available(
     # "fast/m2" is listed second but carries verified free-tier evidence, so
     # the explainable score must beat the registry-order favourite "slow/m1".
     # A registry-order-only implementation would resolve to "slow/m1".
-    _setup(
-        tmp_path, monkeypatch,
+    # Both providers have credentials AND fresh probe evidence, so both are
+    # eligible -- the score decides.
+    registry = (
         "slow:\n"
         "  prefix: slow\n"
+        "  api_keys: [k1]\n"
         "  models:\n"
         "    - id: m1\n"
         "fast:\n"
         "  prefix: fast\n"
+        "  api_keys: [k2]\n"
         "  free_tier:\n"
         "    type: recurring_quota\n"
         "    limit: 200\n"
@@ -87,7 +105,11 @@ def test_route_query_empty_picks_highest_scored_available(
         "    verified_at: \"2026-01-01T00:00:00+00:00\"\n"
         "    expires_at: \"2027-01-01T00:00:00+00:00\"\n"
         "  models:\n"
-        "    - id: m2\n",
+        "    - id: m2\n"
+    )
+    _setup(tmp_path, monkeypatch, registry)
+    _write_probe_snapshot(
+        tmp_path, {"slow/m1": _fresh_result(), "fast/m2": _fresh_result()}
     )
     result = _query(capsys, None)
     assert result["requested"] is None
@@ -95,6 +117,54 @@ def test_route_query_empty_picks_highest_scored_available(
     assert result["strategy"] == "best-scored"
     assert result["candidates"][0] == "fast/m2"
     assert result["score"]["factors"]["free_evidence"]["value"] == 1.0
+
+
+def test_route_query_empty_filters_credential_missing(tmp_path, monkeypatch, capsys):
+    # "slow/m1" would win on score (verified free-tier evidence + fresh probe)
+    # but has no API key configured, so UpstreamExecutor would skip it as
+    # credential_missing. The query must not recommend it either.
+    registry = (
+        "slow:\n"
+        "  prefix: slow\n"
+        "  free_tier:\n"
+        "    type: recurring_quota\n"
+        "    limit: 200\n"
+        "    evidence_url: https://example.com/free-tier\n"
+        "    verified_at: \"2026-01-01T00:00:00+00:00\"\n"
+        "    expires_at: \"2027-01-01T00:00:00+00:00\"\n"
+        "  models:\n"
+        "    - id: m1\n"
+        "fast:\n"
+        "  prefix: fast\n"
+        "  api_keys: [k2]\n"
+        "  models:\n"
+        "    - id: m2\n"
+    )
+    _setup(tmp_path, monkeypatch, registry)
+    _write_probe_snapshot(
+        tmp_path, {"slow/m1": _fresh_result(), "fast/m2": _fresh_result()}
+    )
+    result = _query(capsys, None)
+    assert result["resolved_to"] == "fast/m2"
+    assert "slow/m1" not in result["candidates"]
+
+
+def test_route_query_empty_reports_unknown_without_probe_data(
+    tmp_path, monkeypatch, capsys
+):
+    # Credentials are configured but no probe batch ever ran: the query
+    # must report availability unknown instead of guessing.
+    registry = (
+        "fast:\n"
+        "  prefix: fast\n"
+        "  api_keys: [k2]\n"
+        "  models:\n"
+        "    - id: m2\n"
+    )
+    _setup(tmp_path, monkeypatch, registry)
+    result = _query(capsys, None)
+    assert result["resolved_to"] is None
+    assert "可用性未知" in result["reason"]
 
 
 def test_route_query_human_output_shows_resolution(tmp_path, monkeypatch, capsys):
