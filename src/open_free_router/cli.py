@@ -14,6 +14,7 @@ from open_free_router.serve import Daemon
 from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
 from open_free_router.routing import RoutePlanner, diagnose_routing_config
+from open_free_router.route_query import query_route
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -366,6 +367,22 @@ def cmd_route_explain(args):
         print("rejected:")
         for item in explanation["rejected"]:
             print(f"  - {item['model']}: {item['reason']}")
+
+
+def cmd_route_query(args):
+    """Answer which upstream a request would route to, without any network I/O."""
+    cfg = Config()
+    _bootstrap_registry(cfg)
+    reg = Registry.load(cfg.registry_path)
+    result = query_route(RoutePlanner(reg, cfg.routing), args.model)
+    if args.json:
+        import json as _json
+        print(_json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    print(f"requested : {result['requested'] or '(auto: 找个能用的)'}")
+    print(f"resolved  : {result['resolved_to'] or '(none)'}")
+    print(f"strategy  : {result['strategy']}")
+    print(f"reason    : {result['reason']}")
 
 
 def _resilience_request(cfg: Config, method: str = "GET", payload: dict | None = None) -> dict:
@@ -780,6 +797,14 @@ def main():
     p_route_explain.add_argument("model")
     p_route_explain.add_argument("--json", action="store_true")
     p_route_explain.set_defaults(func=cmd_route_explain)
+
+    p_route_query = route_sub.add_parser(
+        "query", help="answer which upstream a request would route to (read-only)")
+    p_route_query.add_argument(
+        "model", nargs="?", default=None,
+        help="model ID or virtual model; omit to pick the best-scored available model")
+    p_route_query.add_argument("--json", action="store_true")
+    p_route_query.set_defaults(func=cmd_route_query)
 
     p_resilience = sub.add_parser("resilience", help="inspect or reset runtime failure isolation")
     p_resilience.add_argument("--json", action="store_true")
