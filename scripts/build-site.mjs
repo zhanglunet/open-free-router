@@ -234,6 +234,14 @@ if (process.env.FRESHNESS_ANCHOR === "now") {
   // clock is the honest anchor and only the shape check still matters.
   anchorMs = Date.now();
   anchorLabel = "墙钟（FRESHNESS_ANCHOR=now，由调用方显式指定）";
+} else if (process.env.GITHUB_WORKFLOW === "Data refresh") {
+  // Fallback when the workflow file itself cannot be updated (e.g. the
+  // GitHub App lacks the workflows permission): auto-detect the refresh
+  // workflow instead of requiring the env var. Same rationale as above.
+  // If the workflow file is ever updated to set FRESHNESS_ANCHOR explicitly,
+  // that branch wins and this one becomes inert.
+  anchorMs = Date.now();
+  anchorLabel = "墙钟（data-refresh workflow 自动识别）";
 }
 const freshness = checkCatalogFreshness(publishedCatalog, { anchorMs });
 console.log(`新鲜度锚点：${anchorLabel}`);
