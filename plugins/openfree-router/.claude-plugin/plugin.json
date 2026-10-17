@@ -1,0 +1,1 @@
+{"description":"本地代理：一键跑起 proxy(8337)+UI(9057)，聚合 10 家免费 LLM 提供商 38 个模型，9 个客户端共享","install":{"steps":["bash scripts/install.sh --auto-discovery","open-free-router sync","curl -s http://127.0.0.1:8337/health | grep -q ok && echo proxy-ok"]},"keywords":["llm-proxy","free-models","model-router"],"license":"MIT","name":"openfree-router","version":"0.4.0"}
