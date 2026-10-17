@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-17T01:37:19+00:00",
-  "status_as_of": "2026-10-17T01:30:02.377Z",
+  "generated_at": "2026-10-17T08:39:37+00:00",
+  "status_as_of": "2026-10-17T08:30:02.098Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 10,
   "model_count": 38,
@@ -13,8 +13,8 @@
       "api": "https://generativelanguage.googleapis.com/v1beta/openai",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
-      "latency_ms": 467,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "latency_ms": 487,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 2,
       "models": [
         {
@@ -101,8 +101,8 @@
       "api": "https://api.groq.com/openai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/6 个模型可用",
-      "latency_ms": 349,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "latency_ms": 127,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 6,
       "models": [
         {
@@ -287,9 +287,9 @@
       "prefix": "or",
       "api": "https://openrouter.ai/api/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 4/9 个模型可用",
-      "latency_ms": 465,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "reason": "Cloudflare 服务器已验证 5/9 个模型可用",
+      "latency_ms": 125,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 9,
       "models": [
         {
@@ -354,12 +354,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "unverified",
+          "availability": "available",
           "capability_score": 55,
           "family_zh": "Google Gemma",
           "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
+          "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -551,8 +551,8 @@
       "api": "https://inference.poolside.ai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 428,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "latency_ms": 86,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 2,
       "models": [
         {
@@ -637,9 +637,9 @@
       "prefix": "nova",
       "api": "https://token.sensenova.cn/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 2306,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
+      "latency_ms": 1595,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 2,
       "models": [
         {
@@ -654,12 +654,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -725,8 +725,8 @@
       "api": "https://api.stepfun.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/1 个模型可用",
-      "latency_ms": 1543,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "latency_ms": 1798,
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 1,
       "models": [
         {
@@ -788,7 +788,7 @@
       "availability": "unverified",
       "reason": "服务器凭据无效或没有访问权限",
       "latency_ms": null,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 2,
       "models": [
         {
@@ -875,7 +875,7 @@
       "availability": "unverified",
       "reason": "模型或接口在提供商侧不存在",
       "latency_ms": null,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 2,
       "models": [
         {
@@ -961,7 +961,7 @@
       "availability": "unverified",
       "reason": "服务器探测返回 HTTP 410",
       "latency_ms": null,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 5,
       "models": [
         {
@@ -1123,7 +1123,7 @@
       "availability": "unverified",
       "reason": "服务器探测返回 HTTP 410",
       "latency_ms": null,
-      "checked_at": "2026-10-17T01:30:02.377Z",
+      "checked_at": "2026-10-17T08:30:02.098Z",
       "model_count": 7,
       "models": [
         {
