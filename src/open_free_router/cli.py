@@ -374,7 +374,7 @@ def cmd_route_query(args):
     cfg = Config()
     _bootstrap_registry(cfg)
     reg = Registry.load(cfg.registry_path)
-    result = query_route(RoutePlanner(reg, cfg.routing), args.model)
+    result = query_route(RoutePlanner(reg, cfg.routing), args.model, data_dir=cfg.data_dir)
     if args.json:
         import json as _json
         print(_json.dumps(result, indent=2, ensure_ascii=False))
