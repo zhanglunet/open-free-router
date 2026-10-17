@@ -25,6 +25,7 @@ from urllib.parse import urlsplit, urlunsplit
 
 from open_free_router import __version__
 from open_free_router.auth import get_or_create_proxy_token
+from open_free_router.availability import get_live_status, list_available_models
 from open_free_router.config import Config
 from open_free_router.registry import Registry
 from open_free_router.routing import RoutePlanner
@@ -98,6 +99,43 @@ TOOLS = [
             "type": "object",
             "properties": {
                 "days": {"type": "integer", "minimum": 1, "maximum": 365, "default": 30}
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "list_available_models",
+        "description": (
+            "List registry models with current availability from probe evidence "
+            "(same probe snapshot the dashboard shows, same freshness clock; "
+            "available means a fresh successful probe). Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "provider": {
+                    "type": "string",
+                    "description": "optional, only this provider (registry provider name)",
+                },
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False, "idempotentHint": True},
+    },
+    {
+        "name": "get_live_status",
+        "description": (
+            "Per-model live probe status: last probe time, latency and error "
+            "rate from the persisted probe evidence. Read-only."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "model_id": {
+                    "type": "string",
+                    "description": "optional, a model ID from list_available_models; omit for all models",
+                },
             },
             "additionalProperties": False,
         },
@@ -372,6 +410,31 @@ class McpServer:
         except RuntimeError as exc:
             return _text_result(str(exc), is_error=True)
 
+    def _probe_snapshot(self) -> dict | None:
+        """Probe evidence the dashboard persists; None when never probed."""
+        from open_free_router.availability import load_probe_data
+
+        return load_probe_data(self.cfg.data_dir)
+
+    def tool_list_available_models(self, args: dict) -> dict:
+        provider = str(args.get("provider") or "").strip()
+        payload = list_available_models(
+            self._registry(), self.cfg.routing, self._probe_snapshot(),
+            provider=provider,
+        )
+        return _text_result(payload)
+
+    def tool_get_live_status(self, args: dict) -> dict:
+        model_id = str(args.get("model_id") or "").strip()
+        payload = get_live_status(
+            self._registry(), self.cfg.routing, self._probe_snapshot(),
+            model_id=model_id,
+        )
+        # The T1 MODEL_NOT_FOUND shape travels in the payload; flag it as an
+        # input error like the other tool_* input validations.
+        is_error = isinstance(payload, dict) and payload.get("error") == "MODEL_NOT_FOUND"
+        return _text_result(payload, is_error=is_error)
+
     def tool_chat(self, args: dict) -> dict:
         model = args.get("model", "")
         prompt = args.get("prompt", "")
@@ -563,3 +626,4 @@ def main(print_config: bool = False):
         print_client_config()
         return
     McpServer().serve_stdio()
+
