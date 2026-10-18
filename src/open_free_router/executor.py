@@ -16,6 +16,7 @@ from open_free_router.resilience import (
     classify_failure,
     parse_retry_after,
 )
+from open_free_router import translate
 from open_free_router.routing import RoutePlanner, RouteTarget
 from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.quota import parse_quota_headers
@@ -182,30 +183,29 @@ class UpstreamExecutor:
         endpoint_suffix: str,
         payload: dict,
         timeout: int,
+        request_id: str = "",
     ) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
-        upstream = (target.provider.upstream_url or target.provider.base_url).rstrip("/")
-        if not upstream:
-            raise OSError("provider not configured")
-        parts = urlsplit(f"{upstream}/{endpoint_suffix.lstrip('/')}")
-        if parts.scheme not in ("http", "https") or not parts.hostname:
-            raise OSError("invalid provider upstream URL")
+        # All upstream request assembly goes through the translation layer
+        # (PRD-060/T2): table-driven auth, model field, URL and field mapping.
+        table = translate.get_table(target.provider_name)
+        outbound = translate.build_outbound_request(
+            table,
+            target=target,
+            payload=payload,
+            credential=credential,
+            endpoint_suffix=endpoint_suffix,
+            request_id=request_id or "unknown",
+        )
+        parts = urlsplit(outbound.url)
         conn_cls = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
         conn = conn_cls(parts.hostname, parts.port, timeout=timeout)
         path = parts.path + (f"?{parts.query}" if parts.query else "")
-        body = dict(payload)
-        body["model"] = target.upstream_model_id
-        data = json.dumps(body).encode()
-        headers = {
-            "Content-Type": "application/json",
-            "User-Agent": "open-free-router/0.1",
-        }
-        if credential:
-            headers["Authorization"] = f"Bearer {credential}"
+        data = json.dumps(outbound.body).encode()
         try:
             conn.connect()
             if conn.sock:
                 conn.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-            conn.request("POST", path, body=data, headers=headers)
+            conn.request("POST", path, body=data, headers=outbound.headers)
             return conn, conn.getresponse()
         except Exception:
             conn.close()
@@ -269,7 +269,8 @@ class UpstreamExecutor:
                 attempt_started = time.monotonic()
                 try:
                     conn, response = self._open(
-                        target, credential, endpoint_suffix, payload, self.timeout
+                        target, credential, endpoint_suffix, payload,
+                        self.timeout, request_id=request_id,
                     )
                 except Exception as exc:
                     elapsed_ms = (time.monotonic() - attempt_started) * 1000
