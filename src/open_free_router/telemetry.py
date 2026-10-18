@@ -90,9 +90,11 @@ class RouteDecisionStore:
     def _safe_score(score):
         raw = score.to_dict() if hasattr(score, "to_dict") else {}
         factors = {}
-        for name in ("health", "success_rate", "latency", "quota", "capability", "free_evidence"):
-            item = (raw.get("factors") or {}).get(name, {})
-            factors[name] = {
+        # PRD-059/T2: plan scores carry the three policy dimensions
+        # (quality/cost/latency); legacy six-factor shapes pass through too.
+        for name, item in (raw.get("factors") or {}).items():
+            item = item if isinstance(item, dict) else {}
+            factors[str(name)] = {
                 "value": RouteDecisionStore._safe_latency(item.get("value")),
                 "weight": RouteDecisionStore._safe_latency(item.get("weight")),
                 "contribution": RouteDecisionStore._safe_latency(item.get("contribution")),
