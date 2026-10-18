@@ -219,7 +219,7 @@ class UpstreamExecutor:
         if self.decisions:
             for model, values in self.decisions.scoring_signals().items():
                 signals.setdefault(model, {}).update(values)
-        plan = self.planner.plan(requested_model, signals)
+        plan = self.planner.plan(requested_model, signals, self.resilience)
         rejected = list(plan.rejected)
         if not plan.candidates:
             status = 403 if plan.strategy == "explicit" else 503
