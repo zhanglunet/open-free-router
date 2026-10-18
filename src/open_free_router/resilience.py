@@ -170,6 +170,9 @@ class ResilienceManager:
         state_path: str | Path | None = None,
         credential_terminal_probe: float = 900.0,
         credential_forbidden_threshold: int = 3,
+        # PRD-059/T4: policy-driven knobs (T1 §7). Defaults are the T1 values.
+        credential_terminal_probe_max_scale: int = 8,
+        quota_cooldown_scale: float = 8.0,
     ):
         self.credential_forbidden_threshold = max(1, int(credential_forbidden_threshold))
         self.provider_threshold = max(1, int(provider_threshold))
@@ -177,6 +180,8 @@ class ResilienceManager:
         self.credential_cooldown = max(0.0, float(credential_cooldown))
         self.model_cooldown = max(0.0, float(model_cooldown))
         self.credential_terminal_probe = max(0.0, float(credential_terminal_probe))
+        self.credential_terminal_probe_max_scale = max(1, int(credential_terminal_probe_max_scale))
+        self.quota_cooldown_scale = max(1.0, float(quota_cooldown_scale))
         self._providers: dict[str, ProviderState] = {}
         self._credentials: dict[tuple[str, int], CredentialState] = {}
         self._models: dict[tuple[str, str], ModelState] = {}
@@ -330,7 +335,10 @@ class ResilienceManager:
 
     def _terminal_probe_delay(self, credential: CredentialState) -> float:
         """Backoff before a terminal slot earns its next recovery probe."""
-        multiplier = min(8, 2 ** max(0, credential.terminal_failures - 1))
+        multiplier = min(
+            self.credential_terminal_probe_max_scale,
+            2 ** max(0, credential.terminal_failures - 1),
+        )
         return self.credential_terminal_probe * multiplier
 
     def can_attempt(
@@ -655,3 +663,4 @@ class ResilienceManager:
                     "error": self.last_persist_error,
                 },
             }
+
