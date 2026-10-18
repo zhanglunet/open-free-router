@@ -12,6 +12,10 @@ import math
 from typing import Iterable
 
 from open_free_router.costing import CostConfig, cost_factor, excluded_by_cost
+from open_free_router.latency import (
+    LatencyConfig,
+    latency_dimension,
+)
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry, codex_model_alias
 from open_free_router.scoring import (
     DEFAULT_WEIGHTS,
@@ -106,6 +110,9 @@ class RoutingConfig:
     )
     cost_downgrade_threshold: float = 0.10
     cost_downgrade_factor: float = 0.5
+    # PRD-059/T1 §4.1: realtime TTFB sampling (switchable, bounded window).
+    latency_enabled: bool = True
+    latency_window_size: int = 100
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "RoutingConfig":
@@ -141,6 +148,14 @@ class RoutingConfig:
         policy = raw.get("policy") or {}
         if not isinstance(policy, dict):
             policy = {}
+        latency_enabled = policy.get("latency_enabled", True)
+        if not isinstance(latency_enabled, bool):
+            latency_enabled = True
+        try:
+            latency_window_size = int(policy.get("latency_window_size", 100))
+        except (TypeError, ValueError, OverflowError):
+            latency_window_size = 100
+        latency_window_size = min(10000, max(1, latency_window_size))
         return cls(
             aliases=aliases,
             fallback_enabled=bool(fallback.get("enabled", True)),
@@ -154,6 +169,8 @@ class RoutingConfig:
             cost_downgrade_factor=_bounded_policy_number(
                 policy.get("cost_downgrade_factor"), 0.5
             ),
+            latency_enabled=latency_enabled,
+            latency_window_size=latency_window_size,
         )
 
 
@@ -237,6 +254,7 @@ class RoutePlanner:
         requested_model: str,
         signals: dict[str, dict] | None = None,
         resilience=None,
+        latency_store=None,
     ) -> RoutePlan:
         """Build a route plan.
 
@@ -245,6 +263,11 @@ class RoutePlanner:
         credential slot is blocked (quota exhausted, cooling down, circuit
         open, …) are excluded up front — PRD-059/T1 §4.4 — instead of wasting
         a candidate slot the executor would reject anyway.
+
+        ``latency_store`` is an optional ``LatencyStore`` (PRD-059/T3).  When
+        given and sampling is enabled, the latency dimension uses the
+        realtime sliding-window p50 for each candidate; otherwise it falls
+        back to the probe-snapshot latency factor (T1 §4.2).
         """
         if requested_model not in self.virtual_model_ids():
             target = self.resolve_explicit(requested_model)
@@ -312,6 +335,7 @@ class RoutePlanner:
                 downgrade_factor=self.config.cost_downgrade_factor,
                 missing_default=self.config.scoring.missing_default,
             )
+            latency_config = LatencyConfig.from_routing(self.config)
             policy = self.config.policy_weights
             scored = []
             for order, target in enumerate(candidates):
@@ -325,11 +349,19 @@ class RoutePlanner:
                 cost_value, cost_source = cost_factor(
                     target_signals.get("quota"), cost_config
                 )
-                latency = base.factors["latency"].value
+                # PRD-059/T3: realtime p50 when sampling is on and data exists;
+                # otherwise the probe-snapshot latency factor (T1 §4.2).
+                latency_value, latency_source = latency_dimension(
+                    target,
+                    latency_store,
+                    latency_config,
+                    base.factors["latency"].value,
+                    base.factors["latency"].source,
+                )
                 total = (
                     policy["quality"] * quality
                     + policy["cost"] * cost_value
-                    + policy["latency"] * latency
+                    + policy["latency"] * latency_value
                 )
                 factors = {
                     "quality": FactorScore(
@@ -341,9 +373,9 @@ class RoutePlanner:
                         round(policy["cost"] * cost_value, 6), cost_source,
                     ),
                     "latency": FactorScore(
-                        round(latency, 6), round(policy["latency"], 6),
-                        round(policy["latency"] * latency, 6),
-                        base.factors["latency"].source,
+                        round(latency_value, 6), round(policy["latency"], 6),
+                        round(policy["latency"] * latency_value, 6),
+                        latency_source,
                     ),
                 }
                 combined = CandidateScore(target.canonical_id, round(total, 6), factors)
@@ -503,6 +535,23 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
                         "error", "invalid_cost_policy_value", f"routing.policy.{key}",
                         f"{key} 必须在 0 到 1 之间。",
                     )
+        if "latency_enabled" in policy and not isinstance(policy["latency_enabled"], bool):
+            add(
+                "error", "invalid_boolean", "routing.policy.latency_enabled",
+                "latency_enabled 必须写为 true 或 false；无效值会保持开启实时采样。",
+                "把 routing.policy.latency_enabled 设置为 true 或 false",
+            )
+        if "latency_window_size" in policy:
+            try:
+                parsed = int(policy["latency_window_size"])
+            except (TypeError, ValueError, OverflowError):
+                parsed = 0
+            if parsed < 1 or parsed > 10000:
+                add(
+                    "error", "invalid_latency_window", "routing.policy.latency_window_size",
+                    "latency_window_size 必须是 1 到 10000 的整数；当前运行时会回退到 100。",
+                    "把 routing.policy.latency_window_size 设置为 100",
+                )
 
     aliases = raw.get("aliases", {})
     if not isinstance(aliases, dict):

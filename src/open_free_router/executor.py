@@ -17,6 +17,7 @@ from open_free_router.resilience import (
     parse_retry_after,
 )
 from open_free_router import translate
+from open_free_router.latency import LatencyConfig, LatencyStore
 from open_free_router.routing import RoutePlanner, RouteTarget
 from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.quota import parse_quota_headers
@@ -136,6 +137,27 @@ class UpstreamExecutor:
         self.resilience = resilience
         self.timeout = timeout
         self.decisions = decisions
+        # PRD-059/T3: in-memory TTFB sliding windows for the latency
+        # dimension.  None when sampling is disabled (routing falls back to
+        # the probe-snapshot latency factor).
+        latency_config = LatencyConfig.from_routing(self.planner.config)
+        self.latency_store = (
+            LatencyStore(window_size=latency_config.window_size)
+            if latency_config.enabled
+            else None
+        )
+
+    def _record_latency(self, target: RouteTarget, ttfb_ms: float | None) -> None:
+        """Feed one first-byte observation to the latency store (PRD-059/T3).
+
+        Only called when a first byte was actually received.  Connection
+        failures have no TTFB; the resilience manager already punishes those.
+        """
+        if self.latency_store is None or ttfb_ms is None:
+            return
+        self.latency_store.record(
+            target.provider_name, target.upstream_model_id, ttfb_ms
+        )
 
     def _record(
         self,
@@ -219,7 +241,9 @@ class UpstreamExecutor:
         if self.decisions:
             for model, values in self.decisions.scoring_signals().items():
                 signals.setdefault(model, {}).update(values)
-        plan = self.planner.plan(requested_model, signals, self.resilience)
+        plan = self.planner.plan(
+            requested_model, signals, self.resilience, self.latency_store
+        )
         rejected = list(plan.rejected)
         if not plan.candidates:
             status = 403 if plan.strategy == "explicit" else 503
@@ -304,6 +328,9 @@ class UpstreamExecutor:
                 # destinations are explicit. A 3xx is treated as an upstream
                 # transport failure instead of forwarding credentials elsewhere.
                 ttfb_ms = (time.monotonic() - attempt_started) * 1000
+                # PRD-059/T3: first byte received — feed the latency store
+                # whether the status is 2xx or an error response.
+                self._record_latency(target, ttfb_ms)
                 if 200 <= response.status < 300:
                     self.resilience.record_success(
                         target.provider_name, target.upstream_model_id, credential_slot
