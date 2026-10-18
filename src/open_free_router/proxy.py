@@ -19,6 +19,7 @@ from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from typing import ClassVar
 
 from open_free_router.registry import Registry, codex_model_alias
+from open_free_router import translate
 from open_free_router.routing import RoutePlanner, RoutingConfig
 from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecutor
 from open_free_router.resilience import ResilienceManager
@@ -564,46 +565,13 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             return
 
         model_id = req.get("model", "")
-        # Strip non-standard fields before forwarding. Clients (agents,
-        # IDEs) often attach fields their own model supports but the
-        # upstream we forward to does not — e.g. prompt_cache_key,
-        # reasoning_content in message history, thinking, reasoning_effort.
-        # These cause 400 errors on strict upstreams (Groq, DeepSeek, etc).
-        # Use a whitelist of standard OpenAI API fields so we don't have to
-        # chase every new non-standard field.
-        _ALLOWED_TOP_KEYS = {
-            "model", "messages", "max_tokens", "max_completion_tokens",
-            "temperature", "top_p", "n", "stream", "stream_options",
-            "stop", "frequency_penalty", "presence_penalty",
-            "logit_bias", "logprobs", "top_logprobs", "response_format",
-            "seed", "tools", "tool_choice", "parallel_tool_calls",
-            "user", "functions", "function_call",
-        }
-        for k in list(req.keys()):
-            if k not in _ALLOWED_TOP_KEYS:
-                del req[k]
-        # Convert max_completion_tokens → max_tokens. Many newer OpenAI models
-        # use max_completion_tokens, but most upstream providers (OpenRouter
-        # free models, Groq, etc.) only accept max_tokens. Without this, a
-        # request carrying max_completion_tokens causes a 422 on those upstreams.
-        if "max_completion_tokens" in req:
-            if "max_tokens" not in req:
-                req["max_tokens"] = req.pop("max_completion_tokens")
-            else:
-                del req["max_completion_tokens"]
-        # Normalize messages:
-        # 1. "developer" role → "system" (older OpenAI-compatible APIs)
-        # 2. Strip non-standard message fields (reasoning_content, etc.)
-        _ALLOWED_MSG_KEYS = {
-            "role", "content", "name", "tool_calls", "tool_call_id",
-            "function_call", "refusal",
-        }
-        for msg in req.get("messages", []):
-            if msg.get("role") == "developer":
-                msg["role"] = "system"
-            for k in list(msg.keys()):
-                if k not in _ALLOWED_MSG_KEYS:
-                    del msg[k]
+        # Canonical request normalization is table-driven (default translation
+        # table, PRD-060/T2): max_completion_tokens -> max_tokens and
+        # developer role -> system. Provider-specific field filtering now
+        # happens in the executor's translation layer, where the target
+        # provider is known and dropped fields are logged with a warning
+        # instead of being silently dropped (protocol-unify.md §5).
+        req = translate.canonicalize_request(req)
         is_stream = endpoint_suffix != "embeddings" and bool(req.get("stream"))
         routed = self._execute_route(model_id, endpoint_suffix, req)
         if isinstance(routed, RouteFailure):
