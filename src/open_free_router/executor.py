@@ -67,6 +67,9 @@ class RouteFailure:
     last_target: RouteTarget | None = None
     ttfb_ms: float | None = None
     total_latency_ms: float | None = None
+    # PRD-060/T4: internal normalized error (translate.NormalizedError).
+    # Client-facing fields (status/body/content_type) are untouched.
+    normalized: "translate.NormalizedError | None" = None
 
     @property
     def fallback_attempts(self) -> int:
@@ -146,6 +149,20 @@ class UpstreamExecutor:
             if latency_config.enabled
             else None
         )
+
+    @staticmethod
+    def _timeout_phase(exc: BaseException) -> str | None:
+        """Best-effort timeout phase for the transport-exception branch.
+
+        PRD-059/T4 wires real connect/ttfb/total timeouts; until then the
+        phase is inferred from the exception. Non-timeout transport
+        failures (refused, DNS) return None and normalize as
+        TRANSPORT_ERROR rather than TIMEOUT.
+        """
+        text = str(exc).lower()
+        if isinstance(exc, TimeoutError) or "timed out" in text or "timeout" in text:
+            return "connect" if "connect" in text else "ttfb"
+        return None
 
     def _record_latency(self, target: RouteTarget, ttfb_ms: float | None) -> None:
         """Feed one first-byte observation to the latency store (PRD-059/T3).
@@ -299,6 +316,17 @@ class UpstreamExecutor:
                 except Exception as exc:
                     elapsed_ms = (time.monotonic() - attempt_started) * 1000
                     decision = classify_failure(0, str(exc))
+                    # PRD-060/T4: internal error normalization. Client-facing
+                    # fields below are unchanged.
+                    normalized = translate.normalize_error(
+                        translate.get_table(target.provider_name),
+                        http_status=0,
+                        body=None,
+                        retry_after=None,
+                        provider_name=target.provider_name,
+                        model_id=target.upstream_model_id,
+                        timeout_phase=self._timeout_phase(exc),
+                    )
                     self.resilience.record_failure(
                         target.provider_name,
                         target.upstream_model_id,
@@ -316,11 +344,14 @@ class UpstreamExecutor:
                         tuple(rejected),
                         target,
                         total_latency_ms=elapsed_ms,
+                        normalized=normalized,
                     )
                     attempt_results.append({
                         "provider": target.provider_name, "model": target.canonical_id,
                         "status": "failed", "status_code": 502,
                         "total_latency_ms": elapsed_ms,
+                        "error_code": normalized.code,
+                        "error_kind": normalized.decision_kind,
                     })
                     break
 
@@ -369,6 +400,16 @@ class UpstreamExecutor:
                 conn.close()
                 message = body.decode("utf-8", errors="replace")
                 decision = classify_failure(response.status, message)
+                # PRD-060/T4: internal error normalization. Client-facing
+                # fields below are unchanged.
+                normalized = translate.normalize_error(
+                    translate.get_table(target.provider_name),
+                    http_status=response.status,
+                    body=body,
+                    retry_after=retry_after,
+                    provider_name=target.provider_name,
+                    model_id=target.upstream_model_id,
+                )
                 observation = parse_quota_headers(
                     response.headers, response.status, decision.kind
                 )
@@ -406,11 +447,14 @@ class UpstreamExecutor:
                     target,
                     ttfb_ms=ttfb_ms,
                     total_latency_ms=total_latency_ms,
+                    normalized=normalized,
                 )
                 attempt_results.append({
                     "provider": target.provider_name, "model": target.canonical_id,
                     "status": "failed", "status_code": response.status,
                     "ttfb_ms": ttfb_ms, "total_latency_ms": total_latency_ms,
+                    "error_code": normalized.code,
+                    "error_kind": normalized.decision_kind,
                 })
 
                 has_more_credentials = slot_index + 1 < len(slots)
@@ -443,6 +487,7 @@ class UpstreamExecutor:
                 last_failure.last_target,
                 last_failure.ttfb_ms,
                 last_failure.total_latency_ms,
+                last_failure.normalized,
             )
             self._record(
                 result, requested_model, plan.strategy, rejected,
@@ -463,3 +508,4 @@ class UpstreamExecutor:
             plan.scores, attempt_results,
         )
         return result
+
