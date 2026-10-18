@@ -38,7 +38,6 @@ from open_free_router.responses import (
     ResponsesConversionError,
     ResponsesStreamAdapter,
     chat_to_response,
-    parse_chat_sse,
     responses_to_chat,
     sse_event,
 )
@@ -51,33 +50,6 @@ _ACTIVE_HANDLERS_LOCK = threading.Lock()
 def _safe_header_value(value: str, limit: int = 256) -> str:
     """Return an ASCII routing label safe for an HTTP response header."""
     return re.sub(r"[^A-Za-z0-9._:/-]+", "-", str(value)).strip("-")[:limit]
-
-
-def _normalise_reasoning_content(body: bytes) -> bytes:
-    """Fix reasoning-model responses where message.content is null.
-
-    Many reasoning models return:
-        {"content": null, "reasoning_content": "actual output..."}
-    Agents that only read message.content get null and crash. When content
-    is null, copy reasoning_content (or fall back to empty string) so every
-    response has a string content field.
-    """
-    try:
-        obj = json.loads(body)
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        return body  # not JSON, pass through unchanged
-    changed = False
-    for choice in obj.get("choices", []):
-        msg = choice.get("message")
-        if not msg or msg.get("content") is not None:
-            continue
-        rc = msg.get("reasoning_content")
-        if rc is not None:
-            msg["content"] = rc
-        else:
-            msg["content"] = ""
-        changed = True
-    return json.dumps(obj).encode() if changed else body
 
 
 def _normalise_error(body: bytes) -> tuple[dict, str]:
@@ -289,13 +261,32 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             try:
                 body = opened.response.read()
                 parsed = None
-                if transform or "json" in opened.response.getheader("Content-Type", "").lower():
-                    parsed = json.loads(body)
-                    self._record_usage(opened, parsed.get("usage"))
+                normalized = False
+                is_json = "json" in opened.response.getheader("Content-Type", "").lower()
+                if transform or is_json:
+                    raw = json.loads(body)
+                    self._record_usage(opened, raw.get("usage"))
+                    parsed = raw
+                    if normalize_reasoning or transform:
+                        # PRD-060/T3: response normalization is table-driven
+                        # (protocol-unify.md §2.2 + §3 response section):
+                        # upstream JSON -> canonical internal representation,
+                        # then rendered to the client protocol surface.
+                        # Responses the table leaves alone keep their original
+                        # bytes, so client behaviour is unchanged.
+                        table = translate.get_table(opened.target.provider_name)
+                        fixed, changed = translate.parse_response(
+                            table, raw,
+                            provider_name=opened.target.provider_name,
+                            request_id=opened.request_id,
+                        )
+                        if changed:
+                            parsed = fixed
+                            normalized = True
                 if transform:
                     body = json.dumps(transform(parsed)).encode()
-                elif normalize_reasoning and "json" in opened.response.getheader("Content-Type", "").lower():
-                    body = _normalise_reasoning_content(body)
+                elif normalized:
+                    body = json.dumps(parsed).encode()
             except Exception as exc:
                 self.decision_store.mark_failure(opened.request_id, 502, "invalid_upstream_response")
                 message = f"Invalid upstream response: {exc}"
@@ -635,8 +626,18 @@ class _ProxyHandler(BaseHTTPRequestHandler):
 
             for event in adapter.start():
                 write_event(event)
-            for chat_chunk in parse_chat_sse(iter(opened.response.readline, b"")):
-                for event in adapter.feed(chat_chunk):
+            # PRD-060/T3: upstream SSE is parsed into canonical stream events
+            # (protocol-unify.md §2.3) in the translation layer, where
+            # per-provider event-name/field dialects are flattened; the
+            # client adapter keeps consuming OpenAI chat-chunk shapes.
+            table = translate.get_table(opened.target.provider_name)
+            sse_events = translate.parse_sse_events(
+                table, iter(opened.response.readline, b""),
+                provider_name=opened.target.provider_name,
+                request_id=opened.request_id,
+            )
+            for canonical in sse_events:
+                for event in adapter.feed(translate.render_chat_chunk(canonical)):
                     write_event(event)
             for event in adapter.finish():
                 write_event(event)
@@ -720,8 +721,16 @@ class _ProxyHandler(BaseHTTPRequestHandler):
 
             for event in adapter.start():
                 write_event(event)
-            for chat_chunk in parse_chat_sse(iter(opened.response.readline, b"")):
-                for event in adapter.feed(chat_chunk):
+            # PRD-060/T3: same canonical-event pipeline as the Responses
+            # adapter path (see _relay_responses_streaming).
+            table = translate.get_table(opened.target.provider_name)
+            sse_events = translate.parse_sse_events(
+                table, iter(opened.response.readline, b""),
+                provider_name=opened.target.provider_name,
+                request_id=opened.request_id,
+            )
+            for canonical in sse_events:
+                for event in adapter.feed(translate.render_chat_chunk(canonical)):
                     write_event(event)
             for event in adapter.finish():
                 write_event(event)
