@@ -29,7 +29,12 @@ class Daemon:
         self.cfg = cfg
         self.reg = Registry.load(cfg.registry_path)
         self.proxy_token = get_or_create_proxy_token(cfg.config_dir)
-        self.resilience = ResilienceManager(state_path=cfg.data_dir / "runtime-state.json")
+        self.resilience = ResilienceManager(
+            state_path=cfg.data_dir / "runtime-state.json",
+            # PRD-059/T4: circuit-breaker thresholds are policy-driven (T1 §7);
+            # the defaults equal the T1 values when the section is absent.
+            **cfg.failover.to_resilience_kwargs(),
+        )
         self.decisions = RouteDecisionStore()
         self.analytics = AnalyticsStore(
             cfg.analytics_path, retention_days=cfg.analytics_retention_days
@@ -144,3 +149,4 @@ class Daemon:
 def main():
     cfg = Config()
     Daemon(cfg).serve()
+
