@@ -7,7 +7,9 @@ canonical internal representation (T3). Design: docs/plans/protocol-unify.md.
 T2 implemented the *request* side (table loader + outbound request builder).
 T3 implements the *response* side: translation-table response/streaming
 sections, a canonical SSE event model (§2.3), and table-driven parsers.
-Error tables stay placeholders for T4.
+T4 implements the *error* side: translation-table error sections, a
+CanonicalError model (§2.4), and table-driven error normalization whose
+semantics are owned by PRD-059/T1.
 """
 from __future__ import annotations
 
@@ -15,6 +17,8 @@ import copy
 import logging
 from dataclasses import dataclass, field
 from urllib.parse import urlsplit
+
+from open_free_router.resilience import classify_failure, parse_retry_after
 
 log = logging.getLogger(__name__)
 
@@ -79,15 +83,34 @@ class StreamingTable:
 
 
 @dataclass(frozen=True)
+class ErrorTable:
+    """Per-provider error-envelope translation (protocol-unify.md §3.1).
+
+    All 10 built-in upstreams use the standard OpenAI envelope
+    ``{"error": {"message": ..., "type": ..., "code": ...}}``, so the default
+    table suffices today; per-provider deltas (envelope path, field names,
+    vendor code remaps) go here for a user-added upstream.
+    """
+    envelope_path: str = "error"  # dotted path to the error object in the body
+    message_field: str = "message"  # one-line message inside the envelope
+    code_field: str = "code"  # vendor code field (informational: the internal
+                              # code always comes from classify_failure)
+    # Vendor-code -> internal-code pins, e.g. {"insufficient_quota":
+    # "QUOTA_EXHAUSTED"}. Empty for all 10 built-ins; reserved so a new
+    # upstream can pin a dialect without touching core logic.
+    code_remap: dict = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class TranslationTable:
     """Mirrors the §3.1 YAML template shape. T2 consumes the request section,
-    T3 the response/streaming sections; error stays a data placeholder for T4."""
+    T3 the response/streaming sections, T4 the error section."""
     provider_id: str
     auth: AuthTable = field(default_factory=AuthTable)
     request: RequestTable = field(default_factory=RequestTable)
     response: ResponseTable = field(default_factory=ResponseTable)
     streaming: StreamingTable = field(default_factory=StreamingTable)
-    error: dict = field(default_factory=dict)
+    error: ErrorTable = field(default_factory=ErrorTable)
 
 
 def _default_table(provider_id: str) -> TranslationTable:
@@ -604,3 +627,141 @@ def render_chat_chunk(event: StreamEvent) -> dict:
     if isinstance(event, StreamErrorEvent):
         return dict(event.raw) if isinstance(event.raw, dict) else {"error": {"message": event.message}}
     raise TypeError(f"unknown stream event: {type(event).__name__}")
+
+
+
+# ---------------------------------------------------------------------------
+# T4: error normalization. Upstream failures are mapped to internal error
+# codes (protocol-unify.md §6; semantics owned by PRD-059/T1
+# failover-routing-policy.md §1.3). The single classifier is
+# resilience.classify_failure — this module never re-implements it.
+# Normalization is internal plumbing: what the client sees (HTTP status,
+# body, content-type) is untouched.
+# ---------------------------------------------------------------------------
+
+# Internal error codes, authoritative source: PRD-059/T1 §1.3.
+# T1 defines TIMEOUT for the timeout branch of transport_error; a transport
+# failure that is NOT a timeout (connection refused, DNS) is surfaced as
+# TRANSPORT_ERROR so it is never mislabelled as a timeout.
+_KIND_TO_ERROR_CODE = {
+    "provider_unavailable": "UPSTREAM_5XX",
+    "rate_limited": "RATE_LIMITED",
+    "quota_exhausted": "QUOTA_EXHAUSTED",
+    "transport_error": "TIMEOUT",
+    "credential_invalid": "AUTH_INVALID",
+    "credits_exhausted": "CREDITS_EXHAUSTED",
+    "model_forbidden": "MODEL_FORBIDDEN",
+    "model_unavailable": "MODEL_NOT_FOUND",
+    "context_overflow": "BAD_REQUEST",
+    "invalid_request": "BAD_REQUEST",
+}
+
+_RATE_LIMIT_KINDS = frozenset({"rate_limited", "quota_exhausted"})
+
+# protocol-unify.md §2.4: the message is a one-liner, bounded.
+_ERROR_MESSAGE_MAX = 300
+
+
+@dataclass(frozen=True)
+class NormalizedError:
+    """Canonical internal error (protocol-unify.md §2.4 CanonicalError)."""
+    code: str  # internal code, see _KIND_TO_ERROR_CODE
+    http_status: int  # upstream HTTP status (0 = transport failure)
+    message: str  # sanitized one-liner; vendor trace IDs and private fields
+                  # never leave the envelope, which is the desensitization
+    retry_after_s: float | None = None  # Retry-After normalized to seconds (429s)
+    provider: str = ""
+    model: str = ""
+    timeout_phase: str | None = None  # connect | ttfb | total (TIMEOUT only)
+    context_limit: int | None = None  # BAD_REQUEST + context_overflow, when
+                                      # a provider table declares one
+    decision_kind: str = ""  # the FailureDecision.kind this was derived from
+
+
+def _sanitize_error_message(text: str) -> str:
+    cleaned = "".join(ch if ch.isprintable() else " " for ch in text or "")
+    return " ".join(cleaned.split())[:_ERROR_MESSAGE_MAX]
+
+
+def _extract_error_message(body, table: ErrorTable) -> tuple[str | None, str | None]:
+    """Return (message, vendor_code) from an error envelope; (None, None) if unknown.
+
+    Never raises: unknown envelopes and non-JSON bodies are normal input.
+    """
+    if body is None:
+        return None, None
+    if isinstance(body, bytes):
+        text = body.decode("utf-8", errors="replace")
+    else:
+        text = str(body)
+    try:
+        import json as _json
+
+        obj = _json.loads(text)
+    except (ValueError, TypeError):
+        # Non-JSON error body: keep a short prefix so the failure is
+        # diagnosable instead of opaque.
+        return _sanitize_error_message(text) or None, None
+    if not isinstance(obj, dict):
+        return None, None
+    err = _get_path(obj, table.envelope_path)
+    if not isinstance(err, dict):
+        return None, None
+    message = err.get(table.message_field)
+    vendor_code = err.get(table.code_field)
+    return (
+        _sanitize_error_message(str(message)) if message is not None else None,
+        str(vendor_code) if vendor_code is not None else None,
+    )
+
+
+def normalize_error(
+    table: TranslationTable,
+    *,
+    http_status: int,
+    body: bytes | str | None,
+    retry_after: str | None,
+    provider_name: str,
+    model_id: str | None,
+    timeout_phase: str | None = None,
+) -> NormalizedError:
+    """Map an upstream failure to a CanonicalError. Total: never raises.
+
+    Classification is resilience.classify_failure's — the single authority
+    (059/T1 §1.1) — and the internal code is a 1:1 function of its kind
+    (059/T1 §1.3). Unknown envelopes still produce a NormalizedError.
+    """
+    message, vendor_code = _extract_error_message(body, table.error)
+    if message is None:
+        message = (
+            f"upstream error (status {http_status})"
+            if http_status
+            else "upstream connection failed"
+        )
+    decision = classify_failure(http_status, message)
+    kind = decision.kind
+    if kind == "transport_error" and timeout_phase is None:
+        # §1.3 defines TIMEOUT for the timeout branch only.
+        code = "TRANSPORT_ERROR"
+    else:
+        code = _KIND_TO_ERROR_CODE.get(kind, "TRANSPORT_ERROR")
+    if vendor_code is not None and vendor_code in table.error.code_remap:
+        code = table.error.code_remap[vendor_code]
+    # None = the upstream declared no Retry-After; 0.0 = it declared an
+    # unparseable one (retry now). Both differ from a real delay.
+    retry_after_s = (
+        parse_retry_after(retry_after)
+        if kind in _RATE_LIMIT_KINDS and retry_after
+        else None
+    )
+    return NormalizedError(
+        code=code,
+        http_status=http_status,
+        message=message,
+        retry_after_s=retry_after_s,
+        provider=provider_name,
+        model=model_id or "",
+        timeout_phase=timeout_phase if code == "TIMEOUT" else None,
+        context_limit=None,  # no built-in declares a machine-readable limit
+        decision_kind=kind,
+    )
