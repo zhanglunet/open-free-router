@@ -69,17 +69,21 @@ def test_virtual_route_falls_back_before_returning_response():
         })
         decisions = RouteDecisionStore()
         result = UpstreamExecutor(
-            RoutePlanner(registry), ResilienceManager(), timeout=5, decisions=decisions
+            RoutePlanner(registry), ResilienceManager(), timeout=5, decisions=decisions,
+            # PRD-059/T4: a parseable Retry-After is retried once on the same
+            # candidate before switching; skip the real 9s sleep in tests.
+            sleeper=lambda delay: None,
         ).execute("auto", "chat/completions", {"messages": []})
         assert isinstance(result, OpenedRoute)
         try:
             assert result.target.provider_name == "healthy"
-            assert result.attempts == 2
-            assert limited_handler.seen_auth == ["Bearer placeholder-a"]
+            assert result.attempts == 3
+            assert limited_handler.seen_auth == [
+                "Bearer placeholder-a", "Bearer placeholder-a"]
             assert healthy_handler.seen_auth == ["Bearer placeholder-b"]
             decision = decisions.get(result.request_id)
             assert decision["provider"] == "healthy"
-            assert decision["fallback_attempts"] == 1
+            assert decision["fallback_attempts"] == 2
             assert decision["requested_model"] == "auto"
             assert json.loads(result.response.read())["model"] == "model"
         finally:
@@ -100,11 +104,14 @@ def test_explicit_model_does_not_switch_provider():
             "healthy": _provider(healthy.server_address[1], "b"),
         })
         result = UpstreamExecutor(
-            RoutePlanner(registry), ResilienceManager(), timeout=5
+            RoutePlanner(registry), ResilienceManager(), timeout=5,
+            # PRD-059/T4: the parseable Retry-After is retried once on the
+            # same candidate; the explicit request still never switches.
+            sleeper=lambda delay: None,
         ).execute("a/model", "chat/completions", {"messages": []})
         assert isinstance(result, RouteFailure)
         assert result.status == 429
-        assert result.attempts == 1
+        assert result.attempts == 2
         assert healthy_handler.seen_auth == []
     finally:
         limited.shutdown()
