@@ -11,11 +11,60 @@ from dataclasses import dataclass, field
 import math
 from typing import Iterable
 
+from open_free_router.costing import CostConfig, cost_factor, excluded_by_cost
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry, codex_model_alias
-from open_free_router.scoring import CandidateScore, ScoringConfig, score_candidate
+from open_free_router.scoring import (
+    DEFAULT_WEIGHTS,
+    CandidateScore,
+    FactorScore,
+    ScoringConfig,
+    score_candidate,
+)
 
 
 BUILTIN_ALIASES = ("auto", "auto/coding", "auto/fast", "auto/free")
+
+# PRD-059/T1 §4.2: policy-level dimension weights for the final score.
+POLICY_WEIGHT_DEFAULTS = {"quality": 0.5, "cost": 0.3, "latency": 0.2}
+# PRD-059/T1 §4.1: the four factors that make up the quality dimension.
+QUALITY_FACTOR_NAMES = ("health", "success_rate", "capability", "free_evidence")
+
+
+def _parse_policy_weights(raw: object) -> dict[str, float]:
+    """Parse routing.policy.weights; T1 §4.2 defaults, auto-normalized."""
+    source = raw if isinstance(raw, dict) else {}
+    weights = {}
+    for name, default in POLICY_WEIGHT_DEFAULTS.items():
+        try:
+            value = float(source.get(name, default))
+        except (TypeError, ValueError, OverflowError):
+            value = default
+        weights[name] = value if math.isfinite(value) and value >= 0 else default
+    total = sum(weights.values())
+    if total <= 0:
+        return dict(POLICY_WEIGHT_DEFAULTS)
+    return {name: value / total for name, value in weights.items()}
+
+
+def _bounded_policy_number(value: object, default: float) -> float:
+    try:
+        number = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError, OverflowError):
+        return default
+    return number if math.isfinite(number) and 0.0 <= number <= 1.0 else default
+
+
+def _quality_dimension(score: CandidateScore, missing_default: float) -> float:
+    """T1 §4.1 quality dimension from the four quality factors, renormalized."""
+    numerator = 0.0
+    denominator = 0.0
+    for name in QUALITY_FACTOR_NAMES:
+        weight = DEFAULT_WEIGHTS[name]
+        numerator += score.factors[name].value * weight
+        denominator += weight
+    if denominator <= 0:
+        return missing_default
+    return numerator / denominator
 
 
 @dataclass(frozen=True)
@@ -51,6 +100,12 @@ class RoutingConfig:
     max_attempts: int = 3
     explicit_model_fallback: bool = False
     scoring: ScoringConfig = field(default_factory=ScoringConfig)
+    # PRD-059/T1 §4.2: policy-level dimension weights for the final score.
+    policy_weights: dict[str, float] = field(
+        default_factory=lambda: dict(POLICY_WEIGHT_DEFAULTS)
+    )
+    cost_downgrade_threshold: float = 0.10
+    cost_downgrade_factor: float = 0.5
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "RoutingConfig":
@@ -83,12 +138,22 @@ class RoutingConfig:
         except (TypeError, ValueError):
             max_attempts = 3
         max_attempts = min(10, max(1, max_attempts))
+        policy = raw.get("policy") or {}
+        if not isinstance(policy, dict):
+            policy = {}
         return cls(
             aliases=aliases,
             fallback_enabled=bool(fallback.get("enabled", True)),
             max_attempts=max_attempts,
             explicit_model_fallback=bool(fallback.get("explicit_model", False)),
             scoring=ScoringConfig.from_dict(raw.get("scoring", {})),
+            policy_weights=_parse_policy_weights(policy.get("weights")),
+            cost_downgrade_threshold=_bounded_policy_number(
+                policy.get("cost_downgrade_threshold"), 0.10
+            ),
+            cost_downgrade_factor=_bounded_policy_number(
+                policy.get("cost_downgrade_factor"), 0.5
+            ),
         )
 
 
@@ -167,7 +232,20 @@ class RoutePlanner:
                 return target
         return None
 
-    def plan(self, requested_model: str, signals: dict[str, dict] | None = None) -> RoutePlan:
+    def plan(
+        self,
+        requested_model: str,
+        signals: dict[str, dict] | None = None,
+        resilience=None,
+    ) -> RoutePlan:
+        """Build a route plan.
+
+        ``resilience`` is an optional ``ResilienceManager`` (or compatible
+        stub exposing ``can_attempt``).  When given, candidates whose every
+        credential slot is blocked (quota exhausted, cooling down, circuit
+        open, …) are excluded up front — PRD-059/T1 §4.4 — instead of wasting
+        a candidate slot the executor would reject anyway.
+        """
         if requested_model not in self.virtual_model_ids():
             target = self.resolve_explicit(requested_model)
             return RoutePlan(
@@ -214,16 +292,62 @@ class RoutePlanner:
             seen.add(identity)
             candidates.append(target)
 
+        if resilience is not None:
+            # PRD-059/T1 §4.4: drop candidates the resilience manager already
+            # blocks (credits exhausted, 429 cooldown, circuit open).  The
+            # verdict comes straight from can_attempt — no new classification.
+            kept: list[RouteTarget] = []
+            for target in candidates:
+                excluded, reason = excluded_by_cost(target, resilience)
+                if excluded:
+                    rejected.append({"model": target.canonical_id, "reason": reason})
+                else:
+                    kept.append(target)
+            candidates = kept
+
         scores: tuple[CandidateScore, ...] = ()
         if self.config.scoring.enabled:
+            cost_config = CostConfig(
+                downgrade_threshold=self.config.cost_downgrade_threshold,
+                downgrade_factor=self.config.cost_downgrade_factor,
+                missing_default=self.config.scoring.missing_default,
+            )
+            policy = self.config.policy_weights
             scored = []
             for order, target in enumerate(candidates):
                 target_signals = dict((signals or {}).get(target.provider_name, {}))
                 target_signals.update((signals or {}).get(target.canonical_id, {}))
-                score = score_candidate(
+                base = score_candidate(
                     target, requested_model, self.config.scoring, target_signals, require_tools
                 )
-                scored.append((score.total, order, target, score))
+                # PRD-059/T1 §4.1–§4.2: three explainable dimensions.
+                quality = _quality_dimension(base, self.config.scoring.missing_default)
+                cost_value, cost_source = cost_factor(
+                    target_signals.get("quota"), cost_config
+                )
+                latency = base.factors["latency"].value
+                total = (
+                    policy["quality"] * quality
+                    + policy["cost"] * cost_value
+                    + policy["latency"] * latency
+                )
+                factors = {
+                    "quality": FactorScore(
+                        round(quality, 6), round(policy["quality"], 6),
+                        round(policy["quality"] * quality, 6), "scoring_v1",
+                    ),
+                    "cost": FactorScore(
+                        cost_value, round(policy["cost"], 6),
+                        round(policy["cost"] * cost_value, 6), cost_source,
+                    ),
+                    "latency": FactorScore(
+                        round(latency, 6), round(policy["latency"], 6),
+                        round(policy["latency"] * latency, 6),
+                        base.factors["latency"].source,
+                    ),
+                }
+                combined = CandidateScore(target.canonical_id, round(total, 6), factors)
+                scored.append((combined.total, order, target, combined))
             scored.sort(key=lambda row: (-row[0], row[1]))
             candidates = [row[2] for row in scored]
             score_by_model = {row[3].model: row[3] for row in scored}
@@ -336,6 +460,49 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
                 "error", "invalid_latency_bounds", "routing.scoring",
                 "latency_good_ms 必须非负，latency_bad_ms 必须更大。",
             )
+
+    policy = raw.get("policy", {})
+    if not isinstance(policy, dict):
+        add("error", "policy_not_mapping", "routing.policy", "policy 必须是 YAML 对象。")
+    else:
+        weights = policy.get("weights", {})
+        if not isinstance(weights, dict):
+            add(
+                "error", "policy_weights_not_mapping", "routing.policy.weights",
+                "weights 必须是 YAML 对象。",
+            )
+        else:
+            defaults = dict(POLICY_WEIGHT_DEFAULTS)
+            total = sum(value for name, value in defaults.items() if name not in weights)
+            for name, value in weights.items():
+                path = f"routing.policy.weights.{name}"
+                if name not in defaults:
+                    add("warning", "unknown_policy_factor", path, f"未知选路维度 {name} 会被忽略。")
+                    continue
+                try:
+                    parsed = float(value)
+                except (TypeError, ValueError, OverflowError):
+                    parsed = -1.0
+                if not math.isfinite(parsed) or parsed < 0:
+                    add("error", "invalid_policy_weight", path, "选路维度权重必须是非负有限数字。")
+                else:
+                    total += parsed
+            if weights and total <= 0:
+                add(
+                    "error", "zero_policy_weights", "routing.policy.weights",
+                    "选路维度权重总和必须大于 0。",
+                )
+        for key in ("cost_downgrade_threshold", "cost_downgrade_factor"):
+            if key in policy:
+                try:
+                    parsed = float(policy[key])
+                except (TypeError, ValueError, OverflowError):
+                    parsed = -1.0
+                if not math.isfinite(parsed) or not 0.0 <= parsed <= 1.0:
+                    add(
+                        "error", "invalid_cost_policy_value", f"routing.policy.{key}",
+                        f"{key} 必须在 0 到 1 之间。",
+                    )
 
     aliases = raw.get("aliases", {})
     if not isinstance(aliases, dict):
