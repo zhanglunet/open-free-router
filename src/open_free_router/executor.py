@@ -1,15 +1,28 @@
-"""Shared pre-first-byte upstream execution with deterministic fallback."""
+"""Shared pre-first-byte upstream execution with policy-driven fallback.
+
+PRD-059/T4: the failover loop is driven by docs/plans/failover-routing-policy.md
+(the "constitution"). Which failures trigger a transfer, how many times to
+retry, the backoff shape, circuit-breaker thresholds and the three timeouts all
+come from ``routing.policy`` / the ``failover:`` YAML section -- this module
+only executes the policy, it does not invent it.
+"""
 from __future__ import annotations
 
 import http.client
 import json
+import logging
 import socket
 import time
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Callable
 from urllib.parse import urlsplit
 
+from open_free_router.failover import (
+    TimeoutPhase,
+    TimeoutPolicy,
+    compute_backoff,
+)
 from open_free_router.resilience import (
     FailureDecision,
     ResilienceManager,
@@ -23,11 +36,16 @@ from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.quota import parse_quota_headers
 
 
+log = logging.getLogger(__name__)
+
 MAX_ERROR_BODY = 64 * 1024
 # Ceiling for a reset an upstream declares in its headers. Daily budgets are the
 # common case and fit well under this; a monthly one simply gets re-tested once a
 # day, which is far cheaper than letting one bad header park a credential.
 DECLARED_RESET_CAP = 24 * 60 * 60.0
+# Legacy default for the ``timeout`` constructor argument (config.yaml
+# ``upstream_timeout``). A non-default value keeps overriding the policy value.
+LEGACY_TIMEOUT_DEFAULT = 120
 
 
 @dataclass
@@ -67,6 +85,13 @@ class RouteFailure:
     last_target: RouteTarget | None = None
     ttfb_ms: float | None = None
     total_latency_ms: float | None = None
+    # PRD-059/T4: which timeout phase blew the budget, if any
+    # ("connect" | "ttfb"). Consumed by PRD-060/T4's TIMEOUT mapping.
+    timeout_phase: str | None = None
+    # PRD-059/T4: the FailureDecision.kind that produced this failure, so
+    # telemetry does not have to re-derive it from the status code (a 502
+    # from a transport error is not a provider_unavailable).
+    decision_kind: str | None = None
 
     @property
     def fallback_attempts(self) -> int:
@@ -123,6 +148,19 @@ def _unavailable_body(requested_model: str, rejected: list[dict[str, str]]) -> b
     return json.dumps({"error": body}).encode()
 
 
+def _circuit_for(decision: FailureDecision | None) -> str | None:
+    """Map a failure decision onto the T1 §5 ``circuit`` column."""
+    if decision is None:
+        return None
+    if decision.provider_failure:
+        return "provider"
+    if decision.credential_terminal or decision.credential_cooldown:
+        return "credential"
+    if decision.model_lockout:
+        return "model"
+    return None
+
+
 class UpstreamExecutor:
     """Open one upstream response, trying safe alternatives before returning."""
 
@@ -130,13 +168,29 @@ class UpstreamExecutor:
         self,
         planner: RoutePlanner,
         resilience: ResilienceManager,
-        timeout: int = 120,
+        timeout: int = LEGACY_TIMEOUT_DEFAULT,
         decisions: RouteDecisionStore | None = None,
+        sleeper: Callable[[float], None] | None = None,
     ):
         self.planner = planner
         self.resilience = resilience
         self.timeout = timeout
         self.decisions = decisions
+        # Test seam: real time.sleep in production, a recorder in tests.
+        self._sleeper = sleeper or time.sleep
+        policy = planner.config
+        # Legacy precedence: an explicit non-default ``timeout`` (config.yaml
+        # ``upstream_timeout``) still wins; otherwise the policy value applies.
+        request_timeout = (
+            timeout if timeout != LEGACY_TIMEOUT_DEFAULT
+            else policy.request_timeout_seconds
+        )
+        self.timeouts = TimeoutPolicy(
+            connect=policy.connect_timeout_seconds,
+            ttfb=policy.ttfb_timeout_seconds,
+            request=request_timeout,
+            total=policy.total_budget_seconds,
+        )
         # PRD-059/T3: in-memory TTFB sliding windows for the latency
         # dimension.  None when sampling is disabled (routing falls back to
         # the probe-snapshot latency factor).
@@ -159,6 +213,41 @@ class UpstreamExecutor:
             target.provider_name, target.upstream_model_id, ttfb_ms
         )
 
+    def _log_failover(
+        self,
+        *,
+        request_id: str,
+        from_candidate: RouteTarget | None,
+        to_candidate: RouteTarget | None,
+        reason: str,
+        attempt: int,
+        elapsed_ms: float | None,
+        ttfb_ms: float | None,
+        circuit: str | None,
+    ) -> None:
+        """Write one T1 §5 decision row to usage.db (desensitized).
+
+        Only enum kinds, candidate IDs and timings are recorded -- never
+        headers, keys, prompts or bodies. Analytics failures never break
+        inference.
+        """
+        analytics = getattr(self.decisions, "analytics", None) if self.decisions else None
+        if analytics is None or not getattr(analytics, "enabled", False):
+            return
+        try:
+            analytics.record_failover_decision(
+                request_id=request_id,
+                from_candidate=from_candidate.canonical_id if from_candidate else None,
+                to_candidate=to_candidate.canonical_id if to_candidate else None,
+                reason=reason,
+                attempt=attempt,
+                elapsed_ms=elapsed_ms,
+                ttfb_ms=ttfb_ms,
+                circuit=circuit,
+            )
+        except Exception:
+            log.debug("failover decision log failed", exc_info=True)
+
     def _record(
         self,
         result: OpenedRoute | RouteFailure,
@@ -172,7 +261,10 @@ class UpstreamExecutor:
             return
         target = result.target if isinstance(result, OpenedRoute) else result.last_target
         if isinstance(result, RouteFailure):
-            error_kind = (
+            # Prefer the kind the executor actually classified with; the
+            # status-code re-derivation below cannot tell a transport 502
+            # from a provider 502.
+            error_kind = result.decision_kind or (
                 "route_unavailable" if result.attempts == 0
                 else classify_failure(
                     result.status, result.body.decode("utf-8", errors="replace")
@@ -204,7 +296,7 @@ class UpstreamExecutor:
         credential: str,
         endpoint_suffix: str,
         payload: dict,
-        timeout: int,
+        timeouts: TimeoutPolicy,
         request_id: str = "",
     ) -> tuple[http.client.HTTPConnection, http.client.HTTPResponse]:
         # All upstream request assembly goes through the translation layer
@@ -220,21 +312,37 @@ class UpstreamExecutor:
         )
         parts = urlsplit(outbound.url)
         conn_cls = http.client.HTTPSConnection if parts.scheme == "https" else http.client.HTTPConnection
-        conn = conn_cls(parts.hostname, parts.port, timeout=timeout)
+        conn = conn_cls(parts.hostname, parts.port, timeout=timeouts.connect)
         path = parts.path + (f"?{parts.query}" if parts.query else "")
         data = json.dumps(outbound.body).encode()
         try:
             conn.connect()
-            if conn.sock:
-                conn.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        except socket.timeout:
+            conn.close()
+            raise TimeoutPhase("connect")
+        except OSError:
+            conn.close()
+            raise
+        if conn.sock:
+            conn.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            # From here the socket budget is the first-byte timeout (T1 §2.3):
+            # getresponse() returns once the response headers arrive.
+            conn.sock.settimeout(timeouts.ttfb)
+        try:
             conn.request("POST", path, body=data, headers=outbound.headers)
             return conn, conn.getresponse()
+        except socket.timeout:
+            conn.close()
+            raise TimeoutPhase("ttfb")
         except Exception:
             conn.close()
             raise
 
     def execute(self, requested_model: str, endpoint_suffix: str, payload: dict) -> OpenedRoute | RouteFailure:
         request_id = f"ofr_{uuid.uuid4().hex}"
+        request_started = time.monotonic()
+        policy = self.planner.config
+        timeouts = self.timeouts
         signals = self.resilience.scoring_signals()
         for provider_name in self.planner.registry.providers:
             signals.setdefault(provider_name, {}).setdefault("health", 1.0)
@@ -259,43 +367,113 @@ class UpstreamExecutor:
             self._record(result, requested_model, plan.strategy, rejected, plan.scores)
             return result
 
-        config = self.planner.config
         allow_model_fallback = (
-            (plan.strategy != "explicit" and config.fallback_enabled)
-            or (plan.strategy == "explicit" and config.explicit_model_fallback)
+            (plan.strategy != "explicit" and policy.fallback_enabled)
+            or (plan.strategy == "explicit" and policy.explicit_model_fallback)
         )
         attempts = 0
         attempt_results = []
         last_failure: RouteFailure | None = None
         last_decision: FailureDecision | None = None
+        backoff_switches = 0
+        stop_request = False
+
+        def budget_exceeded() -> bool:
+            return (time.monotonic() - request_started) >= timeouts.total
+
+        def sleep_bounded(delay: float) -> bool:
+            """Sleep unless it would blow the total budget (T1 §2.3)."""
+            if delay <= 0:
+                return True
+            if (time.monotonic() - request_started) + delay >= timeouts.total:
+                return False
+            self._sleeper(delay)
+            return True
 
         for target_index, target in enumerate(plan.candidates):
+            if budget_exceeded():
+                break
             slots = self.resilience.order_credentials(
                 target.provider_name, _credentials(target)
             )
             if not slots:
                 rejected.append({"model": target.canonical_id, "reason": "credential_missing"})
                 continue
+            # Backoff before switching candidates (T1 §2.2). The first attempt
+            # of the request goes out immediately.
+            if attempts > 0:
+                backoff_switches += 1
+                delay = compute_backoff(
+                    backoff_switches,
+                    policy.backoff_base_seconds,
+                    policy.backoff_factor,
+                    policy.backoff_cap_seconds,
+                    policy.backoff_jitter,
+                )
+                if not sleep_bounded(delay):
+                    break
             attempted_target = False
             last_decision = None
-            for slot_index, (credential_slot, credential) in enumerate(slots):
-                if attempts >= config.max_attempts:
+            slot_index = 0
+            same_429_retried = False
+            bypass_gate = False
+            while slot_index < len(slots):
+                credential_slot, credential = slots[slot_index]
+                if attempts >= policy.max_attempts:
                     break
-                allowed, reason = self.resilience.can_attempt(
-                    target.provider_name, target.upstream_model_id, credential_slot
-                )
-                if not allowed:
-                    rejected.append({"model": target.canonical_id, "reason": reason})
-                    continue
+                if budget_exceeded():
+                    break
+                if not bypass_gate:
+                    allowed, reason = self.resilience.can_attempt(
+                        target.provider_name, target.upstream_model_id, credential_slot
+                    )
+                    if not allowed:
+                        rejected.append({"model": target.canonical_id, "reason": reason})
+                        slot_index += 1
+                        continue
+                bypass_gate = False
 
                 attempted_target = True
                 attempts += 1
                 attempt_started = time.monotonic()
+                timeout_phase: str | None = None
                 try:
                     conn, response = self._open(
                         target, credential, endpoint_suffix, payload,
-                        self.timeout, request_id=request_id,
+                        timeouts, request_id=request_id,
                     )
+                except TimeoutPhase as timeout_exc:
+                    timeout_phase = timeout_exc.phase
+                    elapsed_ms = (time.monotonic() - attempt_started) * 1000
+                    decision = classify_failure(0, "")
+                    self.resilience.record_failure(
+                        target.provider_name,
+                        target.upstream_model_id,
+                        decision,
+                        credential_slot,
+                    )
+                    last_decision = decision
+                    last_failure = RouteFailure(
+                        request_id,
+                        502,
+                        _error_body(f"upstream {timeout_phase} timeout"),
+                        "application/json",
+                        None,
+                        attempts,
+                        tuple(rejected),
+                        target,
+                        total_latency_ms=elapsed_ms,
+                        timeout_phase=timeout_phase,
+                        decision_kind=decision.kind,
+                    )
+                    attempt_results.append({
+                        "provider": target.provider_name, "model": target.canonical_id,
+                        "status": "failed", "status_code": 502,
+                        "total_latency_ms": elapsed_ms,
+                        "timeout_phase": timeout_phase,
+                    })
+                    break
+
                 except Exception as exc:
                     elapsed_ms = (time.monotonic() - attempt_started) * 1000
                     decision = classify_failure(0, str(exc))
@@ -316,6 +494,7 @@ class UpstreamExecutor:
                         tuple(rejected),
                         target,
                         total_latency_ms=elapsed_ms,
+                        decision_kind=decision.kind,
                     )
                     attempt_results.append({
                         "provider": target.provider_name, "model": target.canonical_id,
@@ -362,13 +541,51 @@ class UpstreamExecutor:
                     )
                     return result
 
-                body = response.read(MAX_ERROR_BODY)
+                # The body read is bounded by the remaining per-attempt budget.
+                # A stall here is past the first-byte boundary: no failover
+                # (T1 principle 1) -- fail this request cleanly instead.
+                try:
+                    if conn.sock is not None:
+                        remaining = timeouts.request - (time.monotonic() - attempt_started)
+                        conn.sock.settimeout(max(1.0, remaining))
+                    body = response.read(MAX_ERROR_BODY)
+                except socket.timeout:
+                    conn.close()
+                    total_latency_ms = (time.monotonic() - attempt_started) * 1000
+                    last_failure = RouteFailure(
+                        request_id,
+                        504,
+                        _error_body("upstream stalled after first byte"),
+                        "application/json",
+                        None,
+                        attempts,
+                        tuple(rejected),
+                        target,
+                        ttfb_ms=ttfb_ms,
+                        total_latency_ms=total_latency_ms,
+                        decision_kind="transport_error",
+                    )
+                    last_decision = None
+                    attempt_results.append({
+                        "provider": target.provider_name, "model": target.canonical_id,
+                        "status": "failed", "status_code": 504,
+                        "ttfb_ms": ttfb_ms, "total_latency_ms": total_latency_ms,
+                    })
+                    stop_request = True
+                    break
                 total_latency_ms = (time.monotonic() - attempt_started) * 1000
                 content_type = response.getheader("Content-Type", "application/json")
                 retry_after = response.getheader("Retry-After")
                 conn.close()
                 message = body.decode("utf-8", errors="replace")
                 decision = classify_failure(response.status, message)
+                if decision.kind == "quota_exhausted":
+                    # T1 §7: the quota cooldown scale is policy-driven, not a
+                    # classifier constant.
+                    decision = replace(
+                        decision,
+                        cooldown_scale=self.resilience.quota_cooldown_scale,
+                    )
                 observation = parse_quota_headers(
                     response.headers, response.status, decision.kind
                 )
@@ -406,6 +623,7 @@ class UpstreamExecutor:
                     target,
                     ttfb_ms=ttfb_ms,
                     total_latency_ms=total_latency_ms,
+                    decision_kind=decision.kind,
                 )
                 attempt_results.append({
                     "provider": target.provider_name, "model": target.canonical_id,
@@ -413,22 +631,93 @@ class UpstreamExecutor:
                     "ttfb_ms": ttfb_ms, "total_latency_ms": total_latency_ms,
                 })
 
+                # T1 §2.1: an ordinary 429 with a parseable Retry-After inside
+                # the policy ceiling is retried once on the SAME candidate --
+                # the upstream told us exactly how long to wait, so no
+                # exponential backoff. The retry bypasses the cooldown gate:
+                # we sleep the declared delay first.
+                raw_retry_delay = parse_retry_after(retry_after)
+                if (
+                    policy.retry_same_candidate_on_429
+                    and decision.kind == "rate_limited"
+                    and not same_429_retried
+                    and retry_after is not None
+                    and 0 < raw_retry_delay <= policy.retry_after_max_seconds
+                    and attempts < policy.max_attempts
+                    and not budget_exceeded()
+                ):
+                    same_429_retried = True
+                    self._log_failover(
+                        request_id=request_id,
+                        from_candidate=None,
+                        to_candidate=target,
+                        reason="rate_limited",
+                        attempt=attempts,
+                        elapsed_ms=total_latency_ms,
+                        ttfb_ms=ttfb_ms,
+                        circuit=None,
+                    )
+                    if not sleep_bounded(raw_retry_delay):
+                        break
+                    bypass_gate = True
+                    continue
+
                 has_more_credentials = slot_index + 1 < len(slots)
                 if has_more_credentials and (
                     decision.credential_terminal or decision.credential_cooldown
                 ):
+                    slot_index += 1
                     continue
                 break
 
-            if attempts >= config.max_attempts:
+            if stop_request:
                 break
+            if attempts >= policy.max_attempts or budget_exceeded():
+                break
+            # --- candidate-advance policy (T1 §1) ---
+            advance = True
+            if last_decision is not None and last_decision.kind == "credential_invalid":
+                # T1 §1.2 #9: a bad key opens no doors -- try the provider's
+                # other slots (done above), but never cross candidates.
+                advance = False
+            elif (
+                last_decision is not None
+                and last_decision.kind == "credits_exhausted"
+                and plan.strategy == "explicit"
+            ):
+                # T1 §1.2 #10: an explicit request names its provider; other
+                # providers may still serve virtual-model requests.
+                advance = False
+            elif last_decision is not None and last_decision.kind == "context_overflow":
+                # T1 §1.1 #7: only transfer to a larger-context model.
+                current_window = target.model.context_window
+                larger_ahead = any(
+                    candidate.model.context_window > current_window
+                    for candidate in plan.candidates[target_index + 1:]
+                )
+                if not larger_ahead:
+                    advance = False
             has_more_models = target_index + 1 < len(plan.candidates)
             if not has_more_models or not allow_model_fallback:
-                break
+                advance = False
             # Invalid request payloads are expected to fail identically on the
             # next model. Every narrower provider/key/model availability state
             # is safe to bypass before the client has received any bytes.
             if attempted_target and last_decision and last_decision.kind == "invalid_request":
+                advance = False
+
+            if last_decision is not None and last_decision.kind != "invalid_request":
+                self._log_failover(
+                    request_id=request_id,
+                    from_candidate=target,
+                    to_candidate=plan.candidates[target_index + 1] if advance else None,
+                    reason=last_decision.kind,
+                    attempt=attempts,
+                    elapsed_ms=(last_failure.total_latency_ms if last_failure else None),
+                    ttfb_ms=(last_failure.ttfb_ms if last_failure else None),
+                    circuit=_circuit_for(last_decision),
+                )
+            if not advance:
                 break
 
         if last_failure:
@@ -443,6 +732,8 @@ class UpstreamExecutor:
                 last_failure.last_target,
                 last_failure.ttfb_ms,
                 last_failure.total_latency_ms,
+                last_failure.timeout_phase,
+                last_failure.decision_kind,
             )
             self._record(
                 result, requested_model, plan.strategy, rejected,
