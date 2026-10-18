@@ -39,12 +39,15 @@ def test_scoring_orders_candidates_and_explains_every_factor():
     assert [target.canonical_id for target in plan.candidates] == ["b/model", "a/model"]
     explanation = plan.explain()["scoring"]
     assert explanation["enabled"] is True
-    assert set(explanation["candidates"][0]["factors"]) == {
-        "health", "success_rate", "latency", "quota", "capability", "free_evidence",
-    }
+    # PRD-059/T2: plan scores explain the three policy dimensions (§4.1–§4.2),
+    # derived from the six scoring factors of score_candidate.
+    assert set(explanation["candidates"][0]["factors"]) == {"quality", "cost", "latency"}
     assert math.isclose(sum(
         factor["weight"] for factor in explanation["candidates"][0]["factors"].values()
     ), 1.0, abs_tol=0.00001)
+    assert explanation["candidates"][0]["factors"]["cost"]["source"] in {
+        "quota_runtime", "quota_runtime_downgraded", "missing_default",
+    }
 
 
 def test_scoring_config_normalizes_weights_and_nan_uses_safe_defaults():
