@@ -35,6 +35,13 @@ _FALLBACK_DEFAULTS = {
     "network": False,
     "env_allowlist": ["PATH", "HOME", "LANG"],
     "retain_workdir_on_failure": True,
+    # PRD-079/T4: resource budgets + audit log.
+    "cpu_limit_s": 600.0,
+    "memory_limit_mb": 1024.0,
+    "audit_enabled": True,
+    "audit_path": "~/.open-free-router/sandbox/audit.log",
+    "audit_max_mb": 5.0,
+    "audit_keep": 3,
 }
 
 
@@ -225,6 +232,10 @@ def run_sandbox_task(*, task: str, models: list, cfg: dict, token: str,
     Flow: model generates Python code for ``task`` -> sandbox executes it.
     Model-side failures switch models (T1 §5); code-side failures never do.
     ``caller``/``provider`` are injectable for tests; defaults are the real ones.
+
+    PRD-079/T4: every execution is audit-logged (code sha256 only, never the
+    code), and echoed stdout/stderr are secret-masked before they are
+    returned (T1 §10 item 8).
     """
     if cfg.get("provider", "none") == "none":
         raise SandboxCLIError(
@@ -237,12 +248,16 @@ def run_sandbox_task(*, task: str, models: list, cfg: dict, token: str,
     if allow_network:
         effective["network"] = True
 
+    # PRD-079/T4: audit log (fail-safe: never breaks the task).
+    audit = _audit_from_cfg(effective)
+
     model_caller = caller or _caller_mod.ModelCaller(
         token=token,
         max_model_retries=int(effective.get("max_model_retries", 3)),
         total_budget_s=float(effective.get("total_budget_s", 300)),
     )
     code, call_result = model_caller.generate_code(models, task)
+    code_sha256 = hashlib.sha256(code.encode()).hexdigest()
 
     backend = provider if provider is not None else get_provider(effective)
     allowlist = effective.get("env_allowlist") or []
@@ -253,21 +268,57 @@ def run_sandbox_task(*, task: str, models: list, cfg: dict, token: str,
         raise
     except Exception as e:
         # T2's SandboxError family (disabled / rejected / unsupported):
-        # surface as a clean CLI error, not a traceback.
+        # surface as a clean CLI error, not a traceback. T1 §6: rejections
+        # are audited too (sha256 only, never the code).
         if type(e).__name__.startswith("Sandbox"):
+            audit.record_rejection(code_sha256=code_sha256,
+                                   reason=f"{type(e).__name__}: {e}")
             raise SandboxCLIError(str(e)) from e
         raise
 
+    # PRD-079/T4: audit the execution (desensitized; never raises).
+    audit.record_execution(
+        model=call_result.model,
+        code_sha256=code_sha256,
+        exit_code=exec_result.exit_code,
+        duration_ms=exec_result.duration_ms,
+        timed_out=exec_result.timed_out,
+        model_switched=any(a.outcome != "success"
+                           for a in call_result.attempts),
+        resource_exhausted=getattr(exec_result, "resource_exhausted", None),
+    )
+
+    # PRD-079/T4: secret-mask echoed output (T1 §10 item 8). The model or
+    # the program may print something that looks like a key; it must not
+    # reach the user unmasked.
+    from open_free_router.sandbox.redact import redact_secrets
+
     return {
         "model": call_result.model,
-        "model_switches": call_result.switches,
-        "code_sha256": hashlib.sha256(code.encode()).hexdigest(),
+        "model_switches": [
+            {**s, "error": redact_secrets(s.get("error"))}
+            for s in call_result.switches
+        ],
+        "code_sha256": code_sha256,
         "exit_code": exec_result.exit_code,
-        "stdout": exec_result.stdout,
-        "stderr": exec_result.stderr,
+        "stdout": redact_secrets(exec_result.stdout),
+        "stderr": redact_secrets(exec_result.stderr),
         "duration_ms": exec_result.duration_ms,
         "timed_out": exec_result.timed_out,
+        "resource_exhausted": getattr(exec_result, "resource_exhausted", None),
     }
+
+
+def _audit_from_cfg(cfg: dict):
+    """Build the T4 audit log from effective config (lazy import)."""
+    from open_free_router.sandbox.audit import AuditLog
+
+    return AuditLog(
+        path=cfg.get("audit_path", "~/.open-free-router/sandbox/audit.log"),
+        max_mb=float(cfg.get("audit_max_mb", 5.0)),
+        keep=int(cfg.get("audit_keep", 3)),
+        enabled=bool(cfg.get("audit_enabled", True)),
+    )
 
 
 def _build_request(code: str, cfg: dict, exec_timeout_s: Optional[int],
