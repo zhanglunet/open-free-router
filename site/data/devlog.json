@@ -1,9 +1,30 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-19T00:00:00.000Z",
+  "updated_at": "2026-10-19T01:27:39.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-10-19-sandbox-t3-模型自选与失败重试",
+      "date": "2026-10-19",
+      "type": "feature",
+      "version": "v0.4.0",
+      "title": "沙盒模型自选与失败重试：sandbox run / config / models",
+      "summary": "PRD-079/T3：新增 sandbox 三子命令。sandbox run 让模型按任务生成 Python 代码并在本地沙盒执行；模型侧失败（429/5xx/超时/连接失败）按 T1 失败分类表自动换下一个模型并指数退避，404 跳过、401/403 停整个列表、400 直接返回；代码侧失败（非零退出/超时）不换模型直接返回；双封顶 max_model_retries=3、total_budget_s=300s，耗尽时报错写清原因。",
+      "items": [
+        "sandbox run --model ID [--models a,b,c] [--timeout S] [--network] <任务文件|stdin>：模型生成代码→沙盒执行，打印 JSON 结果（含换模型记录）",
+        "sandbox config：打印生效配置，token 脱敏不显示",
+        "sandbox models：只读代理本地网关 /v1/models",
+        "失败分类照 T1 §5 定死：429/5xx/超时/连接失败→换模型+退避（Retry-After 优先）、404→跳过、401/403→停整个列表、400→直接返回",
+        "代码侧失败（非零退出/超时）不换模型；双封顶耗尽时报错写清原因"
+      ],
+      "links": [
+        {
+          "label": "仓库",
+          "url": "https://github.com/zhanglunet/open-free-router"
+        }
+      ]
+    },
     {
       "id": "2026-10-19-failover-policy-故障转移策略化",
       "date": "2026-10-19",
