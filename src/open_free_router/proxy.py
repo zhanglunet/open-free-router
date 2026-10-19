@@ -362,6 +362,30 @@ class _ProxyHandler(BaseHTTPRequestHandler):
             item = self.decision_store.get(path.removeprefix("/api/routes/"))
             self._send_json(200, item) if item else self._send_json(404, {"error": "not found"})
             return
+        # PRD-059/T4: T1 §5 failover decision log query (dashboard filter view).
+        if path == "/api/failover-decisions":
+            if not self.auth_token or not check_auth(self.headers, self.auth_token):
+                self._send_json(401, {"error": "unauthorized"})
+                return
+            if not self.analytics_store:
+                self._send_json(200, {"enabled": False, "decisions": []})
+                return
+            try:
+                days = int((query.get("days") or [30])[0])
+            except (TypeError, ValueError):
+                days = 30
+            try:
+                limit = int((query.get("limit") or [500])[0])
+            except (TypeError, ValueError):
+                limit = 500
+            model = str((query.get("model") or [""])[0])[:256] or None
+            reason = str((query.get("reason") or [""])[0])[:64] or None
+            self._send_json(200, {
+                "enabled": True,
+                "decisions": self.analytics_store.failover_decisions(
+                    days=days, model=model, reason=reason, limit=limit),
+            })
+            return
         if path in ("/", "/health"):
             self._send_json(200, {
                 "service": "open-free-router",
@@ -836,3 +860,4 @@ def rebuild_proxy_index():
         handlers = list(_ACTIVE_HANDLERS)
     for handler in handlers:
         handler.rebuild_index()
+

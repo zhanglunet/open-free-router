@@ -1,9 +1,30 @@
 {
   "schema_version": 1,
-  "updated_at": "2026-10-17T00:00:00.000Z",
+  "updated_at": "2026-10-19T00:00:00.000Z",
   "project": "模力自由港 / open-free-router",
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
+    {
+      "id": "2026-10-19-failover-policy-故障转移策略化",
+      "date": "2026-10-19",
+      "type": "feature",
+      "version": "v0.4.0",
+      "title": "故障转移策略化：重试/退避/熔断/超时全部可配置",
+      "summary": "故障转移逻辑改由 T1 策略文档（docs/plans/failover-routing-policy.md）经 YAML 驱动：重试次数、指数退避、熔断阈值、三档超时（建连 10s / 首字节 30s / 总预算 300s）均可在 config.yaml 里调，配错自动回退默认值并记日志。每次故障转移的决策（原候选→新候选→原因→耗时）脱敏后写入 usage.db，仪表盘可按时间/模型/原因查询。",
+      "items": [
+        "429（普通限流）按上游 Retry-After 同候选重试 1 次，额度耗尽类直接换候选",
+        "候选切换前指数退避 + 抖动；单请求总预算 300s 防 hang",
+        "401 只换同提供商其他凭证槽、不跨候选；402 显式模型直接返回错误",
+        "上下文超限只向更大上下文模型转移，否则直接返回错误",
+        "决策日志只记枚举原因与候选 ID，不记密钥/请求体/响应头"
+      ],
+      "links": [
+        {
+          "label": "仓库",
+          "url": "https://github.com/zhanglunet/open-free-router"
+        }
+      ]
+    },
     {
       "id": "2026-10-17-route-query-路由查询",
       "date": "2026-10-17",

@@ -124,10 +124,17 @@ class _UIHandler(BaseHTTPRequestHandler):
             resilience = self._proxy_request("/api/resilience")
             routes = self._proxy_request("/api/routes")
             metrics = self._proxy_request("/api/metrics?days=30")
+            # PRD-059/T4: T1 §5 failover decision log for the dashboard view.
+            failover_decisions = self._proxy_request("/api/failover-decisions?days=30")
         except (OSError, ValueError, urllib.error.URLError, RuntimeError) as exc:
             self._send_json(503, {"error": f"本地代理运行状态不可读取：{exc.__class__.__name__}"})
             return
-        self._send_json(200, {"resilience": resilience, "routes": routes, "metrics": metrics})
+        self._send_json(200, {
+            "resilience": resilience,
+            "routes": routes,
+            "metrics": metrics,
+            "failover_decisions": failover_decisions,
+        })
 
     def _api_routing_reset(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -495,3 +502,4 @@ def run_ui(cfg: Config, port: int = 9527, reg: Registry | None = None):
     except KeyboardInterrupt:
         pass
     srv.server_close()
+

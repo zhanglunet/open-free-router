@@ -8,10 +8,13 @@ protocol share the same behaviour.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import logging
 import math
 from typing import Iterable
 
 from open_free_router.costing import CostConfig, cost_factor, excluded_by_cost
+from open_free_router.failover import bounded_bool as _policy_bool
+from open_free_router.failover import bounded_number as _policy_number
 from open_free_router.latency import (
     LatencyConfig,
     latency_dimension,
@@ -113,6 +116,17 @@ class RoutingConfig:
     # PRD-059/T1 §4.1: realtime TTFB sampling (switchable, bounded window).
     latency_enabled: bool = True
     latency_window_size: int = 100
+    # PRD-059/T1 §2: retry, backoff and timeout policy (T4: yaml-driven).
+    retry_same_candidate_on_429: bool = True
+    retry_after_max_seconds: float = 120.0
+    backoff_base_seconds: float = 1.0
+    backoff_factor: float = 2.0
+    backoff_cap_seconds: float = 30.0
+    backoff_jitter: float = 0.25
+    connect_timeout_seconds: float = 10.0
+    ttfb_timeout_seconds: float = 30.0
+    request_timeout_seconds: float = 120.0
+    total_budget_seconds: float = 300.0
 
     @classmethod
     def from_dict(cls, raw: dict | None) -> "RoutingConfig":
@@ -156,6 +170,38 @@ class RoutingConfig:
         except (TypeError, ValueError, OverflowError):
             latency_window_size = 100
         latency_window_size = min(10000, max(1, latency_window_size))
+        # PRD-059/T1 §2: retry/backoff/timeout knobs. Out-of-range values fall
+        # back to the documented defaults with a warning (T1 §7).
+        retry_same_candidate_on_429 = _policy_bool(
+            policy.get("retry_same_candidate_on_429"), True,
+            "routing.policy.retry_same_candidate_on_429")
+        retry_after_max_seconds = _policy_number(
+            policy.get("retry_after_max_seconds"), 120.0, 0, 3600,
+            "routing.policy.retry_after_max_seconds")
+        backoff_base_seconds = _policy_number(
+            policy.get("backoff_base_seconds"), 1.0, 0, 10,
+            "routing.policy.backoff_base_seconds")
+        backoff_factor = _policy_number(
+            policy.get("backoff_factor"), 2.0, 1, 4,
+            "routing.policy.backoff_factor")
+        backoff_cap_seconds = _policy_number(
+            policy.get("backoff_cap_seconds"), 30.0, 1, 300,
+            "routing.policy.backoff_cap_seconds")
+        backoff_jitter = _policy_number(
+            policy.get("backoff_jitter"), 0.25, 0, 0.5,
+            "routing.policy.backoff_jitter")
+        connect_timeout_seconds = _policy_number(
+            policy.get("connect_timeout_seconds"), 10.0, 1, 120,
+            "routing.policy.connect_timeout_seconds")
+        ttfb_timeout_seconds = _policy_number(
+            policy.get("ttfb_timeout_seconds"), 30.0, 1, 600,
+            "routing.policy.ttfb_timeout_seconds")
+        request_timeout_seconds = _policy_number(
+            policy.get("request_timeout_seconds"), 120.0, 5, 3600,
+            "routing.policy.request_timeout_seconds")
+        total_budget_seconds = _policy_number(
+            policy.get("total_budget_seconds"), 300.0, 10, 3600,
+            "routing.policy.total_budget_seconds")
         return cls(
             aliases=aliases,
             fallback_enabled=bool(fallback.get("enabled", True)),
@@ -171,6 +217,16 @@ class RoutingConfig:
             ),
             latency_enabled=latency_enabled,
             latency_window_size=latency_window_size,
+            retry_same_candidate_on_429=retry_same_candidate_on_429,
+            retry_after_max_seconds=retry_after_max_seconds,
+            backoff_base_seconds=backoff_base_seconds,
+            backoff_factor=backoff_factor,
+            backoff_cap_seconds=backoff_cap_seconds,
+            backoff_jitter=backoff_jitter,
+            connect_timeout_seconds=connect_timeout_seconds,
+            ttfb_timeout_seconds=ttfb_timeout_seconds,
+            request_timeout_seconds=request_timeout_seconds,
+            total_budget_seconds=total_budget_seconds,
         )
 
 
@@ -552,6 +608,51 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
                     "latency_window_size 必须是 1 到 10000 的整数；当前运行时会回退到 100。",
                     "把 routing.policy.latency_window_size 设置为 100",
                 )
+        # PRD-059/T4: retry/backoff/timeout policy knobs (T1 §2, §7).
+        if "retry_same_candidate_on_429" in policy and not isinstance(
+            policy["retry_same_candidate_on_429"], bool
+        ):
+            add(
+                "error", "invalid_boolean", "routing.policy.retry_same_candidate_on_429",
+                "retry_same_candidate_on_429 必须写为 true 或 false；无效值会保持开启同候选重试。",
+                "把 routing.policy.retry_same_candidate_on_429 设置为 true 或 false",
+            )
+        for key, low, high, default in (
+            ("retry_after_max_seconds", 0, 3600, 120),
+            ("backoff_base_seconds", 0, 10, 1.0),
+            ("backoff_factor", 1, 4, 2.0),
+            ("backoff_cap_seconds", 1, 300, 30),
+            ("backoff_jitter", 0, 0.5, 0.25),
+            ("connect_timeout_seconds", 1, 120, 10),
+            ("ttfb_timeout_seconds", 1, 600, 30),
+            ("request_timeout_seconds", 5, 3600, 120),
+            ("total_budget_seconds", 10, 3600, 300),
+        ):
+            if key in policy:
+                try:
+                    parsed = float(policy[key])
+                except (TypeError, ValueError, OverflowError):
+                    parsed = float("nan")
+                if not math.isfinite(parsed) or not low <= parsed <= high:
+                    add(
+                        "error", "invalid_failover_policy_value", f"routing.policy.{key}",
+                        f"{key} 必须在 {low} 到 {high} 之间；当前运行时会回退到 {default}。",
+                        f"把 routing.policy.{key} 设置为 {default}",
+                    )
+        try:
+            total_b = float(policy.get("total_budget_seconds", 300))
+            request_b = float(policy.get("request_timeout_seconds", 120))
+        except (TypeError, ValueError, OverflowError):
+            total_b, request_b = 300.0, 120.0
+        if (
+            math.isfinite(total_b) and math.isfinite(request_b)
+            and total_b < request_b
+        ):
+            add(
+                "warning", "total_budget_below_request_timeout", "routing.policy.total_budget_seconds",
+                "total_budget_seconds 小于单次请求超时，故障转移可能在第一次尝试后就被总预算截断。",
+                "把 routing.policy.total_budget_seconds 设为不小于 request_timeout_seconds",
+            )
 
     aliases = raw.get("aliases", {})
     if not isinstance(aliases, dict):
@@ -637,3 +738,4 @@ def diagnose_routing_config(raw: object, registry: Registry) -> list[RoutingDiag
                 "运行 `open-free-router setup` 配置凭据",
             )
     return issues
+
