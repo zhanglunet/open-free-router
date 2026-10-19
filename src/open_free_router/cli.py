@@ -15,6 +15,7 @@ from open_free_router.auth import get_or_create_proxy_token
 from open_free_router.discovery import adopt_validated, discover, save_discovery, validate_candidates
 from open_free_router.routing import RoutePlanner, diagnose_routing_config
 from open_free_router.route_query import query_route
+from open_free_router.sandbox import commands as sandbox_commands
 
 
 TEMPLATE = Path(__file__).parent / "registry.default.yaml"
@@ -839,6 +840,31 @@ def main():
     p_discover.add_argument("--max-providers", type=int, default=5)
     p_discover.add_argument("--max-models", type=int, default=3)
     p_discover.set_defaults(func=cmd_discover)
+
+    # PRD-079/T3: sandbox subcommands (model-picked code execution).
+    p_sandbox = sub.add_parser("sandbox", help="sandbox: have a model write code, then run it")
+    sandbox_sub = p_sandbox.add_subparsers(dest="sandbox_command", required=True)
+
+    p_sandbox_run = sandbox_sub.add_parser(
+        "run", help="model generates code for a task; sandbox executes it")
+    p_sandbox_run.add_argument("--model", default=None, help="model ID to use")
+    p_sandbox_run.add_argument("--models", default=None,
+                               help="comma-separated model IDs, tried in order")
+    p_sandbox_run.add_argument("--timeout", type=int, default=None,
+                               help="per-run timeout in seconds")
+    p_sandbox_run.add_argument("--network", action="store_true",
+                               help="allow network access inside the sandbox")
+    p_sandbox_run.add_argument("input", nargs="?", default="-",
+                               help="task file, or - for stdin (default)")
+    p_sandbox_run.set_defaults(func=sandbox_commands.cmd_sandbox_run)
+
+    p_sandbox_config = sandbox_sub.add_parser(
+        "config", help="show effective sandbox config (token redacted)")
+    p_sandbox_config.set_defaults(func=sandbox_commands.cmd_sandbox_config)
+
+    p_sandbox_models = sandbox_sub.add_parser(
+        "models", help="list models via the local proxy (read-only)")
+    p_sandbox_models.set_defaults(func=sandbox_commands.cmd_sandbox_models)
 
     args = parser.parse_args()
     if not args.command:
