@@ -7,11 +7,13 @@ import io
 import json
 import math
 import os
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 import re
 import sqlite3
 import threading
 import time
+import uuid
 
 
 EXPORT_FIELDS = (
@@ -19,6 +21,20 @@ EXPORT_FIELDS = (
     "ttfb_ms", "total_latency_ms", "input_tokens", "output_tokens",
     "fallback_attempts", "error_kind", "circuit_breaker_events",
 )
+# PRD-059/T4: T1 §5 decision-log columns. Only enum kinds, candidate IDs and
+# timings are ever stored -- never headers, keys, prompts or bodies.
+FAILOVER_DECISION_FIELDS = (
+    "at", "request_id", "from_candidate", "to_candidate", "reason",
+    "attempt", "elapsed_ms", "ttfb_ms", "circuit",
+)
+# FailureDecision.kind values the failover policy may emit (T1 §1.3). Anything
+# else is coerced to "unknown" at write time so the table can never carry
+# free-form error prose.
+FAILOVER_REASONS = frozenset({
+    "provider_unavailable", "rate_limited", "quota_exhausted", "transport_error",
+    "model_unavailable", "context_overflow", "invalid_request",
+    "credential_invalid", "credits_exhausted", "model_forbidden",
+})
 SENSITIVE_PATTERN = re.compile(
     r"authorization|api[_-]?key|bearer\s+|sk-[A-Za-z0-9_-]{8,}|prompt|response[_-]?body|tool[_-]?arguments",
     re.IGNORECASE,
@@ -100,6 +116,32 @@ class AnalyticsStore:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS usage_events_model ON usage_events(provider, model)"
             )
+            # PRD-059/T4: failover decision log (T1 §5). Same 0600/retention
+            # conventions as usage_events.
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS failover_decisions (
+                    decision_id TEXT PRIMARY KEY,
+                    at TEXT NOT NULL,
+                    request_id TEXT NOT NULL,
+                    from_candidate TEXT,
+                    to_candidate TEXT,
+                    reason TEXT NOT NULL,
+                    attempt INTEGER NOT NULL,
+                    elapsed_ms REAL,
+                    ttfb_ms REAL,
+                    circuit TEXT
+                )
+            """)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(failover_decisions)")}
+            expected_failover = {"decision_id", *FAILOVER_DECISION_FIELDS}
+            if columns != expected_failover:
+                raise sqlite3.DatabaseError("unsupported analytics schema")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS failover_decisions_at ON failover_decisions(at)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS failover_decisions_request ON failover_decisions(request_id)"
+            )
             connection.execute("PRAGMA user_version=1")
             connection.commit()
             self._connection = connection
@@ -135,10 +177,16 @@ class AnalyticsStore:
                 cursor = self._connection.execute(
                     "DELETE FROM usage_events WHERE timestamp < ?", (cutoff,)
                 )
+                removed = max(0, cursor.rowcount)
+                iso_cutoff = datetime.fromtimestamp(cutoff, timezone.utc).isoformat()
+                cursor = self._connection.execute(
+                    "DELETE FROM failover_decisions WHERE at < ?", (iso_cutoff,)
+                )
+                removed += max(0, cursor.rowcount)
                 self._connection.commit()
                 self._secure_files()
                 self._last_purge_at = time.time() if now is None else now
-                return max(0, cursor.rowcount)
+                return removed
             except (OSError, sqlite3.Error) as exc:
                 self.last_error = exc.__class__.__name__
                 return 0
@@ -186,6 +234,101 @@ class AnalyticsStore:
                 self.last_error = ""
             except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
                 self.last_error = exc.__class__.__name__
+
+    def record_failover_decision(
+        self,
+        *,
+        request_id: str,
+        from_candidate: str | None,
+        to_candidate: str | None,
+        reason: str,
+        attempt: int,
+        elapsed_ms: float | None = None,
+        ttfb_ms: float | None = None,
+        circuit: str | None = None,
+        at: str | None = None,
+    ) -> None:
+        """Write one T1 §5 failover decision row (PRD-059/T4).
+
+        Desensitized by construction: ``reason`` is coerced to a known
+        FailureDecision.kind enum and every free-form field is length-bounded;
+        the encoded row is additionally scanned for secret patterns and
+        rejected rather than stored.
+        """
+        if not self.enabled or not self._connection:
+            return
+        request_id = str(request_id or "")[:128]
+        if not request_id:
+            return
+        reason = str(reason or "")
+        if reason not in FAILOVER_REASONS:
+            reason = "unknown"
+        circuit = str(circuit or "")
+        if circuit not in ("provider", "credential", "model", ""):
+            circuit = ""
+        row = (
+            uuid.uuid4().hex,
+            at or datetime.now(timezone.utc).isoformat(),
+            request_id,
+            str(from_candidate or "")[:256] or None,
+            str(to_candidate or "")[:256] or None,
+            reason,
+            max(0, int(attempt)),
+            _safe_number(elapsed_ms),
+            _safe_number(ttfb_ms),
+            circuit or None,
+        )
+        encoded = json.dumps(row, ensure_ascii=False)
+        if SENSITIVE_PATTERN.search(encoded):
+            raise ExportSecurityError("sensitive failover decision content rejected")
+        with self._lock:
+            try:
+                if time.time() - self._last_purge_at >= 3600:
+                    self.purge()
+                self._connection.execute(
+                    """INSERT INTO failover_decisions
+                       (decision_id, at, request_id, from_candidate, to_candidate,
+                        reason, attempt, elapsed_ms, ttfb_ms, circuit)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    row,
+                )
+                self._connection.commit()
+                self._secure_files()
+                self.last_error = ""
+            except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+                self.last_error = exc.__class__.__name__
+
+    def failover_decisions(
+        self,
+        days: int = 30,
+        model: str | None = None,
+        reason: str | None = None,
+        limit: int = 500,
+    ) -> list[dict]:
+        """Query the T1 §5 decision log for the dashboard (PRD-059/T4)."""
+        if not self.enabled or not self._connection:
+            return []
+        days = max(1, min(int(days), self.retention_days))
+        # ISO8601 UTC strings sort lexicographically, so the window cutoff
+        # can be compared as text.
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat()
+        limit = max(1, min(int(limit), 10000))
+        conditions = ["at >= ?"]
+        params: list = [cutoff]
+        if model:
+            conditions.append("(from_candidate = ? OR to_candidate = ?)")
+            params.extend([str(model)[:256], str(model)[:256]])
+        if reason:
+            conditions.append("reason = ?")
+            params.append(str(reason)[:64])
+        sql = (
+            f"SELECT {', '.join(FAILOVER_DECISION_FIELDS)} FROM failover_decisions "
+            f"WHERE {' AND '.join(conditions)} ORDER BY at DESC LIMIT ?"
+        )
+        params.append(limit)
+        with self._lock:
+            cursor = self._connection.execute(sql, tuple(params))
+            return [dict(zip(FAILOVER_DECISION_FIELDS, row)) for row in cursor.fetchall()]
 
     def _rows(self, days: int = 30, limit: int | None = None) -> list[dict]:
         if not self.enabled or not self._connection:
@@ -279,3 +422,4 @@ class AnalyticsStore:
                     safe[key] = "'" + str(safe[key])
             writer.writerow(safe)
         return output.getvalue(), "text/csv; charset=utf-8"
+

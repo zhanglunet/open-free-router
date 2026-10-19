@@ -67,6 +67,11 @@ class Config:
         from open_free_router.routing import RoutingConfig
         self.routing = RoutingConfig.from_dict(self._raw.get("routing", {}))
 
+        # PRD-059/T4: failover circuit-breaker thresholds (T1 §7). The failover
+        # module owns validation; unknown keys stay backwards compatible.
+        from open_free_router.failover import FailoverThresholds
+        self.failover = FailoverThresholds.from_dict(self._raw.get("failover", {}))
+
         analytics = self._raw.get("analytics", {})
         if not isinstance(analytics, dict):
             analytics = {}
@@ -157,3 +162,4 @@ def save_registry(registry_path: Path, data: dict):
         registry_path.chmod(0o600)
     except OSError:
         pass
+
