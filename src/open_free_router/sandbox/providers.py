@@ -107,14 +107,24 @@ class NoneProvider(SandboxProvider):
 # Dangerous-pattern blacklist (T1 section 6: backstop, not the primary
 # defense -- isolation is. T4 adds audit logging and desensitization
 # around rejections; the pattern list itself stays minimal here.)
+#
+# T4 additions (still the backstop, not the wall): netcat -e and socat
+# EXEC reverse shells, and the sh -i variant. Deliberately NOT included:
+# pty.spawn / os.system / eval (too common in legitimate code -- the AST
+# path jail and workdir isolation are the real defense there).
 # ---------------------------------------------------------------------------
 _DANGEROUS_PATTERNS: tuple[tuple[str, str], ...] = (
     # rm -rf / style path destruction (rm -rf /, rm -r /tmp, ...)
     (r"\brm\s+-[a-zA-Z]*r[a-zA-Z]*\b", "destructive 'rm -r' invocation"),
     # reverse shell via /dev/tcp
     (r"/dev/tcp/", "reverse shell via /dev/tcp"),
-    # interactive bash reverse shell
+    # interactive bash/sh reverse shell
     (r"\bbash\s+-i\b", "interactive reverse shell"),
+    (r"\bsh\s+-i\b", "interactive reverse shell"),
+    # netcat reverse shell (nc -e /bin/sh ...)
+    (r"\bnc(?:at|t)?\b[^|\n]*-[a-zA-Z]*e[a-zA-Z]*\b", "netcat reverse shell (-e)"),
+    # socat reverse shell (socat ... EXEC:/bin/sh ...)
+    (r"\bsocat\b[^|\n]*\bEXEC\b", "socat reverse shell (EXEC)"),
     # curl|bash / wget|bash pipe execution
     (r"\bcurl\b[^|\n]*\|\s*(ba)?sh\b", "curl-piped-to-shell execution"),
     (r"\bwget\b[^|\n]*\|\s*(ba)?sh\b", "wget-piped-to-shell execution"),
@@ -231,6 +241,23 @@ class LocalProvider(SandboxProvider):
                 "backend which will enforce it."
             )
         self._config = config
+        # PRD-079/T4: resource budgets (CPU seconds / memory MB). Fail fast
+        # on platforms that cannot enforce them.
+        self._limits = None
+        if config.cpu_limit_s is not None or config.memory_limit_mb is not None:
+            from open_free_router.sandbox.hardening import (
+                ResourceLimits,
+                ResourceLimitUnsupportedError,
+            )
+
+            try:
+                self._limits = ResourceLimits(
+                    cpu_s=config.cpu_limit_s,
+                    memory_mb=config.memory_limit_mb,
+                )
+                self._limits.validate()
+            except ResourceLimitUnsupportedError as e:
+                raise SandboxUnsupportedError(str(e)) from e
         self._workdir_parent = Path(os.path.expanduser(config.workdir_parent))
         self._workdir_parent.mkdir(parents=True, exist_ok=True)
         python = shutil.which("python3")
@@ -254,6 +281,7 @@ class LocalProvider(SandboxProvider):
             result = execute_local(
                 replace(request, workdir=workdir, env=env),
                 python=self._python,
+                limits=self._limits,
             )
         except SandboxRejectedError:
             # Rejected before execution: nothing to debug, drop the dir.
