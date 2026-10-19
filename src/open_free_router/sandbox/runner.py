@@ -20,6 +20,10 @@ import signal
 import subprocess
 import time
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from open_free_router.sandbox.hardening import ResourceLimits
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +54,25 @@ class SandboxResult:
     duration_ms: float
     timed_out: bool
     workdir: str
+    # PRD-079/T4: which resource budget killed the process, if any
+    # ("cpu" | "memory" | None). Best-effort classification, see
+    # hardening.classify_resource_kill.
+    resource_exhausted: str | None = None
 
 
-def execute_local(request: SandboxRequest, *, python: str = "python3") -> SandboxResult:
+def execute_local(request: SandboxRequest, *, python: str = "python3",
+                  limits: "ResourceLimits | None" = None) -> SandboxResult:
     """Run ``request.code`` as ``main.py`` in ``request.workdir``.
 
     The child gets exactly ``request.env`` (already filtered by the
     provider), a fresh process group (so the timeout kill takes the whole
     tree), and no stdin.
+
+    ``limits`` (PRD-079/T4): optional ``hardening.ResourceLimits``. When
+    given, the child sets CPU/memory rlimits in a ``preexec_fn`` that also
+    calls ``os.setsid()`` itself (CPython forbids combining
+    ``start_new_session=True`` with a custom ``preexec_fn``; the semantics
+    are identical, so the timeout ``killpg`` path is unchanged).
     """
     if not request.workdir or not os.path.isdir(request.workdir):
         raise ValueError("provider must create request.workdir before execute_local")
@@ -67,6 +82,16 @@ def execute_local(request: SandboxRequest, *, python: str = "python3") -> Sandbo
     entry = os.path.join(request.workdir, "main.py")
     with open(entry, "w", encoding="utf-8") as fh:
         fh.write(request.code)
+
+    preexec_fn = None
+    use_new_session = True
+    if limits is not None and limits.enabled:
+        # Imported lazily: hardening is stdlib-only, but keep the runner
+        # importable even if resource limits are unavailable.
+        from open_free_router.sandbox.hardening import make_preexec
+
+        preexec_fn = make_preexec(limits)
+        use_new_session = False  # preexec_fn does os.setsid() itself
 
     started = time.monotonic()
     proc = subprocess.Popen(
@@ -81,7 +106,8 @@ def execute_local(request: SandboxRequest, *, python: str = "python3") -> Sandbo
         # "kill the whole process tree"). SIGKILL cannot be caught, so the
         # only escape is a child that re-setsids itself -- outside the
         # "accidents, not adversaries" threat model of the local backend.
-        start_new_session=True,
+        start_new_session=use_new_session,
+        preexec_fn=preexec_fn,
         text=True,
         errors="replace",
     )
@@ -93,6 +119,12 @@ def execute_local(request: SandboxRequest, *, python: str = "python3") -> Sandbo
         _kill_tree(proc.pid)
         stdout, stderr = proc.communicate()  # reap; also drains pipes
     duration_ms = (time.monotonic() - started) * 1000
+    resource_exhausted = None
+    if limits is not None and limits.enabled and not timed_out:
+        from open_free_router.sandbox.hardening import classify_resource_kill
+
+        resource_exhausted = classify_resource_kill(
+            proc.returncode, stderr, timed_out)
     return SandboxResult(
         exit_code=None if timed_out else proc.returncode,
         stdout=_truncate(stdout),
@@ -100,6 +132,7 @@ def execute_local(request: SandboxRequest, *, python: str = "python3") -> Sandbo
         duration_ms=duration_ms,
         timed_out=timed_out,
         workdir=request.workdir,
+        resource_exhausted=resource_exhausted,
     )
 
 
