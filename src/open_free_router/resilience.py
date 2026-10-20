@@ -19,6 +19,10 @@ from datetime import timezone
 
 PROVIDER_FAILURE_CODES = frozenset({408, 500, 502, 503, 504})
 QUOTA_COOLDOWN_SCALE = 8.0
+# PRD-096/T1 section 2: a quota observation older than two probe cycles
+# (2 x 15 min) is stale evidence. Routing then treats the provider's quota
+# as unknown (neutral) instead of acting on a number nobody re-observed.
+QUOTA_SIGNAL_MAX_AGE_SECONDS = 1800.0
 CONTEXT_ERROR_MARKERS = (
     "context length",
     "context window",
@@ -592,7 +596,14 @@ class ResilienceManager:
             return sorted(slots, key=rank)
 
     def scoring_signals(self, now: float | None = None) -> dict[str, dict[str, float]]:
-        """Return provider-level health/quota factors without credential identity."""
+        """Return provider-level health/quota factors without credential identity.
+
+        The quota factor (PRD-096/T2) is the best credential slot's headroom,
+        where a slot's headroom is the smaller of its requests/tokens
+        remaining ratios. Observations older than
+        ``QUOTA_SIGNAL_MAX_AGE_SECONDS`` are stale evidence and produce no
+        quota factor at all: unknown scores neutral downstream, never zero.
+        """
         now = time.time() if now is None else now
         with self._lock:
             providers = set(self._providers)
@@ -620,12 +631,25 @@ class ResilienceManager:
                         state.state == "cooldown" and state.cooldown_until > now
                     ):
                         continue
+                    quota = state.quota or {}
+                    observed_at = _safe_float(quota.get("observed_at"), 0.0)
+                    if observed_at <= 0 or now - observed_at > QUOTA_SIGNAL_MAX_AGE_SECONDS:
+                        # PRD-096/T1 section 2: no observation, or one too old
+                        # to trust -- quota stays unknown for this slot, it is
+                        # never reconstructed from stale numbers.
+                        continue
+                    ratios = []
                     for dimension in ("requests", "tokens"):
-                        values = (state.quota or {}).get(dimension, {})
+                        values = quota.get(dimension, {})
                         limit = _safe_float(values.get("limit"), -1.0)
                         remaining = _safe_float(values.get("remaining"), -1.0)
                         if limit > 0 and remaining >= 0:
-                            quota_scores.append(min(1.0, remaining / limit))
+                            ratios.append(min(1.0, remaining / limit))
+                    if ratios:
+                        # PRD-096/T1 section 3: a slot's headroom is its
+                        # binding dimension (the smaller ratio); the provider
+                        # signal is the best slot's headroom.
+                        quota_scores.append(min(ratios))
                 signals = {"health": health}
                 if quota_scores:
                     signals["quota"] = max(quota_scores)
