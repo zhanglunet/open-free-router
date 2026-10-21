@@ -9,3 +9,5 @@
 验证：`pytest tests/test_quota_view.py tests/test_ui_auth.py tests/test_proxy_resilience_api.py -q`；`node --check src/open_free_router/web_static/static/js/app.js`。运行 `PYTHONPATH=src .venv/bin/python scripts/render-quota-fixture.py` 生成五档合成数据预览，仅用于本地视觉核查，不等于真实服务商验收（#60）。
 
 复核修正：quota 429 的文字分类只作为独立提示，不覆盖响应头数字档位；与正数余额冲突时保留分类来源与冲突标记。无数字时仍 unknown，不能凭文字宣称余额耗尽。结构化 402 事件与冷却状态分别保留。
+
+干净检出验证：预览脚本会创建缺失的 artifacts 父目录；生成的 quota-synthetic.html 已由 .gitignore 排除，不跟踪、不公开发布。
