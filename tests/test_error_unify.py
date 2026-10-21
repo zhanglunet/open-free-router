@@ -5,6 +5,7 @@ Semantics are owned by PRD-059/T1 (docs/plans/failover-routing-policy.md
 mapping, not the policy.
 """
 import json
+import pytest
 import threading
 import time
 from email.utils import formatdate
@@ -12,6 +13,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from open_free_router import translate
 from open_free_router.executor import UpstreamExecutor
+from open_free_router.failover import TimeoutPhase
 from open_free_router.registry import Registry
 from open_free_router.resilience import ResilienceManager
 from open_free_router.routing import RoutePlanner
@@ -169,11 +171,27 @@ def test_unknown_provider_falls_back_to_default_table():
     assert n.code == "AUTH_INVALID"
 
 
-def test_timeout_phase_helper():
-    assert UpstreamExecutor._timeout_phase(TimeoutError("timed out")) == "ttfb"
-    assert UpstreamExecutor._timeout_phase(OSError("connect timed out")) == "connect"
-    assert UpstreamExecutor._timeout_phase(ConnectionRefusedError("refused")) is None
-    assert UpstreamExecutor._timeout_phase(OSError("Name or service not known")) is None
+@pytest.mark.parametrize('error, phase, code', [
+    (TimeoutPhase('connect'), 'connect', 'TIMEOUT'),
+    (TimeoutPhase('ttfb'), 'ttfb', 'TIMEOUT'),
+    (ConnectionRefusedError('refused'), None, 'TRANSPORT_ERROR'),
+    (OSError('connect timed out'), None, 'TRANSPORT_ERROR'),
+])
+def test_executor_preserves_structured_timeout_phase(monkeypatch, error, phase, code):
+    # PRD-059 replaced the deleted prose heuristic with TimeoutPhase at the
+    # actual connect/getresponse boundary. Pin the executor/normalizer contract.
+    registry = Registry({'p': {'api_key': 'placeholder', 'upstream_url': 'http://127.0.0.1:1/v1', 'models': [{'id': 'm'}]}})
+    executor = UpstreamExecutor(RoutePlanner(registry), ResilienceManager())
+    def fail(*args, **kwargs):
+        raise error
+    monkeypatch.setattr(executor, '_open', fail)
+    result = executor.execute('p/m', 'chat/completions', {'messages': []})
+    assert result.status == 502
+    assert result.attempts == 1
+    assert result.timeout_phase == phase
+    assert result.normalized.timeout_phase == phase
+    assert result.normalized.code == code
+    assert result.normalized.decision_kind == 'transport_error'
 
 
 # --- executor wiring: the client-facing response is unchanged, the
@@ -217,7 +235,7 @@ def _run_executor(status, body, extra_headers=None):
         decisions = RouteDecisionStore()
         result = UpstreamExecutor(
             RoutePlanner(registry), ResilienceManager(), timeout=5,
-            decisions=decisions,
+            decisions=decisions, sleeper=lambda delay: None,
         ).execute("auto", "chat/completions", {"messages": []})
         return result
     finally:
