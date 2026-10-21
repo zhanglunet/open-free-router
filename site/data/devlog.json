@@ -5,6 +5,16 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-quota-classification-conflict",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度面板保留文字提示与数字观测冲突",
+      "summary": "quota 429 文字提示不覆盖正数剩余额度；没有数字时保持 unknown，单独展示分类来源与冲突。",
+      "items": [
+        "不改变故障冷却；不根据错误文字构造余额"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-failover-integration",
       "date": "2026-10-21",
       "type": "improvement",

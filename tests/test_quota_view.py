@@ -58,3 +58,27 @@ def test_dashboard_api_includes_derived_observation_view(monkeypatch):
     assert response[0][0] == 200
     rows = response[0][1]['quota']['items']
     assert [(row['provider'], row['band']) for row in rows] == [('p', 'tight'), ('unmeasured', 'unknown')]
+
+
+def test_quota_wording_cannot_override_numeric_observation():
+    manager = ResilienceManager()
+    manager.record_quota('p', 0, parse_quota_headers({
+        'x-ratelimit-limit-requests': '100', 'x-ratelimit-remaining-requests': '80',
+    }, 429, 'quota_exhausted', now=1000))
+    row = quota_view(manager.snapshot(), now=1001)['items'][0]
+    assert row['band'] == 'sufficient'
+    assert row['dimensions']['requests']['remaining'] == 80
+    assert row['source'] == 'upstream_headers'
+    assert row['event_classification'] == 'quota_exhausted'
+    assert row['classification_source'] == 'failure_classification_hint'
+    assert row['classification_conflict'] is True
+
+
+def test_quota_wording_without_numbers_leaves_balance_unknown():
+    manager = ResilienceManager()
+    manager.record_quota('p', 0, parse_quota_headers({}, 429, 'quota_exhausted', now=1000))
+    row = quota_view(manager.snapshot(), now=1001)['items'][0]
+    assert row['band'] == 'unknown'
+    assert row['source'] == 'event'
+    assert row['event_classification'] == 'quota_exhausted'
+    assert row['dimensions']['requests']['remaining'] is None

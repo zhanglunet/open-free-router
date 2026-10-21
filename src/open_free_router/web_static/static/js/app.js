@@ -440,7 +440,7 @@ function renderQuota(view) {
       const d = (item.dimensions || {})[unit] || {};
       return `<span>${unit === 'requests' ? '请求数' : 'Token'}：总额 ${number(d.limit)} / 已用 ${number(d.used)} / 剩余 ${number(d.remaining)} · 重置 ${date(d.reset_at)}</span>`;
     }).join('');
-    return `<div class="runtime-row"><div><strong>${esc(item.provider)}${item.slot == null ? '' : ` · slot-${esc(item.slot)}`}</strong><span>来源 ${esc(item.source)} · 观测 ${date(item.observed_at)} · ${esc(item.freshness)} · 有效至 ${date(item.valid_until)} · 保护状态 ${esc(item.state)}</span>${dimensions}</div><span class="status-chip ${['tight', 'exhausted', 'stale'].includes(item.band) ? 'bad' : ''}">${esc(labels[item.band] || '未知')} (${esc(item.band)})</span></div>`;
+    return `<div class="runtime-row"><div><strong>${esc(item.provider)}${item.slot == null ? '' : ` · slot-${esc(item.slot)}`}</strong><span>来源 ${esc(item.source)} · 观测 ${date(item.observed_at)} · ${esc(item.freshness)} · 有效至 ${date(item.valid_until)} · 保护状态 ${esc(item.state)}</span>${item.event_classification ? `<span>错误分类${item.classification_source === 'failure_classification_hint' ? '提示' : ''} ${esc(item.event_classification)}${item.classification_conflict ? ' · 与数字观测冲突；余额档位采用数字证据' : ''}</span>` : ''}${dimensions}</div><span class="status-chip ${['tight', 'exhausted', 'stale'].includes(item.band) ? 'bad' : ''}">${esc(labels[item.band] || '未知')} (${esc(item.band)})</span></div>`;
   }).join('') || '<div class="empty">没有额度观测</div>';
 }
 
