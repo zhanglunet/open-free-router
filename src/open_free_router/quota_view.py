@@ -41,11 +41,16 @@ def quota_view(snapshot: dict, providers=(), now: float | None = None) -> dict:
         band = "unknown"
         if observed_evidence and not fresh:
             band = "stale"
-        elif fresh and event and quota.get("classification") in {"quota_exhausted", "credits_exhausted"}:
-            band = "exhausted"
         elif fresh and ratio is not None:
             band = "exhausted" if ratio == 0 else ("tight" if ratio < 0.10 else "sufficient")
+        elif fresh and quota.get("classification") == "credits_exhausted":
+            # Structural 402 evidence; quota_exhausted may be only a wording
+            # hint and cannot establish a numeric balance, even without headers.
+            band = "exhausted"
         rows.append({"provider": provider, "slot": slot, "band": band,
+                     "event_classification": quota.get("classification") if event else None,
+                     "classification_source": ("failure_classification_hint" if quota.get("classification") == "quota_exhausted" else "failure_classification") if event else None,
+                     "classification_conflict": bool(quota.get("classification") == "quota_exhausted" and ratio is not None and ratio > 0),
                      "source": "upstream_headers" if measured else ("event" if event else "never_measured"),
                      "observed_at": observed if observed > 0 else None,
                      "freshness": "fresh" if fresh else ("stale" if observed_evidence else "unknown"),
