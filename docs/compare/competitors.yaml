@@ -1,0 +1,53 @@
+# PRD-115/T1. Who may appear in the pairwise comparison.
+# Inclusion follows the live /compare/ columns. This file does not assert
+# what those products do; a later task fills cells from the sources below.
+schema_version: 1
+prd: PRD-115
+task: T1
+trend_issue: 574
+ours:
+  id: open-free-router
+  name_zh: 模力自由港
+  name_en: FreeModel Port
+  # Column of record. Not a competitor entry.
+included:
+  - id: omniroute
+    name: OmniRoute
+    why_included: 本地多提供商网关，读者会把它和本仓库放在同一栏里比较。
+    sources:
+      - label: OmniRoute README
+        href: https://github.com/diegosouzapw/OmniRoute
+      - label: OmniRoute Provider Reference
+        href: https://github.com/diegosouzapw/OmniRoute/wiki/Provider-Reference
+  - id: 9router
+    name: 9Router
+    why_included: 把订阅账号、低价和免费模型放进同一套本地路由的产品。
+    sources:
+      - label: 9Router 官网
+        href: https://9router.com/
+  - id: litellm
+    name: LiteLLM
+    why_included: 生产级 LLM 网关。读者用它对照“个人免费路由”和“团队网关”的差别。
+    sources:
+      - label: LiteLLM 文档
+        href: https://docs.litellm.ai/
+  - id: free-router
+    name: Free Router
+    why_included: 面向 OpenCode / OpenClaw 的轻量免费模型选择器，和本仓库的客户端交接重叠。
+    sources:
+      - label: npm README
+        href: https://www.npmjs.com/package/@bytonylee/free-router
+# Named so a later task cannot add a column by editing only the page.
+excluded:
+  - id: rakazo
+    name: Rakazo
+    reason: 格式来源（Apache-2.0 的对照表结构）。它是持久化助手，不是模型路由，不进列。
+  - id: openrouter
+    name: OpenRouter
+    reason: 托管模型目录，是上游提供商，不是本地路由同级。规模对比若提到它，写在本仓库自己的提供商口径里。
+  - id: new-api
+    name: New API
+    reason: 自建计费代理，解决的是转售密钥，不是免费模型的证据和探测。
+  - id: cloudflare-ai-gateway
+    name: Cloudflare AI Gateway
+    reason: 边缘可观测代理。职责不同，不占同级列。

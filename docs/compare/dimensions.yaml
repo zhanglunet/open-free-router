@@ -1,0 +1,107 @@
+# PRD-115/T1. Machine-readable comparison dimensions.
+# Cells are not filled here. A later task writes sourced prose against this list.
+schema_version: 1
+prd: PRD-115
+task: T1
+trend_issue: 574
+format_reference:
+  project: elie222/rakazo
+  license: Apache-2.0
+  borrowed: structure
+  # Pairwise topic rows, a dated snapshot, a source per filled cell, and a
+  # hub that does not rank. Wording and competitor set are this product's.
+  not_a_competitor: true
+page_shape:
+  hub: true
+  pairwise: true
+  slug_pattern: "vs-{competitor_id}"
+  # The live matrix at site/compare/ stays until a later task re-verifies it.
+  replaces_live_matrix: false
+cell_rules:
+  unknown_token: unspecified
+  unknown_display_zh: 资料未说明
+  # unspecified means the cited sources did not say. It is not "no".
+  forbid_inferred_absence: true
+  require_source_for_filled_cells: true
+  numbers_require_snapshot_date: true
+  no_scores: true
+  no_winner_column: true
+  vs_card:
+    bullets_per_side: 3
+    must_compress_existing_rows: true
+    # T1 defines the rule. It does not write the bullets.
+    written_in_this_task: false
+groups:
+  - id: position
+    title_zh: 定位与规模
+  - id: access
+    title_zh: 接入、路由与韧性
+  - id: operations
+    title_zh: 运维、评测与数据边界
+  - id: fit
+    title_zh: 安装与适用场景
+dimensions:
+  - id: product
+    group: position
+    topic_zh: 产品
+    question: 这个工具把自己定义成什么，而不是它顺带能做什么。
+  - id: who_runs_it
+    group: position
+    topic_zh: 谁在运行
+    question: 进程和数据默认落在用户本机、用户自己的服务器，还是厂商托管。
+  - id: source
+    group: position
+    topic_zh: 源码
+    question: 许可证、仓库是否公开、用户能否自己构建。
+  - id: scale
+    group: position
+    topic_zh: 规模口径
+    question: 官方自称的提供商或模型规模，以及那个数字到底在数什么。两个口径不一致时并列，不取较大的一个。
+  - id: free_evidence
+    group: position
+    topic_zh: 免费证据
+    question: 免费层如何被证明：结构化证据、分类标签、价格表，或只是自称免费。
+  - id: local_endpoint
+    group: access
+    topic_zh: 本地端点
+    question: 有没有一个本机统一入口，以及它是代理还是只写客户端配置。
+  - id: protocols
+    group: access
+    topic_zh: 客户端协议
+    question: 下游能说哪些协议。未在官方资料出现的协议保持 unspecified。
+  - id: routing
+    group: access
+    topic_zh: 路由
+    question: 请求如何在候选间选择。只记录对方公开描述的策略，不把策略数量当成质量。
+  - id: isolation
+    group: access
+    topic_zh: 故障隔离
+    question: 失败被记在提供商、凭据还是模型上，以及是否有恢复路径。
+  - id: discovery
+    group: access
+    topic_zh: 发现与接入
+    question: 新提供商如何进入可用集合：目录、候选隔离，还是管理员手工配置。
+  - id: mcp
+    group: operations
+    topic_zh: MCP
+    question: 是否内置 MCP server，以及官方资料是否写明工具数量与读写边界。
+  - id: evaluation
+    group: operations
+    topic_zh: 评测
+    question: 有没有独立于“现在能不能调通”的质量证据，以及证据来源是否分开标注。
+  - id: analytics
+    group: operations
+    topic_zh: 本地分析
+    question: 用量记在哪里，默认是否保存 prompt、响应或工具参数。
+  - id: public_status
+    group: operations
+    topic_zh: 公开状态
+    question: 可用性快照是服务端公开探测、部署者自己的监控，还是本机会话内探测。
+  - id: install
+    group: fit
+    topic_zh: 安装
+    question: 主要运行栈和公开的安装入口。版本号必须带核对日期。
+  - id: audience
+    group: fit
+    topic_zh: 更适合谁
+    question: 按用户目标描述适用场景。这是取舍，不是胜负。
