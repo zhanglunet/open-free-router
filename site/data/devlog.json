@@ -5,6 +5,16 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-quota-freshness",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度观测时间边界与路由解释修正",
+      "summary": "过期和未来时间额度观测保持中性评分，路由解释保留 stale 来源；不推算未知额度。",
+      "items": [
+        "固定时间覆盖 1800 秒边界、未来时间、可用槽聚合与保护状态"
+      ]
+    },
+    {
       "id": "2026-10-19-sandbox-t3-模型自选与失败重试",
       "date": "2026-10-19",
       "type": "feature",

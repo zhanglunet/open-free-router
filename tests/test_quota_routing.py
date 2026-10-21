@@ -105,5 +105,46 @@ def test_planner_treats_stale_quota_as_unknown_not_zero():
     # Both quotas are stale -> neutral cost -> registry order preserved.
     assert [t.canonical_id for t in plan.candidates] == ["p1/m", "p2/m"]
     by_model = {score.model: score for score in plan.scores}
-    assert by_model["p1/m"].factors["cost"].source == "missing_default"
-    assert by_model["p2/m"].factors["cost"].source == "missing_default"
+    assert by_model["p1/m"].factors["cost"].source == "stale"
+    assert by_model["p2/m"].factors["cost"].source == "stale"
+
+
+def test_quota_time_boundary_and_future_are_explained():
+    manager = ResilienceManager()
+    manager.record_quota("p1", 0, _observation(requests=(100, 80), now=1000))
+    assert manager.scoring_signals(now=2800)["p1"]["quota"] == 0.8
+    for now in (999, 2801):
+        signal = manager.scoring_signals(now=now)["p1"]
+        assert "quota" not in signal
+        assert signal["quota_source"] == "stale"
+        plan = RoutePlanner(_registry(), {"scoring": {"enabled": True}}).plan("auto", signals={"p1": signal})
+        cost = next(score for score in plan.scores if score.model == "p1/m").factors["cost"]
+        assert cost.source == "stale"
+        assert cost.value == 0.5
+
+
+def test_zero_and_one_usable_slot_and_blocked_slots():
+    from open_free_router.resilience import CredentialState, ProviderState
+    manager = ResilienceManager()
+    manager.record_quota("p1", 0, _observation(requests=(100, 0)))
+    manager.record_quota("p1", 1, _observation(requests=(100, 0)))
+    assert manager.scoring_signals(now=1001)["p1"]["quota"] == 0
+    manager.record_quota("p1", 1, _observation(requests=(100, 80)))
+    assert manager.scoring_signals(now=1001)["p1"]["quota"] == 0.8
+    manager._credentials[("p1", 1)].state = "terminal"
+    assert manager.scoring_signals(now=1001)["p1"]["quota"] == 0
+    manager._credentials[("p1", 0)].state = "cooldown"
+    manager._credentials[("p1", 0)].cooldown_until = 1100
+    assert "quota" not in manager.scoring_signals(now=1001)["p1"]
+    assert manager.scoring_signals(now=1100)["p1"]["quota"] == 0
+    manager._providers["p1"] = ProviderState(state="open", open_until=1200)
+    assert manager.scoring_signals(now=1100)["p1"]["health"] == 0
+
+
+def test_missing_numbers_are_neutral_not_exhausted():
+    manager = ResilienceManager()
+    from open_free_router.resilience import CredentialState
+    manager._credentials[("p1", 0)] = CredentialState()
+    signal = manager.scoring_signals(now=1001)["p1"]
+    assert "quota" not in signal
+    assert signal["quota_source"] == "never_measured"
