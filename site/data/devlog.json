@@ -5,6 +5,17 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-prd096-base-validation",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "补齐额度基础分支独立验证",
+      "summary": "同步既有策略测试契约与固定时间戳的静态免费层目录，使基础修复可独立执行完整检查。",
+      "items": [
+        "保留严格重试与超时断言、目录可复现性检查",
+        "不下沉面板或策略实现，不包含凭据或运行时槽额度"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-catalog-reproducibility",
       "date": "2026-10-21",
       "type": "improvement",
