@@ -5,6 +5,16 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-quota-catalog-reproducibility",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "同步公开目录静态免费层条款",
+      "summary": "按既有导出规范补齐 profile.free_tier，固定原生成时间验证逐字节可复现；不含运行时额度或凭据。",
+      "items": [
+        "保持可复现性检查和静态/本地观测边界不变"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-classification-conflict",
       "date": "2026-10-21",
       "type": "improvement",

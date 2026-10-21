@@ -27,3 +27,11 @@
 测试连接守卫仅允许 loopback，不调用真实服务商；全程串行，无大规模并行构建、删除清理、凭据配置、版本发布、合并或部署。所有数据均为合成观测；#60 真实调用和耗尽验收仍需另行授权，本轮未执行。
 
 最终复跑（仅排除原有 sandbox runner/hardening/acceptance 三个文件，未改它们的测试）：**527 passed in 90.77s**，覆盖其余全部 Python 套件，使用仅回环连接守卫。相关基线修复套件 **48 passed**，观测/面板/成本/韧性 **53 passed**。`git diff --check` 与 JS 语法检查通过。沙盒 11 项需在支持其 RLIMIT_AS 的 Linux 环境验证，不在 macOS 上绕过限制冒充通过。
+
+## 独立复核后的三项修正
+
+1. 面板 P2：固定时间复现 quota 429 文字提示覆盖正数 remaining，以及无数字时仅凭文字显示 exhausted；旧代码两项回归均失败。#67 提交 `444b30f` 改为数字决定档位，文字分类单列为 `failure_classification_hint`，保留冲突标记与来源；缺失数字为 unknown，原故障冷却不变。#68 已合入该依赖，保留原事件/API 测试。
+2. 干净检出预览：在 `git archive` 的全新临时树执行文档命令，原脚本因 artifacts 不存在抛 FileNotFoundError。#67 独立提交 `f5a767d` 创建输出父目录，并明确忽略生成 HTML；更新脚本后在另一干净临时树执行成功、输出非空且被 ignore，#68 已同步依赖。
+3. catalog：独立复核确认 `e62d26d8` 在 Ubuntu Python 3.11/3.12 全部 604 测试通过，但随后 reproducibility 因提交产物缺少 `profile.free_tier` 失败，CLI smoke 被跳过。按 CI 同样参数固定原 generated_at 重导出，JSON 比对确认仅新增 10 家静态 profile.free_tier，没有 runtime/slot 观测、凭据或其他数据变化；再次导出逐字节一致。未放宽生成检查。
+
+本轮修正后本地额度视图/路由/public catalog/cost 共 **42 passed**；JS 语法、diff 检查通过；CLI `--version` 与 `models --json` smoke 成功。后续远端 CI 以修正后 head 为准，不能把先前 604 passed 当作新 head 全套结论。
