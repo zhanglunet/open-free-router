@@ -431,7 +431,21 @@ function renderAnalytics(metrics) {
   byId('analytics-list').innerHTML = [...groups, ...estimates].join('') || '<div class="empty">尚无本机请求记录。</div>';
 }
 
+function renderQuota(view) {
+  const labels = { sufficient: '充足', tight: '将尽预警', exhausted: '已耗尽预警', unknown: '未知', stale: '观测过期' };
+  const number = (value) => value == null ? 'unknown' : formatNumber(value);
+  const date = (value) => value == null ? 'unknown' : formatDate(value * 1000);
+  byId('quota-list').innerHTML = (view.items || []).map((item) => {
+    const dimensions = ['requests', 'tokens'].map((unit) => {
+      const d = (item.dimensions || {})[unit] || {};
+      return `<span>${unit === 'requests' ? '请求数' : 'Token'}：总额 ${number(d.limit)} / 已用 ${number(d.used)} / 剩余 ${number(d.remaining)} · 重置 ${date(d.reset_at)}</span>`;
+    }).join('');
+    return `<div class="runtime-row"><div><strong>${esc(item.provider)}${item.slot == null ? '' : ` · slot-${esc(item.slot)}`}</strong><span>来源 ${esc(item.source)} · 观测 ${date(item.observed_at)} · ${esc(item.freshness)} · 有效至 ${date(item.valid_until)} · 保护状态 ${esc(item.state)}</span>${dimensions}</div><span class="status-chip ${['tight', 'exhausted', 'stale'].includes(item.band) ? 'bad' : ''}">${esc(labels[item.band] || '未知')} (${esc(item.band)})</span></div>`;
+  }).join('') || '<div class="empty">没有额度观测</div>';
+}
+
 function renderRouting(data) {
+  renderQuota(data.quota || {});
   const resilience = data.resilience || {};
   const routes = data.routes || {};
   renderAnalytics(data.metrics || {});
