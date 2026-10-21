@@ -84,10 +84,11 @@ def classify_failure(status: int, message: str = "") -> FailureDecision:
     return FailureDecision("transport_error", True, provider_failure=True)
 
 
-def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: int = 3600) -> float:
+def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: int = 3600,
+                      invalid_default: float | None = 0.0) -> float | None:
     """Return a bounded delay in seconds for numeric or HTTP-date values."""
     if not value:
-        return 0.0
+        return invalid_default
     now = time.time() if now is None else now
     try:
         delay = float(value.strip())
@@ -98,7 +99,9 @@ def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: 
                 parsed = parsed.replace(tzinfo=timezone.utc)
             delay = parsed.timestamp() - now
         except (TypeError, ValueError, OverflowError):
-            return 0.0
+            return invalid_default
+    if delay != delay or abs(delay) == float("inf"):
+        return invalid_default
     return min(float(cap_seconds), max(0.0, delay))
 
 

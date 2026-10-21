@@ -5,6 +5,17 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-quota-failover-integration",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度与故障切换策略统一回归",
+      "summary": "补充统一决策表及本机合成 provider 联合回归，固定 Retry-After 0/120 秒边界，确保额度不能解除熔断与冷却。",
+      "items": [
+        "保持 quota 只进入 cost 和现有 cooldown8/声明优先语义",
+        "合成 503→quota 429→成功与冷却恢复；不代表真实额度验收"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-panel",
       "date": "2026-10-21",
       "type": "feature",

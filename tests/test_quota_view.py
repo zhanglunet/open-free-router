@@ -30,3 +30,31 @@ def test_zero_is_exhausted_and_public_projection_excludes_slot_details():
     view = quota_view(manager.snapshot(), now=1001)
     assert view['items'][0]['band'] == 'exhausted'
     assert public_quota_bands(view) == [{'provider': 'p', 'band': 'exhausted'}]
+
+
+def test_event_source_does_not_invent_numeric_balance():
+    manager = ResilienceManager()
+    manager.record_quota('p', 0, parse_quota_headers({}, 402, 'credits_exhausted', now=1000))
+    row = quota_view(manager.snapshot(), now=1001)['items'][0]
+    assert row['source'] == 'event'
+    assert row['band'] == 'exhausted'
+    assert row['dimensions']['requests']['remaining'] is None
+    assert row['dimensions']['tokens']['used'] is None
+
+
+def test_dashboard_api_includes_derived_observation_view(monkeypatch):
+    from types import SimpleNamespace
+    from open_free_router.ui import _UIHandler
+    monkeypatch.setattr('open_free_router.quota_view.time.time', lambda: 1001)
+    manager = ResilienceManager()
+    manager.record_quota('p', 0, parse_quota_headers({'x-ratelimit-limit-requests': '100', 'x-ratelimit-remaining-requests': '5'}, 200, now=1000))
+    response = []
+    handler = SimpleNamespace(
+        reg=SimpleNamespace(providers={'p': {}, 'unmeasured': {}}),
+        _proxy_request=lambda path: manager.snapshot() if path == '/api/resilience' else {},
+        _send_json=lambda status, body: response.append((status, body)),
+    )
+    _UIHandler._api_routing_get(handler)
+    assert response[0][0] == 200
+    rows = response[0][1]['quota']['items']
+    assert [(row['provider'], row['band']) for row in rows] == [('p', 'tight'), ('unmeasured', 'unknown')]

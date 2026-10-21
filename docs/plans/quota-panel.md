@@ -6,4 +6,4 @@
 
 历史数字可在本机查看，但 stale 标签与有效期清晰可见，不作为当前余额。`public_quota_bands` 是允许列表投影，只输出 provider 和档位；本轮不把任何运行时快照接入公开站点构建，也不发布静态额度数据。
 
-验证：`pytest tests/test_quota_view.py tests/test_ui_auth.py tests/test_proxy_resilience_api.py -q`；`node --check src/open_free_router/web_static/static/js/app.js`。运行 `PYTHONPATH=src .venv/bin/python artifacts/render_quota_fixture.py` 生成五档合成数据预览，仅用于本地视觉核查，不等于真实服务商验收（#60）。
+验证：`pytest tests/test_quota_view.py tests/test_ui_auth.py tests/test_proxy_resilience_api.py -q`；`node --check src/open_free_router/web_static/static/js/app.js`。运行 `PYTHONPATH=src .venv/bin/python scripts/render-quota-fixture.py` 生成五档合成数据预览，仅用于本地视觉核查，不等于真实服务商验收（#60）。
