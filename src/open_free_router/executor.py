@@ -682,13 +682,14 @@ class UpstreamExecutor:
                 # the upstream told us exactly how long to wait, so no
                 # exponential backoff. The retry bypasses the cooldown gate:
                 # we sleep the declared delay first.
-                raw_retry_delay = parse_retry_after(retry_after)
+                raw_retry_delay = parse_retry_after(retry_after, invalid_default=None)
                 if (
                     policy.retry_same_candidate_on_429
                     and decision.kind == "rate_limited"
                     and not same_429_retried
                     and retry_after is not None
-                    and 0 < raw_retry_delay <= policy.retry_after_max_seconds
+                    and raw_retry_delay is not None
+                    and 0 <= raw_retry_delay <= policy.retry_after_max_seconds
                     and attempts < policy.max_attempts
                     and not budget_exceeded()
                 ):

@@ -16,6 +16,16 @@
       ]
     },
     {
+      "id": "2026-10-21-quota-catalog-reproducibility",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "同步公开目录静态免费层条款",
+      "summary": "按既有导出规范补齐 profile.free_tier，固定原生成时间验证逐字节可复现；不含运行时额度或凭据。",
+      "items": [
+        "保持可复现性检查和静态/本地观测边界不变"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-classification-conflict",
       "date": "2026-10-21",
       "type": "improvement",
@@ -23,6 +33,17 @@
       "summary": "quota 429 文字提示不覆盖正数剩余额度；没有数字时保持 unknown，单独展示分类来源与冲突。",
       "items": [
         "不改变故障冷却；不根据错误文字构造余额"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-failover-integration",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度与故障切换策略统一回归",
+      "summary": "补充统一决策表及本机合成 provider 联合回归，固定 Retry-After 0/120 秒边界，确保额度不能解除熔断与冷却。",
+      "items": [
+        "保持 quota 只进入 cost 和现有 cooldown8/声明优先语义",
+        "合成 503→quota 429→成功与冷却恢复；不代表真实额度验收"
       ]
     },
     {
