@@ -145,6 +145,7 @@
           <button id="routing-refresh" class="btn secondary">立即刷新</button>
         </div>
         <div class="notice safe">状态来自当前本机代理进程；重启后仍会恢复尚未过期的保护状态。重置操作需要本地控制台令牌。</div>
+        <article class="panel"><div class="panel-head"><h2>免费额度观测</h2></div><div class="notice safe">来源：本机网关收到的上游响应头；不主动调用服务商。请求数与 Token 分开展示，非账号账单；未上报已用量显示 unknown，观测超过 30 分钟或时间异常为 stale。精确槽位数据仅在本地展示。</div><div id="quota-list" class="runtime-list"></div></article>
         <div id="routing-summary" class="metric-grid compact"></div>
         <article class="panel"><div class="panel-head"><div><span class="section-kicker">本机最小化统计</span><h2>近 30 天使用分析</h2></div></div><div id="analytics-summary" class="metric-grid compact"></div><div id="analytics-list" class="runtime-list"><div class="empty">正在读取本机统计…</div></div><div class="notice safe">额度消耗仅按本机观测请求和上游返回 Token 估算，不代表厂商账单或完整账号额度；数据库不保存消息正文、响应正文、工具参数或密钥。</div></article>
         <div class="two-column">

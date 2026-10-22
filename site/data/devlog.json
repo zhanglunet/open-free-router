@@ -16,6 +16,27 @@
       ]
     },
     {
+      "id": "2026-10-21-quota-classification-conflict",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度面板保留文字提示与数字观测冲突",
+      "summary": "quota 429 文字提示不覆盖正数剩余额度；没有数字时保持 unknown，单独展示分类来源与冲突。",
+      "items": [
+        "不改变故障冷却；不根据错误文字构造余额"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-panel",
+      "date": "2026-10-21",
+      "type": "feature",
+      "title": "本地额度观测面板",
+      "summary": "展示响应头来源、观测有效期、请求与 Token 重置时间及将尽/耗尽提醒；缺值保持未知，不推算余额。",
+      "items": [
+        "精确槽位数字仅本地；公开投影仅保留档位",
+        "合成数据验证，不代表真实服务商额度验收"
+      ]
+    },
+    {
       "id": "2026-10-21-quota-freshness",
       "date": "2026-10-21",
       "type": "improvement",
