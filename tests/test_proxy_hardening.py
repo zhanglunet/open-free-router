@@ -81,7 +81,7 @@ def _start(handler_cls):
     return srv
 
 
-def _proxy_for(upstream_port: int, models=("m1",)):
+def _proxy_for(upstream_port: int, models=("m1",), routing=None):
     reg = Registry({
         "fake": {
             "upstream_url": f"http://127.0.0.1:{upstream_port}/v1",
@@ -89,7 +89,7 @@ def _proxy_for(upstream_port: int, models=("m1",)):
             "models": [{"id": mid} for mid in models],
         },
     })
-    return run_proxy(reg, host="127.0.0.1", port=0)
+    return run_proxy(reg, host="127.0.0.1", port=0, routing=routing)
 
 
 class TestNewEndpoints:
@@ -203,7 +203,11 @@ class TestNewEndpoints:
 class TestRetryAfterPassthrough:
     def test_429_retry_after_forwarded_non_streaming(self):
         upstream = _start(_RateLimitedUpstreamHandler)
-        proxy_srv, _ = _proxy_for(upstream.server_address[1])
+        # This suite pins header passthrough; retry behavior is covered by
+        # test_failover_policy with an injected sleeper. Do not wait 42s here.
+        proxy_srv, _ = _proxy_for(upstream.server_address[1], routing={
+            "policy": {"retry_same_candidate_on_429": False},
+        })
         try:
             conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
             conn.request("POST", "/v1/chat/completions",
@@ -221,7 +225,11 @@ class TestRetryAfterPassthrough:
         """stream:true but upstream errors before any SSE body — the
         Retry-After header must still reach the client."""
         upstream = _start(_RateLimitedUpstreamHandler)
-        proxy_srv, _ = _proxy_for(upstream.server_address[1])
+        # This suite pins header passthrough; retry behavior is covered by
+        # test_failover_policy with an injected sleeper. Do not wait 42s here.
+        proxy_srv, _ = _proxy_for(upstream.server_address[1], routing={
+            "policy": {"retry_same_candidate_on_429": False},
+        })
         try:
             conn = http.client.HTTPConnection("127.0.0.1", proxy_srv.server_address[1], timeout=5)
             conn.request("POST", "/v1/chat/completions",

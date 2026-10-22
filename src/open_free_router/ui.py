@@ -20,6 +20,7 @@ from open_free_router.probe import (
 )
 from open_free_router.registry import ModelInfo, ProviderConfig, Registry
 from open_free_router.evidence import FreeTierEvidence
+from open_free_router.quota_view import quota_view
 from open_free_router.proxy import rebuild_proxy_index
 from open_free_router.sync import write_pi_models
 
@@ -130,6 +131,7 @@ class _UIHandler(BaseHTTPRequestHandler):
             self._send_json(503, {"error": f"本地代理运行状态不可读取：{exc.__class__.__name__}"})
             return
         self._send_json(200, {
+            "quota": quota_view(resilience, self.reg.providers if self.reg else ()),
             "resilience": resilience,
             "routes": routes,
             "metrics": metrics,

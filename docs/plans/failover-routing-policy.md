@@ -246,3 +246,28 @@ failover:
 ---
 
 *文档版本：v1.0（PRD-059/T1）。后续 T2–T5 实现若需调整策略值，走本文档的修订 PR，不在代码里偷改默认值。*
+
+## 9. PRD-096/T4：故障与额度统一决策表
+
+本节整合 #59、#56 与 #61 owner 裁决。PRD-096 中央 PRD 的决策记录优先于 #56 早期稿：quota **只进入 cost**，不并入 quality，不重复计权；沿用本规范 <10% 降级，不引入早期草案 5%/20%/50% 新阈值。`cost_weight=0` 时额度不改变排序，但三层故障保护仍有效。
+
+按以下顺序执行；首字节后永不重放。所有时间单位均为秒，quota 数字是上游声明的 requests / tokens 各自窗口，不能混成每日账号余额。
+
+| 阶段/证据 | 动作与优先级 | 回池/回切条件 |
+|---|---|---|
+| provider 熔断、model lockout、slot terminal/cooldown | 先执行 `can_attempt`；全部槽不可用则排除候选；quota 充足也不能复活它 | 沿用 §3：provider 30s 半开单探测、model 120s；terminal 从 900s 指数退避；quota 观测更新本身不清除故障状态 |
+| 新鲜的数字观测 | 槽内 requests/tokens `remaining/limit` 取最小；eligible slots 取最大，只用于 cost；<0.10 按 §4.4 ×0.5 | 新观测更新排序；数值 0 是低分，不单靠数值创造新的 terminal 或无限封锁 |
+| 缺失/null | 中性 0.5；来源 never_measured（或未提供 runtime signal 时 missing_default）；不猜余额 | 收到新的有效观测 |
+| 过期、时间缺失/异常、未来时间观测 | 路由忽略数值，中性 0.5，保留 stale 来源；1800s 边界仍新鲜，>1800s 过期 | 收到时间有效的新观测；重置时间本身不能证明余额已经恢复 |
+| 普通 429 | 可解析 Retry-After 在 **0–120s（含端点）**时同候选只重试一次，占用总 attempt；无效/缺失或 >120s 切换；保留普通 credential cooldown 60s | 冷却到期；仅授权的同候选重试在已等待声明时间后绕过本次 cooldown |
+| quota 类 429 | 不做同候选等待重试；先可用备选槽，再候选；无声明等待时沿用 cooldown ×8（默认 480s），不永久判死 | 冷却到期；沿用现有 Retry-After 优先于默认冷却、结构化 reset 可延长等待的语义。新观测不会越过这道门 |
+| 401 | 先同 provider 备选槽，耗尽后停止，不跨 provider | terminal 的有界恢复探测 |
+| 402 | 显式模型停止；虚拟模型可继续其他 provider | terminal 的有界恢复探测 |
+| context overflow | 只允许后续更大 context_window；没有更大模型直接返回 | model lockout 到期；不盲试相同或更小上下文 |
+| provider 5xx/连接或首字节超时 | 换候选并记录 provider failure；额度耗尽的其他槽不能绕过自己的 cooldown | §3 半开探测；成功后恢复，下一请求重新按新鲜额度评分 |
+
+相同请求的两种信号取阻断并集，先健康与故障门控、后额度排序、执行失败再按故障表切换。新请求重新规划，既不粘住上一次的成功 provider，也不保证恢复 provider 必然排第一。
+
+联合验证：`tests/test_failover_policy.py` 的 `test_prd096_synthetic_failure_quota_harness` 在三个本机合成 provider 上执行 503 → quota 429 → 200，随后验证双阻断、新额度不解除阻断、480s 冷却恢复、过期与缺失中性；`test_prd096_retry_after_boundary` 验证 0/120/121 与无效值。401/402/上下文及首字节行为复用同文件既有回归，额度槽聚合与 cost=0 复用 `test_quota_routing.py` / `test_cost_routing.py`。
+
+这些是合成 provider 联合回归，不是 #60 的真实服务商额度耗尽验收；后者仍须另行授权。
