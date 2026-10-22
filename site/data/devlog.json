@@ -5,6 +5,69 @@
   "repository": "https://github.com/zhanglunet/open-free-router",
   "entries": [
     {
+      "id": "2026-10-21-prd096-base-validation",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "补齐额度基础分支独立验证",
+      "summary": "同步既有策略测试契约与固定时间戳的静态免费层目录，使基础修复可独立执行完整检查。",
+      "items": [
+        "保留严格重试与超时断言、目录可复现性检查",
+        "不下沉面板或策略实现，不包含凭据或运行时槽额度"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-catalog-reproducibility",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "同步公开目录静态免费层条款",
+      "summary": "按既有导出规范补齐 profile.free_tier，固定原生成时间验证逐字节可复现；不含运行时额度或凭据。",
+      "items": [
+        "保持可复现性检查和静态/本地观测边界不变"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-classification-conflict",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度面板保留文字提示与数字观测冲突",
+      "summary": "quota 429 文字提示不覆盖正数剩余额度；没有数字时保持 unknown，单独展示分类来源与冲突。",
+      "items": [
+        "不改变故障冷却；不根据错误文字构造余额"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-failover-integration",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度与故障切换策略统一回归",
+      "summary": "补充统一决策表及本机合成 provider 联合回归，固定 Retry-After 0/120 秒边界，确保额度不能解除熔断与冷却。",
+      "items": [
+        "保持 quota 只进入 cost 和现有 cooldown8/声明优先语义",
+        "合成 503→quota 429→成功与冷却恢复；不代表真实额度验收"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-panel",
+      "date": "2026-10-21",
+      "type": "feature",
+      "title": "本地额度观测面板",
+      "summary": "展示响应头来源、观测有效期、请求与 Token 重置时间及将尽/耗尽提醒；缺值保持未知，不推算余额。",
+      "items": [
+        "精确槽位数字仅本地；公开投影仅保留档位",
+        "合成数据验证，不代表真实服务商额度验收"
+      ]
+    },
+    {
+      "id": "2026-10-21-quota-freshness",
+      "date": "2026-10-21",
+      "type": "improvement",
+      "title": "额度观测时间边界与路由解释修正",
+      "summary": "过期和未来时间额度观测保持中性评分，路由解释保留 stale 来源；不推算未知额度。",
+      "items": [
+        "固定时间覆盖 1800 秒边界、未来时间、可用槽聚合与保护状态"
+      ]
+    },
+    {
       "id": "2026-10-19-sandbox-t3-模型自选与失败重试",
       "date": "2026-10-19",
       "type": "feature",

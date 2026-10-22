@@ -84,10 +84,11 @@ def classify_failure(status: int, message: str = "") -> FailureDecision:
     return FailureDecision("transport_error", True, provider_failure=True)
 
 
-def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: int = 3600) -> float:
+def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: int = 3600,
+                      invalid_default: float | None = 0.0) -> float | None:
     """Return a bounded delay in seconds for numeric or HTTP-date values."""
     if not value:
-        return 0.0
+        return invalid_default
     now = time.time() if now is None else now
     try:
         delay = float(value.strip())
@@ -98,7 +99,9 @@ def parse_retry_after(value: str | None, now: float | None = None, cap_seconds: 
                 parsed = parsed.replace(tzinfo=timezone.utc)
             delay = parsed.timestamp() - now
         except (TypeError, ValueError, OverflowError):
-            return 0.0
+            return invalid_default
+    if delay != delay or abs(delay) == float("inf"):
+        return invalid_default
     return min(float(cap_seconds), max(0.0, delay))
 
 
@@ -595,7 +598,7 @@ class ResilienceManager:
                 return (1 if blocked else 0, reset_at, -_safe_float(state.last_success_at), slot)
             return sorted(slots, key=rank)
 
-    def scoring_signals(self, now: float | None = None) -> dict[str, dict[str, float]]:
+    def scoring_signals(self, now: float | None = None) -> dict[str, dict[str, object]]:
         """Return provider-level health/quota factors without credential identity.
 
         The quota factor (PRD-096/T2) is the best credential slot's headroom,
@@ -626,6 +629,7 @@ class ResilienceManager:
                     if not available:
                         health = min(health, 0.2)
                 quota_scores = []
+                quota_stale = False
                 for state in credential_states:
                     if state.state == "terminal" or (
                         state.state == "cooldown" and state.cooldown_until > now
@@ -633,7 +637,8 @@ class ResilienceManager:
                         continue
                     quota = state.quota or {}
                     observed_at = _safe_float(quota.get("observed_at"), 0.0)
-                    if observed_at <= 0 or now - observed_at > QUOTA_SIGNAL_MAX_AGE_SECONDS:
+                    if observed_at <= 0 or observed_at > now or now - observed_at > QUOTA_SIGNAL_MAX_AGE_SECONDS:
+                        quota_stale = quota_stale or bool(quota)
                         # PRD-096/T1 section 2: no observation, or one too old
                         # to trust -- quota stays unknown for this slot, it is
                         # never reconstructed from stale numbers.
@@ -653,6 +658,8 @@ class ResilienceManager:
                 signals = {"health": health}
                 if quota_scores:
                     signals["quota"] = max(quota_scores)
+                else:
+                    signals["quota_source"] = "stale" if quota_stale else "never_measured"
                 result[provider] = signals
             return result
 

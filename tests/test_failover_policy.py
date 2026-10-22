@@ -763,3 +763,73 @@ def test_decision_log_retention_purges_old_rows(tmp_path):
         assert [r["request_id"] for r in rows] == ["ofr_new"]
     finally:
         analytics.close()
+
+
+@pytest.mark.parametrize('retry_after, expected_attempts', [('0', 3), ('120', 3), ('121', 2), ('garbage', 2), ('nan', 2), ('inf', 2)])
+def test_prd096_retry_after_boundary(retry_after, expected_attempts):
+    first_handler, second_handler = _handler(429, retry_after), _handler(200)
+    first, second = _start(first_handler), _start(second_handler)
+    try:
+        registry = Registry({'first': _provider(first.server_address[1], 'a'), 'second': _provider(second.server_address[1], 'b')})
+        result = _executor(registry, sleeper=_Sleeper(), routing={'policy': {'backoff_base_seconds': 0, 'total_budget_seconds': 300}}).execute('auto', 'chat/completions', {'messages': []})
+        assert result.attempts == expected_attempts
+        assert result.target.provider_name == 'second'
+        assert len(first_handler.seen_auth) == expected_attempts - 1
+        result.close()
+    finally:
+        first.shutdown()
+        second.shutdown()
+
+
+def test_prd096_synthetic_failure_quota_harness(monkeypatch):
+    """A fails, B exhausts, C succeeds; quota never revives blocked A/B."""
+    from open_free_router.quota import parse_quota_headers
+    from open_free_router.resilience import classify_failure
+    clock = [10000.0]
+    monkeypatch.setattr('open_free_router.resilience.time.time', lambda: clock[0])
+    failed_handler, quota_handler, healthy_handler = _handler(503), _handler(429), _handler(200)
+
+    def exhausted(self):
+        self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        type(self).seen_auth.append(self.headers.get('Authorization'))
+        body = b'{"error":{"message":"quota exhausted"}}'
+        self.send_response(429)
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('x-ratelimit-limit-requests', '100')
+        self.send_header('x-ratelimit-remaining-requests', '0')
+        self.end_headers()
+        self.wfile.write(body)
+    quota_handler.do_POST = exhausted
+    servers = [_start(handler) for handler in (failed_handler, quota_handler, healthy_handler)]
+    try:
+        registry = Registry({name: _provider(server.server_address[1], name) for name, server in zip(('a', 'b', 'c'), servers)})
+        manager = ResilienceManager(provider_threshold=1, provider_cooldown=1000)
+        for provider, remaining in [('a', 100), ('b', 80)]:
+            manager.record_quota(provider, 0, parse_quota_headers({'x-ratelimit-limit-requests':'100', 'x-ratelimit-remaining-requests':str(remaining)}, 200, now=clock[0]))
+        executor = _executor(registry, resilience=manager, sleeper=_Sleeper(), routing={'scoring': {'enabled': True}, 'policy': {'backoff_base_seconds': 0}})
+        result = executor.execute('auto', 'chat/completions', {'messages': []})
+        assert result.attempts == 3
+        assert result.target.provider_name == 'c'
+        result.close()
+        # The quota failure retains the existing cooldown ×8 semantics.
+        assert manager._credentials[('b', 0)].cooldown_until == 10480
+        plan = executor.planner.plan('auto', manager.scoring_signals(), manager)
+        assert [t.provider_name for t in plan.candidates] == ['c']
+        # Even a new plentiful observation cannot override circuit/cooldown gates.
+        for provider in ('a', 'b'):
+            manager.record_quota(provider, 0, parse_quota_headers({'x-ratelimit-limit-requests':'100', 'x-ratelimit-remaining-requests':'100'}, 200, now=clock[0]))
+        assert not manager.can_attempt('a', 'model')[0]
+        assert not manager.can_attempt('b', 'model')[0]
+        clock[0] = 10480
+        assert manager.can_attempt('b', 'model')[0]
+        assert not manager.can_attempt('a', 'model')[0]
+        clock[0] = 12000
+        signals = manager.scoring_signals()
+        assert signals['b']['quota_source'] == 'stale'
+        plan = executor.planner.plan('auto', signals)
+        costs = {score.model: score.factors['cost'] for score in plan.scores}
+        assert costs['b/model'].value == 0.5 and costs['b/model'].source == 'stale'
+        assert costs['c/model'].value == 0.5  # no observed quota, neutral
+    finally:
+        for server in servers:
+            server.shutdown()

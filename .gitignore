@@ -36,3 +36,6 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
+
+# Local synthetic quota preview; never publish runtime observations.
+/artifacts/quota-synthetic.html

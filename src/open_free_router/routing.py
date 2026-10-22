@@ -405,6 +405,8 @@ class RoutePlanner:
                 cost_value, cost_source = cost_factor(
                     target_signals.get("quota"), cost_config
                 )
+                if target_signals.get("quota") is None:
+                    cost_source = target_signals.get("quota_source", cost_source)
                 # PRD-059/T3: realtime p50 when sampling is on and data exists;
                 # otherwise the probe-snapshot latency factor (T1 §4.2).
                 latency_value, latency_source = latency_dimension(
