@@ -1,0 +1,163 @@
+# PRD-116/T1. What an OpenCode-compatible preset is allowed to say.
+# Researched from anomalyco/opencode (MIT) at the commit below. Not a writer.
+schema_version: 1
+prd: PRD-116
+task: T1
+trend_issue: 579
+source:
+  project: anomalyco/opencode
+  license: MIT
+  commit: 5fa426f68d1dbf3c8aaa01557e357719f0577438
+  committed_at: "2026-10-21T00:41:00Z"
+  docs_config: packages/web/src/content/docs/config.mdx
+  discovery: packages/core/src/config/discovery.ts
+  loader: packages/core/src/config.ts
+  v1_provider: packages/core/src/v1/config/provider.ts
+  migration: packages/core/src/v1/config/migrate.ts
+  v2_provider: packages/schema/src/config/provider.ts
+filenames:
+  - opencode.json
+  - opencode.jsonc
+# Directory scan order. The later file wins on keys both files set.
+filename_order:
+  - opencode.json
+  - opencode.jsonc
+# Later entries override earlier ones per key. Policies are split out and
+# loaded first; the rest of a managed document is loaded last.
+precedence_later_wins:
+  - managed_policies
+  - well_known
+  - global_directory
+  - OPENCODE_CONFIG
+  - project_files
+  - project_opencode_directory
+  - OPENCODE_CONFIG_CONTENT
+  - managed_settings
+parser:
+  comments: true
+  trailing_commas: true
+  # A missing {env:NAME} becomes an empty string. It does not fall back to
+  # another credential.
+  missing_env_becomes: empty_string
+  substitutions:
+    - "{env:NAME}"
+    - "{file:path}"
+keys:
+  # What current OpenCode still accepts, and what this repo's sync writes.
+  v1_provider_object: provider
+  # What the loader stores after migration.
+  v2_provider_object: providers
+  model_selection: model
+  # v1 only. The loader moves a valid value onto agents.title.
+  small_model: small_model
+model_selection:
+  # provider/model, exactly one slash, no hash. Anything else is omitted.
+  pattern: "^[^/#]+/[^#]+$"
+  provider_id_pattern: "^[^/#]+$"
+  # Map key is the part after the slash, so the key itself cannot contain one.
+  map_key_may_contain_slash: false
+  # v1 model.id (v2 modelID) is the id sent upstream and may contain slashes.
+  upstream_id_may_contain_slash: true
+migration:
+  npm_at_ai_sdk_openai_compatible: "aisdk:@ai-sdk/openai-compatible"
+  options_baseURL: settings.baseURL
+  options_apiKey: settings.apiKey
+  options_headers: headers
+  options_body: body
+  setCacheKey: compatibility.supportsPromptCacheKey
+  model_id: modelID
+  limit_context: limit.context
+  limit_output: limit.output
+  # v1 boolean. migrateModel does not copy it.
+  reasoning_boolean: dropped
+  # v1 tool_call becomes capabilities.tools only when the field is present.
+  tool_call: capabilities.tools
+provider_id_renames:
+  azure-cognitive-services: azure
+  google-vertex-anthropic: google-vertex
+# A preset shipped or generated for this router may set only these top-level keys.
+preset_top_level:
+  - $schema
+  - model
+  - small_model
+  - provider
+preset_provider_keys:
+  - name
+  - npm
+  - options
+  - models
+preset_option_keys:
+  - baseURL
+  - apiKey
+preset_model_keys:
+  - name
+  - id
+  - reasoning
+  - tool_call
+  - limit
+preset_limit_keys:
+  - context
+  - output
+forbidden_top_level:
+  - providers
+  - permissions
+  - mcp
+  - plugin
+  - plugins
+  - server
+  - tools
+  - agent
+  - instructions
+sample:
+  model: open-free-router/placeholder-model
+  small_model: open-free-router/placeholder-small
+  provider:
+    open-free-router:
+      name: Open Free Router
+      npm: "@ai-sdk/openai-compatible"
+      options:
+        baseURL: http://127.0.0.1:8337/v1
+        apiKey: placeholder-local-proxy-token
+      models:
+        placeholder-model:
+          name: Placeholder Model
+          id: placeholder-model
+          reasoning: false
+          tool_call: true
+          limit:
+            context: 8192
+            output: 1024
+        placeholder-small:
+          name: Placeholder Small
+          id: placeholder-small
+          reasoning: false
+          tool_call: false
+          limit:
+            context: 8192
+            output: 1024
+# What the loader produces from the sample. reasoning is absent on purpose.
+migrated_sample:
+  providers:
+    open-free-router:
+      name: Open Free Router
+      package: "aisdk:@ai-sdk/openai-compatible"
+      settings:
+        baseURL: http://127.0.0.1:8337/v1
+        apiKey: placeholder-local-proxy-token
+      models:
+        placeholder-model:
+          name: Placeholder Model
+          modelID: placeholder-model
+          capabilities:
+            tools: true
+          limit:
+            context: 8192
+            output: 1024
+        placeholder-small:
+          name: Placeholder Small
+          modelID: placeholder-small
+          capabilities:
+            tools: false
+          limit:
+            context: 8192
+            output: 1024
