@@ -535,6 +535,43 @@ def cmd_protocols(args):
     print(f"\n说明：{matrix['notice_zh']}")
 
 
+def _record_doctor_conclusion(cfg: Config, report: dict) -> None:
+    """PRD-149/T3 (T1 §3.1): land the doctor conclusion in the ledger store.
+
+    The report is reduced to ``doctor_verdict`` + ``doctor_failed_checks``
+    (never labels/details) and persisted as the latest doctor run, so later
+    failover decision rows stamp it into their ``doctor_*`` columns. The
+    run's ``--json`` output stays the only place with detail, correlatable
+    by ``doctor_at``. Failures are logged and swallowed: recording can never
+    change doctor's own output or exit code (T1 §4.2 layer 3).
+    """
+    import logging
+    from datetime import datetime, timezone
+    from open_free_router.analytics import AnalyticsStore
+    from open_free_router.failover_audit import doctor_summary_from_report
+
+    summary = doctor_summary_from_report(report)
+    if summary is None:
+        return
+    try:
+        store = AnalyticsStore(
+            cfg.analytics_path, retention_days=cfg.analytics_retention_days
+        )
+        try:
+            store.record_doctor_run(
+                doctor_verdict=summary["doctor_verdict"],
+                doctor_failed_checks=summary["doctor_failed_checks"],
+                doctor_at=datetime.now(timezone.utc).isoformat(),
+            )
+        finally:
+            store.close()
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "doctor conclusion not recorded; doctor output is unaffected",
+            exc_info=True,
+        )
+
+
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     import json as _json
@@ -672,6 +709,9 @@ def cmd_doctor(args):
             for label, path in clients
         ],
     }
+    # PRD-149/T3 (T1 §3.1): persist the conclusion before the exit code can
+    # short-circuit us, in both human and --json mode.
+    _record_doctor_conclusion(cfg, report)
     if json_mode:
         print(_json.dumps(report, indent=2, ensure_ascii=False))
 
@@ -681,6 +721,62 @@ def cmd_doctor(args):
         sys.exit(1)
     if not json_mode:
         print("\n✔ no critical problems found")
+
+
+def cmd_failover_log(args):
+    """PRD-149/T4: failover 审计成对记录查询（本地只读 usage.db）。"""
+    import json as _json
+
+    from open_free_router.analytics import AnalyticsStore
+    from open_free_router.failover_view import collect_pairs, summarize
+    from open_free_router.config import Config
+
+    cfg = Config()
+    store = AnalyticsStore(cfg.analytics_path, retention_days=cfg.analytics_retention_days)
+    pairs = collect_pairs(store, days=args.days, backend=args.backend,
+                          reason=args.reason, limit=args.limit)
+    if getattr(args, "json", False):
+        print(_json.dumps({"pairs": pairs, "summary": summarize(pairs)},
+                          ensure_ascii=False, indent=2))
+        return 0
+    if not pairs:
+        print("（窗口内无换路记录）")
+        return 0
+    print(f"{'时间':<26}{'从':<22}{'到':<22}{'原因':<18}{'结果':<10}{'配对'}")
+    for p_ in pairs:
+        print(f"{str(p_['at'])[:26]:<26}{str(p_['from_candidate'])[:22]:<22}"
+              f"{str(p_['to_candidate'])[:22]:<22}{str(p_['reason'])[:18]:<18}"
+              f"{str(p_['outcome'] or '-')[:10]:<10}{p_['pair_status']}")
+    s = summarize(pairs)
+    print(f"\n汇总：{s['total_pairs']} 对（incomplete {s['incomplete_pairs']}）")
+    return 0
+
+
+def cmd_failover_summary(args):
+    """PRD-149/T4: failover 审计聚合视图（按时间/后端/原因过滤）。"""
+    import json as _json
+
+    from open_free_router.analytics import AnalyticsStore
+    from open_free_router.config import Config
+    from open_free_router.failover_view import collect_pairs, summarize
+
+    cfg = Config()
+    store = AnalyticsStore(cfg.analytics_path, retention_days=cfg.analytics_retention_days)
+    pairs = collect_pairs(store, days=args.days, backend=args.backend,
+                          reason=args.reason, limit=args.limit)
+    s = summarize(pairs)
+    if getattr(args, "json", False):
+        print(_json.dumps(s, ensure_ascii=False, indent=2))
+        return 0
+    print(f"窗口 {args.days} 天：{s['total_pairs']} 对换路（incomplete {s['incomplete_pairs']}）")
+    for key, title in (("by_backend", "按后端"), ("by_reason", "按原因"),
+                       ("by_quota_band", "按配额档位"), ("by_doctor_verdict", "按 doctor 结论"),
+                       ("by_outcome", "按结果")):
+        items = s[key]
+        if items:
+            top = "  ".join(f"{k}×{v}" for k, v in sorted(items.items(), key=lambda x: -x[1]))
+            print(f"{title}：{top}")
+    return 0
 
 
 def cmd_discover(args):
@@ -830,6 +926,22 @@ def main():
     p_doctor = sub.add_parser("doctor", help="diagnose the local install")
     p_doctor.add_argument("--json", action="store_true", help="print structured diagnostics")
     p_doctor.set_defaults(func=cmd_doctor)
+
+    p_flog = sub.add_parser("failover-log", help="failover audit pairs (local usage.db, read-only)")
+    p_flog.add_argument("--days", type=int, default=14)
+    p_flog.add_argument("--backend", default=None, help="filter by from/to candidate")
+    p_flog.add_argument("--reason", default=None)
+    p_flog.add_argument("--limit", type=int, default=500)
+    p_flog.add_argument("--json", action="store_true")
+    p_flog.set_defaults(func=cmd_failover_log)
+
+    p_fsum = sub.add_parser("failover-summary", help="failover audit aggregate view")
+    p_fsum.add_argument("--days", type=int, default=14)
+    p_fsum.add_argument("--backend", default=None)
+    p_fsum.add_argument("--reason", default=None)
+    p_fsum.add_argument("--limit", type=int, default=500)
+    p_fsum.add_argument("--json", action="store_true")
+    p_fsum.set_defaults(func=cmd_failover_summary)
 
     p_discover = sub.add_parser("discover", help="find review-only candidate free-model providers")
     p_discover.add_argument("--dry-run", action="store_true")
