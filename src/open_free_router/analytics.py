@@ -16,6 +16,7 @@ import time
 import uuid
 
 from open_free_router.failover_audit import (
+    DOCTOR_RUN_VERDICTS,
     FAILOVER_DOCTOR_VERDICTS,
     FAILOVER_OUTCOMES,
     FAILOVER_QUOTA_BANDS,
@@ -205,7 +206,23 @@ class AnalyticsStore:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS failover_outcomes_decision ON failover_outcomes(decision_id)"
             )
-            connection.execute("PRAGMA user_version=2")
+            # PRD-149/T3 (T1 §3.1): the latest doctor conclusion that stamps
+            # later failover decision rows. Singleton row (id = 1) holding
+            # only aggregates -- verdict, error-level check count, run time;
+            # never labels or details. A new table needs no ALTER migration:
+            # CREATE IF NOT EXISTS upgrades any existing store in place.
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS doctor_state (
+                    id INTEGER PRIMARY KEY CHECK (id = 1),
+                    at TEXT NOT NULL,
+                    verdict TEXT NOT NULL,
+                    failed_checks INTEGER NOT NULL
+                )
+            """)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(doctor_state)")}
+            if columns != {"id", "at", "verdict", "failed_checks"}:
+                raise sqlite3.DatabaseError("unsupported analytics schema")
+            connection.execute("PRAGMA user_version=3")
             connection.commit()
             self._connection = connection
             self._secure_files()
@@ -229,6 +246,10 @@ class AnalyticsStore:
         checked per name because SQLite has no ``ADD COLUMN IF NOT EXISTS``,
         which also makes this idempotent for stores that were interrupted
         between the first ALTER and the version bump.
+
+        ``user_version`` 3 (PRD-149/T3) only adds the new ``doctor_state``
+        table via ``CREATE TABLE IF NOT EXISTS`` in ``_initialize`` -- no
+        ALTER path here, and any version >= 2 store passes through untouched.
         """
         version = connection.execute("PRAGMA user_version").fetchone()[0]
         if version >= 2:
@@ -504,6 +525,73 @@ class AnalyticsStore:
                 self._connection.commit()
             except (OSError, sqlite3.Error) as exc:
                 self.last_error = exc.__class__.__name__
+
+    def record_doctor_run(
+        self,
+        *,
+        doctor_verdict: str | None,
+        doctor_failed_checks: int | None = None,
+        doctor_at: str | None = None,
+    ) -> None:
+        """Persist the latest doctor conclusion (PRD-149/T3, T1 §3.1).
+
+        Only the aggregate verdict, the error-level check count and the run
+        time are stored; labels and details stay in the ``doctor --json``
+        output the operator correlates by ``doctor_at``. An out-of-enum
+        verdict is ignored rather than folded -- the ledger never fabricates
+        a conclusion. Disabled stores no-op silently.
+        """
+        if not self.enabled or not self._connection:
+            return
+        verdict = str(doctor_verdict or "")
+        if verdict not in DOCTOR_RUN_VERDICTS:
+            return
+        row = (
+            str(doctor_at or "")[:64] or datetime.now(timezone.utc).isoformat(),
+            verdict,
+            _safe_number(doctor_failed_checks, integer=True) or 0,
+        )
+        encoded = json.dumps(row, ensure_ascii=False)
+        if SENSITIVE_PATTERN.search(encoded):
+            raise ExportSecurityError("sensitive doctor conclusion rejected")
+        with self._lock:
+            try:
+                self._connection.execute(
+                    """INSERT INTO doctor_state (id, at, verdict, failed_checks)
+                       VALUES (1, ?, ?, ?)
+                       ON CONFLICT(id) DO UPDATE SET
+                         at = excluded.at,
+                         verdict = excluded.verdict,
+                         failed_checks = excluded.failed_checks""",
+                    row,
+                )
+                self._connection.commit()
+                self._secure_files()
+                self.last_error = ""
+            except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+                self.last_error = exc.__class__.__name__
+
+    def latest_doctor_run(self) -> dict | None:
+        """Return the most recent doctor conclusion, or ``None`` (T1 §3.1).
+
+        Keys use the ledger field names (``doctor_verdict`` /
+        ``doctor_failed_checks`` / ``doctor_at``) so the audit hook can stamp
+        them straight onto a decision row.
+        """
+        if not self.enabled or not self._connection:
+            return None
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT at, verdict, failed_checks FROM doctor_state WHERE id = 1"
+            ).fetchone()
+        if not row or row[1] not in DOCTOR_RUN_VERDICTS:
+            return None
+        at, verdict, failed_checks = row
+        return {
+            "doctor_verdict": verdict,
+            "doctor_failed_checks": failed_checks,
+            "doctor_at": at,
+        }
 
     def failover_decisions(
         self,

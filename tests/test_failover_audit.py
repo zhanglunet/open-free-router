@@ -206,7 +206,9 @@ def test_successful_switch_writes_paired_decision_and_outcome(tmp_path):
         assert decision["reason"] == "provider_unavailable"
         assert decision["attempt"] == 1
         # T1 §2.2 context columns: request context, quota defaults for an
-        # unmeasured credential, doctor stubs until T3.
+        # unmeasured credential; no doctor run recorded in this store, so
+        # the doctor columns keep their T1 defaults (PRD-149/T3 stamps them
+        # only after an actual ``doctor`` run).
         assert decision["requested_model"] == "auto"
         assert decision["strategy"] == "priority"
         assert decision["quota_band"] == "unknown"
@@ -613,7 +615,9 @@ def test_v1_store_migrates_in_place_before_the_column_check(tmp_path):
             ).fetchone()
         finally:
             connection.close()
-        assert version == 2
+        # v1 -> v2 by the T2 migration; PRD-149/T3 raises the generation to
+        # 3 with the doctor_state table (CREATE IF NOT EXISTS, no ALTER).
+        assert version == 3
         assert columns == list(DECISION_COLUMNS)
         # The legacy row survived; its new columns read as NULL.
         assert legacy == (None, None, None, None)
@@ -656,7 +660,8 @@ def test_fresh_store_is_created_at_v2_with_the_outcomes_table(tmp_path):
                 "PRAGMA table_info(failover_outcomes)")]
         finally:
             connection.close()
-        assert version == 2
+        # PRD-149/T3 bumps the schema generation to 3 (doctor_state table).
+        assert version == 3
         assert decision_columns == list(DECISION_COLUMNS)
         assert outcome_columns == list(OUTCOME_COLUMNS)
     finally:

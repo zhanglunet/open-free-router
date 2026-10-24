@@ -535,6 +535,43 @@ def cmd_protocols(args):
     print(f"\n说明：{matrix['notice_zh']}")
 
 
+def _record_doctor_conclusion(cfg: Config, report: dict) -> None:
+    """PRD-149/T3 (T1 §3.1): land the doctor conclusion in the ledger store.
+
+    The report is reduced to ``doctor_verdict`` + ``doctor_failed_checks``
+    (never labels/details) and persisted as the latest doctor run, so later
+    failover decision rows stamp it into their ``doctor_*`` columns. The
+    run's ``--json`` output stays the only place with detail, correlatable
+    by ``doctor_at``. Failures are logged and swallowed: recording can never
+    change doctor's own output or exit code (T1 §4.2 layer 3).
+    """
+    import logging
+    from datetime import datetime, timezone
+    from open_free_router.analytics import AnalyticsStore
+    from open_free_router.failover_audit import doctor_summary_from_report
+
+    summary = doctor_summary_from_report(report)
+    if summary is None:
+        return
+    try:
+        store = AnalyticsStore(
+            cfg.analytics_path, retention_days=cfg.analytics_retention_days
+        )
+        try:
+            store.record_doctor_run(
+                doctor_verdict=summary["doctor_verdict"],
+                doctor_failed_checks=summary["doctor_failed_checks"],
+                doctor_at=datetime.now(timezone.utc).isoformat(),
+            )
+        finally:
+            store.close()
+    except Exception:
+        logging.getLogger(__name__).warning(
+            "doctor conclusion not recorded; doctor output is unaffected",
+            exc_info=True,
+        )
+
+
 def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     import json as _json
@@ -672,6 +709,9 @@ def cmd_doctor(args):
             for label, path in clients
         ],
     }
+    # PRD-149/T3 (T1 §3.1): persist the conclusion before the exit code can
+    # short-circuit us, in both human and --json mode.
+    _record_doctor_conclusion(cfg, report)
     if json_mode:
         print(_json.dumps(report, indent=2, ensure_ascii=False))
 

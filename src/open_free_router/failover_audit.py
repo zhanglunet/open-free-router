@@ -12,6 +12,12 @@ both tables in ``usage.db`` today, so the existing failover path already
 produces complete pairs before PRD-131 lands; ``NoopAuditHook`` covers tests
 and disabled stores.  A factory decides which implementation runs -- call
 sites never change when the implementation does.
+
+PRD-149/T3 adds the doctor alignment pieces (T1 §3.1):
+``doctor_summary_from_report`` reduces a ``cmd_doctor`` report to the two
+ledger aggregates (verdict + error count, never labels/details), and the
+default hook stamps the store's latest recorded conclusion onto every
+decision row whose caller did not pass its own doctor context.
 """
 from __future__ import annotations
 
@@ -33,6 +39,14 @@ FAILOVER_QUOTA_CLASSIFICATIONS = frozenset({
     "rate_limited", "quota_exhausted", "credits_exhausted", "credential_invalid",
 })
 FAILOVER_DOCTOR_VERDICTS = frozenset({"pass", "warn", "fail", "never_run"})
+# PRD-149/T3 (T1 §3.1): a doctor run can only conclude pass/warn/fail.
+# ``never_run`` stays ledger-only -- the default for "no doctor conclusion
+# recorded yet", never something a run itself reports.
+DOCTOR_RUN_VERDICTS = frozenset({"pass", "warn", "fail"})
+# The four report groups whose items carry a severity; client-config
+# presence is informational and never counted (T1 §3.1).
+DOCTOR_REPORT_GROUPS = ("checks", "routing", "free_tier", "protocol_matrix")
+DOCTOR_CONTEXT_KEYS = ("doctor_verdict", "doctor_failed_checks", "doctor_at")
 
 # T1 §2.3: outcome row values. ``no_candidate`` closes a decision whose
 # ``to_candidate`` is empty; ``budget_exhausted`` closes one whose candidate
@@ -51,6 +65,52 @@ OUTCOME_KEYS = (
     "decision_id", "settled_at", "outcome", "status_code", "error_kind",
     "ttfb_ms", "total_latency_ms", "attempt",
 )
+
+
+def doctor_summary_from_report(report: dict) -> dict | None:
+    """Map a ``cmd_doctor`` report onto the ledger doctor fields (T1 §3.1).
+
+    Pure function, the T3 alignment contract: the report's severity-carrying
+    groups (``checks`` items ``{ok, severity, label, detail}`` plus the
+    routing, free-tier and protocol-matrix issue lists) are reduced to the
+    two aggregates the ledger may store --
+
+    * ``doctor_verdict``: any error-level item → ``fail``; warnings only →
+      ``warn``; everything ok → ``pass``;
+    * ``doctor_failed_checks``: the error-level count (warnings do not
+      count, T1 §3.1 row 1).
+
+    Labels and details never leave this function: the ledger correlates
+    with the operator's ``doctor --json`` output by ``doctor_at`` instead of
+    storing prose. Returns ``None`` for a report without any recognized
+    group so a malformed payload can never fabricate a "pass".
+    """
+    if not isinstance(report, dict):
+        return None
+    errors = 0
+    warnings = 0
+    seen_group = False
+    for group in DOCTOR_REPORT_GROUPS:
+        items = report.get(group)
+        if group in ("free_tier", "protocol_matrix"):
+            items = items.get("issues") if isinstance(items, dict) else None
+        if items is None:
+            continue
+        seen_group = True
+        if not isinstance(items, (list, tuple)):
+            items = [items]
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            severity = str(item.get("severity") or "")
+            if severity == "error":
+                errors += 1
+            elif severity == "warning":
+                warnings += 1
+    if not seen_group:
+        return None
+    verdict = "fail" if errors else ("warn" if warnings else "pass")
+    return {"doctor_verdict": verdict, "doctor_failed_checks": errors}
 
 
 class FailoverAuditHook:
@@ -109,11 +169,38 @@ class AnalyticsAuditHook(FailoverAuditHook):
             return analytics
         return None
 
+    def _stamp_doctor_context(self, analytics, picked: dict) -> dict:
+        """PRD-149/T3 (T1 §3.1): stamp the latest doctor conclusion.
+
+        The decision row's ``doctor_*`` columns describe the most recent
+        doctor run at decision time. Caller-supplied values win; otherwise
+        the store's latest conclusion is stamped. Lookup failures are
+        downgraded to defaults -- audit must never interrupt inference
+        (T1 §6.4).
+        """
+        if any(key in picked for key in DOCTOR_CONTEXT_KEYS):
+            return picked
+        try:
+            latest = analytics.latest_doctor_run()
+        except Exception:
+            log.warning(
+                "doctor context lookup failed; decision row defaults apply",
+                exc_info=True,
+            )
+            return picked
+        if not latest:
+            return picked
+        for key in DOCTOR_CONTEXT_KEYS:
+            if latest.get(key) is not None:
+                picked[key] = latest[key]
+        return picked
+
     def on_failover_decision(self, **fields) -> str | None:
         analytics = self._store()
         if analytics is None:
             return None
         picked = {key: fields[key] for key in DECISION_KEYS if key in fields}
+        picked = self._stamp_doctor_context(analytics, picked)
         try:
             return analytics.record_failover_decision(**picked)
         except Exception:
