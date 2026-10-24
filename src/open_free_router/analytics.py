@@ -15,6 +15,14 @@ import threading
 import time
 import uuid
 
+from open_free_router.failover_audit import (
+    FAILOVER_DOCTOR_VERDICTS,
+    FAILOVER_OUTCOMES,
+    FAILOVER_QUOTA_BANDS,
+    FAILOVER_QUOTA_CLASSIFICATIONS,
+    FAILOVER_QUOTA_SOURCES,
+)
+
 
 EXPORT_FIELDS = (
     "timestamp", "provider", "model", "status", "status_code",
@@ -26,6 +34,28 @@ EXPORT_FIELDS = (
 FAILOVER_DECISION_FIELDS = (
     "at", "request_id", "from_candidate", "to_candidate", "reason",
     "attempt", "elapsed_ms", "ttfb_ms", "circuit",
+)
+# PRD-149/T2 (T1 §2.2): context columns appended to the decision row. All
+# nullable, all coerced to enums or bounded strings at write time. The
+# declared types drive both the fresh-table DDL and the v1→v2 ALTERs.
+FAILOVER_DECISION_CONTEXT_COLUMNS = (
+    ("requested_model", "TEXT"),
+    ("strategy", "TEXT"),
+    ("quota_band", "TEXT"),
+    ("quota_source", "TEXT"),
+    ("quota_classification", "TEXT"),
+    ("doctor_verdict", "TEXT"),
+    ("doctor_failed_checks", "INTEGER"),
+    ("doctor_at", "TEXT"),
+)
+FAILOVER_DECISION_CONTEXT_FIELDS = tuple(
+    name for name, _ in FAILOVER_DECISION_CONTEXT_COLUMNS
+)
+# PRD-149/T2 (T1 §2.3): outcome row, paired with a decision by decision_id.
+# ``outcome_id`` is the primary key and not part of the field tuple.
+FAILOVER_OUTCOME_FIELDS = (
+    "decision_id", "settled_at", "outcome", "status_code",
+    "error_kind", "ttfb_ms", "total_latency_ms", "attempt",
 )
 # FailureDecision.kind values the failover policy may emit (T1 §1.3). Anything
 # else is coerced to "unknown" at write time so the table can never carry
@@ -118,7 +148,12 @@ class AnalyticsStore:
             )
             # PRD-059/T4: failover decision log (T1 §5). Same 0600/retention
             # conventions as usage_events.
-            connection.execute("""
+            # PRD-149/T2 (T1 §2.1 warning): the v1→v2 audit migration MUST run
+            # before the strict column-set check below -- a legacy ten-column
+            # store that reaches the check unmigrated would be disabled
+            # wholesale instead of upgraded in place.
+            self._migrate_failover_audit(connection)
+            connection.execute(f"""
                 CREATE TABLE IF NOT EXISTS failover_decisions (
                     decision_id TEXT PRIMARY KEY,
                     at TEXT NOT NULL,
@@ -129,11 +164,14 @@ class AnalyticsStore:
                     attempt INTEGER NOT NULL,
                     elapsed_ms REAL,
                     ttfb_ms REAL,
-                    circuit TEXT
+                    circuit TEXT,
+                    {', '.join(f'{name} {decl}' for name, decl in FAILOVER_DECISION_CONTEXT_COLUMNS)}
                 )
             """)
             columns = {row[1] for row in connection.execute("PRAGMA table_info(failover_decisions)")}
-            expected_failover = {"decision_id", *FAILOVER_DECISION_FIELDS}
+            expected_failover = {
+                "decision_id", *FAILOVER_DECISION_FIELDS, *FAILOVER_DECISION_CONTEXT_FIELDS,
+            }
             if columns != expected_failover:
                 raise sqlite3.DatabaseError("unsupported analytics schema")
             connection.execute(
@@ -142,7 +180,32 @@ class AnalyticsStore:
             connection.execute(
                 "CREATE INDEX IF NOT EXISTS failover_decisions_request ON failover_decisions(request_id)"
             )
-            connection.execute("PRAGMA user_version=1")
+            # PRD-149/T2 (T1 §2.3): outcome rows, same DB and 0600/WAL/retention
+            # policy as the decision rows; purged in the same transaction.
+            connection.execute("""
+                CREATE TABLE IF NOT EXISTS failover_outcomes (
+                    outcome_id TEXT PRIMARY KEY,
+                    decision_id TEXT NOT NULL,
+                    settled_at TEXT NOT NULL,
+                    outcome TEXT NOT NULL,
+                    status_code INTEGER,
+                    error_kind TEXT,
+                    ttfb_ms REAL,
+                    total_latency_ms REAL,
+                    attempt INTEGER
+                )
+            """)
+            columns = {row[1] for row in connection.execute("PRAGMA table_info(failover_outcomes)")}
+            expected_outcomes = {"outcome_id", *FAILOVER_OUTCOME_FIELDS}
+            if columns != expected_outcomes:
+                raise sqlite3.DatabaseError("unsupported analytics schema")
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS failover_outcomes_settled ON failover_outcomes(settled_at)"
+            )
+            connection.execute(
+                "CREATE INDEX IF NOT EXISTS failover_outcomes_decision ON failover_outcomes(decision_id)"
+            )
+            connection.execute("PRAGMA user_version=2")
             connection.commit()
             self._connection = connection
             self._secure_files()
@@ -154,6 +217,29 @@ class AnalyticsStore:
             self._connection = None
             self.enabled = False
             self.last_error = exc.__class__.__name__
+
+    @staticmethod
+    def _migrate_failover_audit(connection: sqlite3.Connection) -> None:
+        """PRD-149/T2 (T1 §2.1): in-place ``user_version`` 1→2 migration.
+
+        Legacy stores carry the ten-column PRD-059/T4 ``failover_decisions``
+        table; SQLite ``ALTER TABLE ... ADD COLUMN`` upgrades them without
+        losing rows. Fresh stores (no table yet, or ``user_version`` 0) skip
+        straight to the full-shape DDL in ``_initialize``. Column presence is
+        checked per name because SQLite has no ``ADD COLUMN IF NOT EXISTS``,
+        which also makes this idempotent for stores that were interrupted
+        between the first ALTER and the version bump.
+        """
+        version = connection.execute("PRAGMA user_version").fetchone()[0]
+        if version >= 2:
+            return
+        existing = {row[1] for row in connection.execute("PRAGMA table_info(failover_decisions)")}
+        if existing:
+            for name, decl in FAILOVER_DECISION_CONTEXT_COLUMNS:
+                if name not in existing:
+                    connection.execute(
+                        f"ALTER TABLE failover_decisions ADD COLUMN {name} {decl}"
+                    )
 
     def _secure_files(self) -> None:
         if not self.path:
@@ -181,6 +267,12 @@ class AnalyticsStore:
                 iso_cutoff = datetime.fromtimestamp(cutoff, timezone.utc).isoformat()
                 cursor = self._connection.execute(
                     "DELETE FROM failover_decisions WHERE at < ?", (iso_cutoff,)
+                )
+                removed += max(0, cursor.rowcount)
+                # PRD-149/T2 (T1 §6.5): outcome rows share the decision rows'
+                # 30-day retention and the same purge transaction.
+                cursor = self._connection.execute(
+                    "DELETE FROM failover_outcomes WHERE settled_at < ?", (iso_cutoff,)
                 )
                 removed += max(0, cursor.rowcount)
                 self._connection.commit()
@@ -247,25 +339,42 @@ class AnalyticsStore:
         ttfb_ms: float | None = None,
         circuit: str | None = None,
         at: str | None = None,
-    ) -> None:
-        """Write one T1 §5 failover decision row (PRD-059/T4).
+        requested_model: str | None = None,
+        strategy: str | None = None,
+        quota_band: str | None = None,
+        quota_source: str | None = None,
+        quota_classification: str | None = None,
+        doctor_verdict: str | None = None,
+        doctor_failed_checks: int | None = None,
+        doctor_at: str | None = None,
+    ) -> str | None:
+        """Write one T1 §5 + PRD-149/T2 §2.2 decision row.
 
         Desensitized by construction: ``reason`` is coerced to a known
         FailureDecision.kind enum and every free-form field is length-bounded;
         the encoded row is additionally scanned for secret patterns and
-        rejected rather than stored.
+        rejected rather than stored.  Returns the written ``decision_id``
+        (the pairing key for ``record_failover_outcome``), or ``None`` when
+        nothing was recorded.
         """
         if not self.enabled or not self._connection:
-            return
+            return None
         request_id = str(request_id or "")[:128]
         if not request_id:
-            return
+            return None
         reason = str(reason or "")
         if reason not in FAILOVER_REASONS:
             reason = "unknown"
         circuit = str(circuit or "")
         if circuit not in ("provider", "credential", "model", ""):
             circuit = ""
+        # PRD-149/T2 context columns: enums fold to their don't-know value,
+        # free strings are bounded; anything else stays NULL rather than
+        # fabricating evidence.
+        band = str(quota_band or "")
+        source = str(quota_source or "")
+        classification = str(quota_classification or "")
+        verdict = str(doctor_verdict or "")
         row = (
             uuid.uuid4().hex,
             at or datetime.now(timezone.utc).isoformat(),
@@ -277,10 +386,19 @@ class AnalyticsStore:
             _safe_number(elapsed_ms),
             _safe_number(ttfb_ms),
             circuit or None,
+            str(requested_model or "")[:256] or None,
+            str(strategy or "")[:64] or None,
+            band if band in FAILOVER_QUOTA_BANDS else "unknown",
+            source if source in FAILOVER_QUOTA_SOURCES else None,
+            classification if classification in FAILOVER_QUOTA_CLASSIFICATIONS else None,
+            verdict if verdict in FAILOVER_DOCTOR_VERDICTS else "never_run",
+            _safe_number(doctor_failed_checks, integer=True),
+            str(doctor_at or "")[:64] or None,
         )
         encoded = json.dumps(row, ensure_ascii=False)
         if SENSITIVE_PATTERN.search(encoded):
             raise ExportSecurityError("sensitive failover decision content rejected")
+        written = False
         with self._lock:
             try:
                 if time.time() - self._last_purge_at >= 3600:
@@ -288,14 +406,103 @@ class AnalyticsStore:
                 self._connection.execute(
                     """INSERT INTO failover_decisions
                        (decision_id, at, request_id, from_candidate, to_candidate,
-                        reason, attempt, elapsed_ms, ttfb_ms, circuit)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        reason, attempt, elapsed_ms, ttfb_ms, circuit,
+                        requested_model, strategy, quota_band, quota_source,
+                        quota_classification, doctor_verdict, doctor_failed_checks,
+                        doctor_at)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                    row,
+                )
+                self._connection.commit()
+                self._secure_files()
+                self.last_error = ""
+                written = True
+            except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+                self.last_error = exc.__class__.__name__
+        return row[0] if written else None
+
+    def record_failover_outcome(
+        self,
+        *,
+        decision_id: str,
+        outcome: str,
+        status_code: int = 0,
+        error_kind: str | None = None,
+        ttfb_ms: float | None = None,
+        total_latency_ms: float | None = None,
+        attempt: int | None = None,
+        settled_at: str | None = None,
+    ) -> None:
+        """Write one PRD-149/T2 (T1 §2.3) outcome row, paired by ``decision_id``.
+
+        Same gates as the decision row: enum-only ``outcome``, ``error_kind``
+        folded to the whitelist (out-of-range becomes ``unknown``), numbers
+        sanitized, and the encoded row rejected -- never masked -- when it
+        matches the sensitive pattern.
+        """
+        if not self.enabled or not self._connection:
+            return
+        decision_id = str(decision_id or "")[:128]
+        if not decision_id:
+            return
+        if outcome not in FAILOVER_OUTCOMES:
+            raise ValueError("unknown failover outcome")
+        kind = str(error_kind or "")
+        if kind and kind not in FAILOVER_REASONS:
+            kind = "unknown"
+        row = (
+            uuid.uuid4().hex,
+            decision_id,
+            settled_at or datetime.now(timezone.utc).isoformat(),
+            outcome,
+            _safe_number(status_code, integer=True) or 0,
+            kind or None,
+            _safe_number(ttfb_ms),
+            _safe_number(total_latency_ms),
+            _safe_number(attempt, integer=True),
+        )
+        encoded = json.dumps(row, ensure_ascii=False)
+        if SENSITIVE_PATTERN.search(encoded):
+            raise ExportSecurityError("sensitive failover outcome content rejected")
+        with self._lock:
+            try:
+                if time.time() - self._last_purge_at >= 3600:
+                    self.purge()
+                self._connection.execute(
+                    """INSERT INTO failover_outcomes
+                       (outcome_id, decision_id, settled_at, outcome, status_code,
+                        error_kind, ttfb_ms, total_latency_ms, attempt)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     row,
                 )
                 self._connection.commit()
                 self._secure_files()
                 self.last_error = ""
             except (OSError, sqlite3.Error, TypeError, ValueError) as exc:
+                self.last_error = exc.__class__.__name__
+
+    def backfill_outcome_latency(self, decision_id: str, total_latency_ms: float) -> None:
+        """PRD-149/T2 (T1 §2.3): backfill success latency when the response closes.
+
+        Only the first backfill wins (``total_latency_ms IS NULL`` guard), so
+        a duplicated completion callback can never rewrite the settled value.
+        """
+        if not self.enabled or not self._connection:
+            return
+        value = _safe_number(total_latency_ms)
+        key = str(decision_id or "")[:128]
+        if value is None or not key:
+            return
+        with self._lock:
+            try:
+                self._connection.execute(
+                    """UPDATE failover_outcomes SET total_latency_ms = ?
+                       WHERE decision_id = ? AND outcome = 'success'
+                         AND total_latency_ms IS NULL""",
+                    (value, key),
+                )
+                self._connection.commit()
+            except (OSError, sqlite3.Error) as exc:
                 self.last_error = exc.__class__.__name__
 
     def failover_decisions(
