@@ -30,7 +30,15 @@ from open_free_router.resilience import (
     parse_retry_after,
 )
 from open_free_router import translate
+from open_free_router.failover_audit import (
+    FAILOVER_QUOTA_BANDS,
+    FAILOVER_QUOTA_CLASSIFICATIONS,
+    FAILOVER_QUOTA_SOURCES,
+    FailoverAuditHook,
+    make_audit_hook,
+)
 from open_free_router.latency import LatencyConfig, LatencyStore
+from open_free_router.quota_view import quota_view
 from open_free_router.routing import RoutePlanner, RouteTarget
 from open_free_router.telemetry import RouteDecisionStore
 from open_free_router.quota import parse_quota_headers
@@ -164,6 +172,89 @@ def _circuit_for(decision: FailureDecision | None) -> str | None:
     return None
 
 
+class _FailoverAuditTrail:
+    """Per-request paired audit state (PRD-149/T2, T1 §2.1/§2.4).
+
+    One decision row pairs with exactly one outcome row, keyed by
+    ``decision_id``.  The trail carries the unsettled pair between the
+    pre-switch decision write and the moment the switched-to candidate
+    settles:
+
+    * ``success`` / ``failed`` -- the new candidate was attempted.  Only an
+      attempt on the very candidate the decision switched to may settle the
+      pair; a candidate skipped by the resilience gate settles nothing.
+    * ``no_candidate`` -- written immediately when the decision row carries
+      no ``to_candidate``.
+    * ``budget_exhausted`` -- the total budget stopped the request before
+      the switched-to candidate was ever attempted.
+    * a pair whose destination was gated away stays deliberately unsettled:
+      the summary view judges it ``incomplete`` (T1 §2.4 -- 不回填、不编造).
+
+    Hook failures of any kind are downgraded to warnings here as well; the
+    audit can never interrupt inference (T1 §4.2 layer 3, §6.4).
+    """
+
+    def __init__(self, hook: FailoverAuditHook):
+        self.hook = hook
+        self.pending_decision_id: str | None = None
+        self.pending_candidate: str | None = None
+
+    def decision(self, *, to_candidate_id: str | None, **fields) -> None:
+        """Write the pre-switch decision row (T1 §6.1 hook point)."""
+        try:
+            decision_id = self.hook.on_failover_decision(
+                to_candidate=to_candidate_id, **fields
+            )
+        except Exception:
+            log.warning(
+                "failover audit decision hook failed; inference continues",
+                exc_info=True,
+            )
+            decision_id = None
+        if not decision_id:
+            self.pending_decision_id = None
+            self.pending_candidate = None
+            return
+        if to_candidate_id is None:
+            # T1 §2.4: no route to switch to -- the pair closes immediately.
+            self._outcome(decision_id, outcome="no_candidate")
+            return
+        self.pending_decision_id = decision_id
+        self.pending_candidate = to_candidate_id
+
+    def settle(
+        self,
+        *,
+        outcome: str,
+        candidate_id: str | None = None,
+        **fields,
+    ):
+        """Settle the pending pair; returns the success latency backfill."""
+        if not self.pending_decision_id:
+            return None
+        if (
+            candidate_id is not None
+            and candidate_id != self.pending_candidate
+        ):
+            return None
+        decision_id = self.pending_decision_id
+        self.pending_decision_id = None
+        self.pending_candidate = None
+        return self._outcome(decision_id, outcome=outcome, **fields)
+
+    def _outcome(self, decision_id: str, *, outcome: str, **fields):
+        try:
+            return self.hook.on_failover_outcome(
+                decision_id=decision_id, outcome=outcome, **fields
+            )
+        except Exception:
+            log.warning(
+                "failover audit outcome hook failed; inference continues",
+                exc_info=True,
+            )
+            return None
+
+
 class UpstreamExecutor:
     """Open one upstream response, trying safe alternatives before returning."""
 
@@ -174,6 +265,7 @@ class UpstreamExecutor:
         timeout: int = LEGACY_TIMEOUT_DEFAULT,
         decisions: RouteDecisionStore | None = None,
         sleeper: Callable[[float], None] | None = None,
+        audit_hook: FailoverAuditHook | None = None,
     ):
         self.planner = planner
         self.resilience = resilience
@@ -181,6 +273,10 @@ class UpstreamExecutor:
         self.decisions = decisions
         # Test seam: real time.sleep in production, a recorder in tests.
         self._sleeper = sleeper or time.sleep
+        # PRD-149/T2 (T1 §6.2): the audit hook is built by the factory so
+        # call sites never change with the implementation; tests and closed
+        # stores get the no-op hook.
+        self.audit_hook = audit_hook if audit_hook is not None else make_audit_hook(decisions)
         policy = planner.config
         # Legacy precedence: an explicit non-default ``timeout`` (config.yaml
         # ``upstream_timeout``) still wins; otherwise the policy value applies.
@@ -216,8 +312,38 @@ class UpstreamExecutor:
             target.provider_name, target.upstream_model_id, ttfb_ms
         )
 
+    def _quota_context(
+        self, provider_name: str | None, slot: int | None
+    ) -> tuple[str | None, str | None, str | None]:
+        """PRD-149/T1 §3.2: the failing credential's quota band/source/classification.
+
+        Read from the resilience snapshot through ``quota_view`` so the
+        ledger and the local quota panel can never disagree about the band.
+        An unseen credential reports ``unknown`` / ``never_measured``.
+        """
+        if not provider_name or slot is None:
+            return "unknown", "never_measured", None
+        try:
+            snapshot = self.resilience.snapshot()
+            key = f"{provider_name}:slot-{slot}"
+            state = (snapshot.get("credentials") or {}).get(key)
+            if not isinstance(state, dict):
+                return "unknown", "never_measured", None
+            row = quota_view({"credentials": {key: state}})["items"][0]
+        except (AttributeError, KeyError, IndexError, TypeError, ValueError):
+            return "unknown", "never_measured", None
+        band = row.get("band")
+        source = row.get("source")
+        classification = row.get("event_classification")
+        return (
+            band if band in FAILOVER_QUOTA_BANDS else "unknown",
+            source if source in FAILOVER_QUOTA_SOURCES else None,
+            classification if classification in FAILOVER_QUOTA_CLASSIFICATIONS else None,
+        )
+
     def _log_failover(
         self,
+        audit: _FailoverAuditTrail,
         *,
         request_id: str,
         from_candidate: RouteTarget | None,
@@ -227,29 +353,52 @@ class UpstreamExecutor:
         elapsed_ms: float | None,
         ttfb_ms: float | None,
         circuit: str | None,
+        requested_model: str = "",
+        strategy: str = "",
+        quota_provider: str | None = None,
+        quota_slot: int | None = None,
     ) -> None:
-        """Write one T1 §5 decision row to usage.db (desensitized).
+        """Write one pre-switch decision row (T1 §5 + PRD-149/T2 §2.2).
 
-        Only enum kinds, candidate IDs and timings are recorded -- never
-        headers, keys, prompts or bodies. Analytics failures never break
-        inference.
+        Called after ``classify_failure`` and before switching to the next
+        candidate.  Only enum kinds, candidate IDs and timings are recorded
+        -- never headers, keys, prompts or bodies.  The hook (never this
+        method) owns rejection and failure handling: audit problems are
+        warnings, never inference failures.
         """
-        analytics = getattr(self.decisions, "analytics", None) if self.decisions else None
-        if analytics is None or not getattr(analytics, "enabled", False):
-            return
-        try:
-            analytics.record_failover_decision(
-                request_id=request_id,
-                from_candidate=from_candidate.canonical_id if from_candidate else None,
-                to_candidate=to_candidate.canonical_id if to_candidate else None,
-                reason=reason,
-                attempt=attempt,
-                elapsed_ms=elapsed_ms,
-                ttfb_ms=ttfb_ms,
-                circuit=circuit,
-            )
-        except Exception:
-            log.debug("failover decision log failed", exc_info=True)
+        quota_band, quota_source, quota_classification = self._quota_context(
+            quota_provider, quota_slot
+        )
+        audit.decision(
+            to_candidate_id=to_candidate.canonical_id if to_candidate else None,
+            request_id=request_id,
+            from_candidate=from_candidate.canonical_id if from_candidate else None,
+            # ``to_candidate`` is added by the trail itself (see decision()).
+            reason=reason,
+            attempt=attempt,
+            elapsed_ms=elapsed_ms,
+            ttfb_ms=ttfb_ms,
+            circuit=circuit,
+            requested_model=requested_model,
+            strategy=strategy,
+            quota_band=quota_band,
+            quota_source=quota_source,
+            quota_classification=quota_classification,
+        )
+
+    def _route_completion_callback(self, audit_backfill):
+        """Chain the audit latency backfill onto the telemetry completion hook."""
+        base = self.decisions.complete if self.decisions else None
+        if audit_backfill is None:
+            return base
+        if base is None:
+            return lambda request_id, elapsed_ms: audit_backfill(elapsed_ms)
+
+        def chained(request_id, elapsed_ms):
+            base(request_id, elapsed_ms)
+            audit_backfill(elapsed_ms)
+
+        return chained
 
     def _record(
         self,
@@ -380,6 +529,12 @@ class UpstreamExecutor:
         last_decision: FailureDecision | None = None
         backoff_switches = 0
         stop_request = False
+        # PRD-149/T2: per-request paired audit trail (decision before the
+        # switch, outcome when the switched-to candidate settles).
+        audit = _FailoverAuditTrail(self.audit_hook)
+        # The credential slot that produced last_failure, for the decision
+        # row's quota context (T1 §3.2).
+        failed_slot: int | None = None
 
         def budget_exceeded() -> bool:
             return (time.monotonic() - request_started) >= timeouts.total
@@ -395,6 +550,9 @@ class UpstreamExecutor:
 
         for target_index, target in enumerate(plan.candidates):
             if budget_exceeded():
+                # PRD-149/T2 (T1 §2.4): the budget stopped the request before
+                # the switched-to candidate was attempted.
+                audit.settle(outcome="budget_exhausted")
                 break
             slots = self.resilience.order_credentials(
                 target.provider_name, _credentials(target)
@@ -414,9 +572,13 @@ class UpstreamExecutor:
                     policy.backoff_jitter,
                 )
                 if not sleep_bounded(delay):
+                    # PRD-149/T2 (T1 §2.4): the backoff would blow the total
+                    # budget, so the switch never gets its attempt.
+                    audit.settle(outcome="budget_exhausted")
                     break
             attempted_target = False
             last_decision = None
+            failed_slot = None
             slot_index = 0
             same_429_retried = False
             bypass_gate = False
@@ -468,6 +630,7 @@ class UpstreamExecutor:
                         credential_slot,
                     )
                     last_decision = decision
+                    failed_slot = credential_slot
                     last_failure = RouteFailure(
                         request_id,
                         502,
@@ -514,6 +677,7 @@ class UpstreamExecutor:
                         credential_slot,
                     )
                     last_decision = decision
+                    failed_slot = credential_slot
                     last_failure = RouteFailure(
                         request_id,
                         502,
@@ -552,6 +716,16 @@ class UpstreamExecutor:
                         credential_slot,
                         parse_quota_headers(response.headers, response.status),
                     )
+                    # PRD-149/T2 (T1 §2.4): the switched-to candidate received
+                    # its first byte -- settle the pending pair as success and
+                    # chain the latency backfill onto the completion callback.
+                    audit_backfill = audit.settle(
+                        outcome="success",
+                        candidate_id=target.canonical_id,
+                        status_code=response.status,
+                        ttfb_ms=ttfb_ms,
+                        attempt=attempts,
+                    )
                     result = OpenedRoute(
                         request_id,
                         target,
@@ -561,7 +735,7 @@ class UpstreamExecutor:
                         response,
                         ttfb_ms,
                         attempt_started,
-                        self.decisions.complete if self.decisions else None,
+                        self._route_completion_callback(audit_backfill),
                     )
                     attempt_results.append({
                         "provider": target.provider_name, "model": target.canonical_id,
@@ -585,6 +759,7 @@ class UpstreamExecutor:
                 except socket.timeout:
                     conn.close()
                     total_latency_ms = (time.monotonic() - attempt_started) * 1000
+                    failed_slot = credential_slot
                     last_failure = RouteFailure(
                         request_id,
                         504,
@@ -655,6 +830,7 @@ class UpstreamExecutor:
                     retry_delay,
                 )
                 last_decision = decision
+                failed_slot = credential_slot
                 last_failure = RouteFailure(
                     request_id,
                     response.status,
@@ -694,7 +870,19 @@ class UpstreamExecutor:
                     and not budget_exceeded()
                 ):
                     same_429_retried = True
+                    # PRD-149/T2: the 429 settles whatever pair switched to
+                    # this candidate; the retry is itself a new decision.
+                    audit.settle(
+                        outcome="failed",
+                        candidate_id=target.canonical_id,
+                        status_code=response.status,
+                        error_kind=decision.kind,
+                        ttfb_ms=ttfb_ms,
+                        total_latency_ms=total_latency_ms,
+                        attempt=attempts,
+                    )
                     self._log_failover(
+                        audit,
                         request_id=request_id,
                         from_candidate=None,
                         to_candidate=target,
@@ -703,8 +891,13 @@ class UpstreamExecutor:
                         elapsed_ms=total_latency_ms,
                         ttfb_ms=ttfb_ms,
                         circuit=None,
+                        requested_model=requested_model,
+                        strategy=plan.strategy,
+                        quota_provider=target.provider_name,
+                        quota_slot=credential_slot,
                     )
                     if not sleep_bounded(raw_retry_delay):
+                        audit.settle(outcome="budget_exhausted")
                         break
                     bypass_gate = True
                     continue
@@ -717,9 +910,29 @@ class UpstreamExecutor:
                     continue
                 break
 
+            # PRD-149/T2 (T1 §2.4): this candidate was attempted and failed,
+            # so it settles the pending pair as ``failed``. A candidate that
+            # was gated before any attempt settles nothing -- that pair is
+            # left for the incomplete judgment (不回填、不编造).
+            if (
+                last_failure is not None
+                and last_failure.last_target is not None
+                and last_failure.last_target.canonical_id == target.canonical_id
+            ):
+                audit.settle(
+                    outcome="failed",
+                    candidate_id=target.canonical_id,
+                    status_code=last_failure.status,
+                    error_kind=last_failure.decision_kind,
+                    ttfb_ms=last_failure.ttfb_ms,
+                    total_latency_ms=last_failure.total_latency_ms,
+                    attempt=attempts,
+                )
             if stop_request:
                 break
             if attempts >= policy.max_attempts or budget_exceeded():
+                if budget_exceeded():
+                    audit.settle(outcome="budget_exhausted")
                 break
             # --- candidate-advance policy (T1 §1) ---
             advance = True
@@ -755,6 +968,7 @@ class UpstreamExecutor:
 
             if last_decision is not None and last_decision.kind != "invalid_request":
                 self._log_failover(
+                    audit,
                     request_id=request_id,
                     from_candidate=target,
                     to_candidate=plan.candidates[target_index + 1] if advance else None,
@@ -763,6 +977,10 @@ class UpstreamExecutor:
                     elapsed_ms=(last_failure.total_latency_ms if last_failure else None),
                     ttfb_ms=(last_failure.ttfb_ms if last_failure else None),
                     circuit=_circuit_for(last_decision),
+                    requested_model=requested_model,
+                    strategy=plan.strategy,
+                    quota_provider=target.provider_name,
+                    quota_slot=failed_slot,
                 )
             if not advance:
                 break

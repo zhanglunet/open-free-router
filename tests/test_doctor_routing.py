@@ -46,7 +46,9 @@ def test_doctor_json_reports_actionable_routing_error(tmp_path, monkeypatch, cap
     )
     config = tmp_path / "config.yaml"
     config.write_text(
-        "registry: registry.yaml\nproxy:\n  port: 65530\nui:\n  port: 65531\n"
+        "registry: registry.yaml\n"
+        f"data_dir: {tmp_path / 'data'}\n"
+        "proxy:\n  port: 65530\nui:\n  port: 65531\n"
         "routing:\n  aliases:\n    preferred:\n      candidates: [missing]\n"
     )
     monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
@@ -68,7 +70,9 @@ def test_doctor_json_accepts_valid_routing(tmp_path, monkeypatch, capsys):
     )
     config = tmp_path / "config.yaml"
     config.write_text(
-        "registry: registry.yaml\nproxy:\n  port: 65530\nui:\n  port: 65531\n"
+        "registry: registry.yaml\n"
+        f"data_dir: {tmp_path / 'data'}\n"
+        "proxy:\n  port: 65530\nui:\n  port: 65531\n"
         "routing:\n  fallback:\n    max_attempts: 3\n"
     )
     monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
@@ -89,7 +93,9 @@ def test_doctor_json_rejects_invalid_free_tier_evidence(tmp_path, monkeypatch, c
     )
     config = tmp_path / "config.yaml"
     config.write_text(
-        "registry: registry.yaml\nproxy:\n  port: 65530\nui:\n  port: 65531\n"
+        "registry: registry.yaml\n"
+        f"data_dir: {tmp_path / 'data'}\n"
+        "proxy:\n  port: 65530\nui:\n  port: 65531\n"
     )
     monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
     with pytest.raises(SystemExit):

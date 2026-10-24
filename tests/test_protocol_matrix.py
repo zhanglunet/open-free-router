@@ -259,7 +259,10 @@ def test_google_openai_compatibility_path_is_actionable_and_cli_json(tmp_path, m
         "  models: [{id: gemini}]\n"
     )
     config = tmp_path / "config.yaml"
-    config.write_text("registry: registry.yaml\n")
+    config.write_text(
+        "registry: registry.yaml\n"
+        f"data_dir: {tmp_path / 'data'}\n"
+    )
     monkeypatch.setenv("OPEN_FREE_ROUTER_CONFIG", str(config))
     cmd_protocols(SimpleNamespace(json=True))
     matrix = json.loads(capsys.readouterr().out)
