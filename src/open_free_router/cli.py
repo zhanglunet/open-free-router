@@ -682,6 +682,21 @@ def cmd_doctor(args):
             print(f"  {mark} {issue['path']}: {issue['message']}")
             print(f"      fix: {issue['fix']}")
 
+    # PRD-173/T4 (T1 §5 row 2): the ``byos`` check group, placed after
+    # free-tier evidence. Both checks are warning-level -- a missing env or
+    # an unreachable gateway must degrade the verdict to "warn" via
+    # doctor_summary_from_report without ever failing doctor outright.
+    from open_free_router.byos.wiring import doctor_checks as byos_doctor_checks
+    byos_items = byos_doctor_checks(cfg)
+    failures += sum(item["severity"] == "error" for item in byos_items)
+    if not json_mode:
+        print("\nbyos subscriptions:")
+        if not byos_items:
+            print("  · no BYOS adapters configured (config.yaml `byos.adapters`)")
+        for item in byos_items:
+            mark = "✓" if item["ok"] else "⚠"
+            print(f"  {mark} {item['label']} — {item['detail']}")
+
     if not json_mode:
         print("\nclient configs:")
     clients = [
@@ -706,6 +721,7 @@ def cmd_doctor(args):
         "checks": checks,
         "routing": [issue.to_dict() for issue in routing_issues],
         "free_tier": {"summary": evidence_summary, "issues": evidence_issues},
+        "byos": byos_items,
         "protocol_matrix": compatibility,
         "clients": [
             {"name": label, "configured": path.exists(), "path": str(path)}

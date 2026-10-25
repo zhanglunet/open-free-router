@@ -110,6 +110,13 @@ def refresh(
             results[name] = False
             continue
 
+        # PRD-173/T4 (T1 §5): subscription gateways are env-derived and are
+        # never discoverable by catalog polling -- one check skips them for
+        # the scheduled refresh and explicit runs alike.
+        if p.refresh_method == "byos":
+            results[name] = False
+            continue
+
         source = SOURCE_MAP.get(name)
         if not source:
             print(f"  ⚠ No refresh source for provider: {name}")
