@@ -345,7 +345,9 @@ def cmd_route_explain(args):
     cfg = Config()
     _bootstrap_registry(cfg)
     reg = Registry.load(cfg.registry_path)
-    explanation = RoutePlanner(reg, cfg.routing).plan(args.model).explain()
+    explanation = RoutePlanner(
+        reg, cfg.routing, prefer_subscribed=cfg.byos_prefer_subscribed
+    ).plan(args.model).explain()
     if args.json:
         import json as _json
         print(_json.dumps(explanation, indent=2, ensure_ascii=False))
@@ -375,7 +377,8 @@ def cmd_route_query(args):
     cfg = Config()
     _bootstrap_registry(cfg)
     reg = Registry.load(cfg.registry_path)
-    result = query_route(RoutePlanner(reg, cfg.routing), args.model, data_dir=cfg.data_dir)
+    planner = RoutePlanner(reg, cfg.routing, prefer_subscribed=cfg.byos_prefer_subscribed)
+    result = query_route(planner, args.model, data_dir=cfg.data_dir)
     if args.json:
         import json as _json
         print(_json.dumps(result, indent=2, ensure_ascii=False))

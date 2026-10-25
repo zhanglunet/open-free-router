@@ -112,6 +112,7 @@ class Daemon:
                            upstream_timeout=self.cfg.upstream_timeout,
                            auth_token=self.proxy_token,
                            routing=self.cfg.routing,
+                           prefer_subscribed=self.cfg.byos_prefer_subscribed,
                            resilience=self.resilience,
                            decisions=self.decisions,
                            analytics=self.analytics)

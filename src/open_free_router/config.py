@@ -85,6 +85,33 @@ class Config:
             mcp = {}
         self.mcp_allow_write_tools = mcp.get("allow_write_tools") is True
 
+        # PRD-173/T1 §3.4: the BYOS (bring-your-own-subscription) block, with
+        # the mcp/discovery fault-tolerance conventions (non-dict falls back
+        # to empty, bools strictly `is True`). T3 consumes only
+        # `byos_prefer_subscribed`; `byos_enabled`/`byos_adapters` gate
+        # adapter registration and doctor checks in T4.
+        byos = self._raw.get("byos", {})
+        if not isinstance(byos, dict):
+            byos = {}
+        # §6 redline 6: `enabled` defaults to true and `adapters` defaults to
+        # empty, so upgrading users see zero behavior change.
+        raw_byos_enabled = byos.get("enabled", True)
+        self.byos_enabled = True if raw_byos_enabled is None else raw_byos_enabled is True
+        self.byos_prefer_subscribed = byos.get("prefer_subscribed", True) is True
+        # Only known adapter names pass; unknown names are dropped with a
+        # warning — the opt-in list never silently widens (T1 §3.4).
+        from open_free_router.byos import ADAPTERS
+        adapters: list[str] = []
+        raw_adapters = byos.get("adapters", [])
+        if isinstance(raw_adapters, list):
+            for item in raw_adapters:
+                name = item.strip() if isinstance(item, str) else ""
+                if name in ADAPTERS:
+                    adapters.append(name)
+                else:
+                    print(f"[config] byos.adapters: unknown adapter {item!r} dropped")
+        self.byos_adapters = adapters
+
         # ui
         self.ui_host = self._raw.get("ui", {}).get("host", "127.0.0.1")
         self.ui_port = int(self._raw.get("ui", {}).get("port", 9057))

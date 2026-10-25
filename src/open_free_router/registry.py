@@ -90,6 +90,60 @@ class ModelInfo:
         return d
 
 
+# PRD-173/T2 (T1 §3.3): registry `byos` metadata block. The four fields below
+# are fixed by the T1 contract (`docs/plans/2026-10-25-byos-access.md`);
+# extending them requires a T1 revision, not a drive-by. A provider without a
+# `byos` block is a regular free-tier provider and behaves exactly as before.
+BYOS_KINDS = frozenset({"subscription_gateway"})
+BYOS_PRIORITY_CLASSES = frozenset({"subscribed", "free"})
+
+
+@dataclass(frozen=True)
+class ByosMetadata:
+    """Marks a provider as a BYOS (bring-your-own-subscription) gateway.
+
+    Pure metadata: credentials stay in environment variables referenced by
+    *name* (`ProviderConfig.api_key_env`), so registry.yaml never carries a
+    secret value. An unknown or malformed `byos` block is dropped (``None``)
+    rather than half-applied -- the provider then behaves as it did before
+    BYOS existed, which is the conservative direction.
+    """
+
+    kind: str = "subscription_gateway"
+    priority_class: str = "subscribed"
+    enabled: bool = True
+    adopted_at: str = ""
+
+    @classmethod
+    def from_dict(cls, raw: object) -> "ByosMetadata | None":
+        if not isinstance(raw, dict):
+            return None
+        kind = raw.get("kind", "subscription_gateway")
+        if kind not in BYOS_KINDS:
+            return None
+        priority_class = raw.get("priority_class", "subscribed")
+        if priority_class not in BYOS_PRIORITY_CLASSES:
+            return None
+        enabled = raw.get("enabled", True)
+        if not isinstance(enabled, bool):
+            return None
+        adopted_at = raw.get("adopted_at", "")
+        if not isinstance(adopted_at, str):
+            return None
+        return cls(
+            kind=kind, priority_class=priority_class,
+            enabled=enabled, adopted_at=adopted_at,
+        )
+
+    def to_dict(self) -> dict:
+        return {
+            "kind": self.kind,
+            "priority_class": self.priority_class,
+            "enabled": self.enabled,
+            "adopted_at": self.adopted_at,
+        }
+
+
 @dataclass
 class ProviderConfig:
     name: str
@@ -104,6 +158,7 @@ class ProviderConfig:
     refresh_method: str = "manual"
     prefix: str = ""  # Short prefix for model IDs (e.g. "nv" for nvidia-nim)
     free_tier: FreeTierEvidence = field(default_factory=FreeTierEvidence)
+    byos: ByosMetadata | None = None  # PRD-173: set only for BYOS subscription gateways.
 
     @property
     def effective_key(self) -> str:
@@ -158,6 +213,7 @@ class Registry:
                 refresh_method=cfg.get("refresh_method", "manual"),
                 prefix=cfg.get("prefix", ""),
                 free_tier=FreeTierEvidence.from_dict(cfg.get("free_tier")),
+                byos=ByosMetadata.from_dict(cfg.get("byos")),
             )
 
     def to_dict(self) -> dict:
@@ -180,6 +236,8 @@ class Registry:
                 d["api_keys"] = p.api_keys
             if p.prefix:
                 d["prefix"] = p.prefix
+            if p.byos is not None:
+                d["byos"] = p.byos.to_dict()
             if p.free_tier.configured:
                 d["free_tier"] = p.free_tier.to_dict(preserve_invalid=True)
             if p.models:
