@@ -440,10 +440,24 @@ byos-openai-compat:
     enabled: true
 ```
 
+「已有订阅优先」排序（config.yaml，PRD-173/T3）：
+
+```yaml
+byos:
+  enabled: true              # 总开关；false 时全部 BYOS 适配器不注册、doctor 跳过
+  prefer_subscribed: true    # 已有订阅优先：subscribed 桶整体前置，桶内顺序不变
+  adapters:                  # 显式允许清单；空 = 不注册任何 BYOS
+    - byos-openai-compat
+```
+
+- 排序只做一次**稳定分桶**：`priority`/`scored` 策略算出顺序之后，`subscribed` 桶整体前置、桶内相对顺序不变；显式指定模型（`byos-oc/<model>`）不参与分桶，用户点名哪个就是哪个。
+- 回退零新规则：BYOS 候选与免费候选同一条换路链（同样的触发条件、退避与熔断），`prefer_subscribed` 只改初始顺序；`route explain --json` 的每个候选带 `byos_class` 标注可查。
+- registry `byos.enabled: false` 的 provider 退出排序（路由候选记 `byos_disabled`），不会被前置。
+
 安全与边界：
 
 - **密钥仅环境变量**：registry/config 只存变量名（`api_key_env`），绝不存密钥值；注册前扫描拒收任何携带密钥值的端点/模型字段。
-- **显式 opt-in**：适配器只有在 config `byos.adapters` 清单中出现才启用（config 接线随后续任务落地）；清单外的名字不会被注册，升级用户零行为变化。
+- **显式 opt-in**：适配器只有在 config `byos.adapters` 清单中出现才启用；清单外的名字会被丢弃并告警，升级用户零行为变化。
 - **ToS 免责**：BYOS 接入是否被提供方条款允许，由用户自行确认；本项目不规避任何访问控制。
 
 ## 模型评测与第三方基准

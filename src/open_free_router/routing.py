@@ -244,6 +244,18 @@ class RouteTarget:
     def upstream_model_id(self) -> str:
         return self.model.effective_upstream_id
 
+    @property
+    def byos_class(self) -> str:
+        """PRD-173/T3 (T1 §4.1): the bucket this target sorts into.
+
+        Providers carrying a registry ``byos`` block use its
+        ``priority_class`` ("subscribed" for BYOS subscription gateways);
+        every other provider — the regular free-tier fleet — is "free".
+        """
+        if self.provider.byos is not None:
+            return self.provider.byos.priority_class
+        return "free"
+
 
 @dataclass(frozen=True)
 class RoutePlan:
@@ -262,6 +274,11 @@ class RoutePlan:
             "requested_model": self.requested_model,
             "strategy": self.strategy,
             "candidates": [target.canonical_id for target in self.candidates],
+            # PRD-173/T3 (T1 §4.1): per-candidate bucket label. Purely
+            # additive — every pre-existing key keeps its exact shape.
+            "byos_class": {
+                target.canonical_id: target.byos_class for target in self.candidates
+            },
             "selected": self.selected.canonical_id if self.selected else None,
             "rejected": list(self.rejected),
             "scoring": {
@@ -271,12 +288,40 @@ class RoutePlan:
         }
 
 
+def _subscribed_first(candidates: list[RouteTarget]) -> list[RouteTarget]:
+    """PRD-173/T3 (T1 §4.2): one stable subscribed-first bucketing pass.
+
+    Runs *after* the strategy (priority order or scoring) has produced its
+    sequence: the ``subscribed`` bucket moves to the front as a whole and the
+    relative order inside each bucket is preserved exactly. With no
+    ``subscribed`` candidate this is an identity function, so free-only
+    registries behave byte-for-byte as before. Fallback rules (PRD-059
+    triggers, backoff, circuit breaking) are untouched — this only changes
+    the initial queue order, and the plan keeps its original strategy name
+    so no failover-ledger vocabulary is polluted.
+    """
+    subscribed = [target for target in candidates if target.byos_class == "subscribed"]
+    if not subscribed:
+        return candidates
+    others = [target for target in candidates if target.byos_class != "subscribed"]
+    return subscribed + others
+
+
 class RoutePlanner:
     """Build deterministic plans from registry order and explicit rules."""
 
-    def __init__(self, registry: Registry, config: RoutingConfig | dict | None = None):
+    def __init__(
+        self,
+        registry: Registry,
+        config: RoutingConfig | dict | None = None,
+        prefer_subscribed: bool = False,
+    ):
         self.registry = registry
         self.config = config if isinstance(config, RoutingConfig) else RoutingConfig.from_dict(config)
+        # PRD-173/T3 (T1 §4.2): the config.yaml `byos.prefer_subscribed`
+        # switch, wired in by the serve/proxy layer. False (the default)
+        # keeps every plan byte-identical to the pre-BYOS behaviour.
+        self.prefer_subscribed = bool(prefer_subscribed)
 
     def virtual_model_ids(self) -> tuple[str, ...]:
         custom = tuple(name for name in self.config.aliases if name not in BUILTIN_ALIASES)
@@ -357,6 +402,13 @@ class RoutePlanner:
             if require_tools and not target.model.tool_calling:
                 rejected.append({"model": target.canonical_id, "reason": "tool_calling_required"})
                 continue
+            # PRD-173/T3 (T1 §3.5): a BYOS provider with registry
+            # `byos.enabled: false` has left sorting and probing, so it must
+            # never be subscribed-bucketed to the front. The existing
+            # rejected channel carries the fact — no new field names.
+            if target.provider.byos is not None and not target.provider.byos.enabled:
+                rejected.append({"model": target.canonical_id, "reason": "byos_disabled"})
+                continue
             if requested_model == "auto/free":
                 evidence_status = target.provider.free_tier_for(target.model).status()
                 if evidence_status != "verified":
@@ -385,6 +437,7 @@ class RoutePlanner:
             candidates = kept
 
         scores: tuple[CandidateScore, ...] = ()
+        score_by_model: dict[str, CandidateScore] = {}
         if self.config.scoring.enabled:
             cost_config = CostConfig(
                 downgrade_threshold=self.config.cost_downgrade_threshold,
@@ -441,8 +494,19 @@ class RoutePlanner:
             scored.sort(key=lambda row: (-row[0], row[1]))
             candidates = [row[2] for row in scored]
             score_by_model = {row[3].model: row[3] for row in scored}
-            scores = tuple(score_by_model[target.canonical_id]
-                           for target in candidates[:self.config.max_attempts])
+
+        if self.prefer_subscribed:
+            # PRD-173/T3 (T1 §4.2): stable bucketing applied after the
+            # strategy has spoken; explicit requests never reach this point.
+            candidates = _subscribed_first(candidates)
+
+        if score_by_model:
+            # Re-align scores with the final candidate order (a no-op while
+            # scoring is off or bucketing moved nothing).
+            scores = tuple(
+                score_by_model[target.canonical_id]
+                for target in candidates[:self.config.max_attempts]
+            )
 
         return RoutePlan(
             requested_model=requested_model,
