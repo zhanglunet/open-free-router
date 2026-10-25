@@ -120,6 +120,7 @@ DECISION_COLUMNS = (
     "reason", "attempt", "elapsed_ms", "ttfb_ms", "circuit",
     "requested_model", "strategy", "quota_band", "quota_source",
     "quota_classification", "doctor_verdict", "doctor_failed_checks", "doctor_at",
+    "honesty",  # PRD-174/T3 (T1 §4)
 )
 OUTCOME_COLUMNS = (
     "outcome_id", "decision_id", "settled_at", "outcome", "status_code",
@@ -615,9 +616,10 @@ def test_v1_store_migrates_in_place_before_the_column_check(tmp_path):
             ).fetchone()
         finally:
             connection.close()
-        # v1 -> v2 by the T2 migration; PRD-149/T3 raises the generation to
-        # 3 with the doctor_state table (CREATE IF NOT EXISTS, no ALTER).
-        assert version == 3
+        # v1 -> v2 by the T2 migration; PRD-149/T3 raised the generation to
+        # 3 with the doctor_state table; PRD-174/T3 raises it to 4 with the
+        # honesty columns (declarative ALTERs, rows kept).
+        assert version == 4
         assert columns == list(DECISION_COLUMNS)
         # The legacy row survived; its new columns read as NULL.
         assert legacy == (None, None, None, None)
@@ -660,8 +662,9 @@ def test_fresh_store_is_created_at_v2_with_the_outcomes_table(tmp_path):
                 "PRAGMA table_info(failover_outcomes)")]
         finally:
             connection.close()
-        # PRD-149/T3 bumps the schema generation to 3 (doctor_state table).
-        assert version == 3
+        # PRD-149/T3 bumped the schema generation to 3 (doctor_state table);
+        # PRD-174/T3 bumps it to 4 (honesty columns, T1 §4).
+        assert version == 4
         assert decision_columns == list(DECISION_COLUMNS)
         assert outcome_columns == list(OUTCOME_COLUMNS)
     finally:

@@ -5,6 +5,7 @@ import csv
 import hashlib
 import io
 import json
+import logging
 import math
 import os
 from datetime import datetime, timedelta, timezone
@@ -22,7 +23,12 @@ from open_free_router.failover_audit import (
     FAILOVER_QUOTA_BANDS,
     FAILOVER_QUOTA_CLASSIFICATIONS,
     FAILOVER_QUOTA_SOURCES,
+    HONESTY_LABELS,
+    derive_decision_honesty,
+    honesty_summary_to_compact,
 )
+
+log = logging.getLogger(__name__)
 
 
 EXPORT_FIELDS = (
@@ -48,6 +54,10 @@ FAILOVER_DECISION_CONTEXT_COLUMNS = (
     ("doctor_verdict", "TEXT"),
     ("doctor_failed_checks", "INTEGER"),
     ("doctor_at", "TEXT"),
+    # PRD-174/T3 (T1 §4): the decision row's overall honesty label
+    # (extracted/inferred/ambiguous). Nullable: rows written before
+    # PRD-174 stay unlabeled and are never backfilled.
+    ("honesty", "TEXT"),
 )
 FAILOVER_DECISION_CONTEXT_FIELDS = tuple(
     name for name, _ in FAILOVER_DECISION_CONTEXT_COLUMNS
@@ -209,20 +219,26 @@ class AnalyticsStore:
             # PRD-149/T3 (T1 §3.1): the latest doctor conclusion that stamps
             # later failover decision rows. Singleton row (id = 1) holding
             # only aggregates -- verdict, error-level check count, run time;
-            # never labels or details. A new table needs no ALTER migration:
-            # CREATE IF NOT EXISTS upgrades any existing store in place.
+            # never labels or details. PRD-174/T3 (T1 §4) adds the nullable
+            # ``honesty_summary`` column: compact JSON label counts, capped
+            # at 128 chars, NULL for runs without a labeled report.
             connection.execute("""
                 CREATE TABLE IF NOT EXISTS doctor_state (
                     id INTEGER PRIMARY KEY CHECK (id = 1),
                     at TEXT NOT NULL,
                     verdict TEXT NOT NULL,
-                    failed_checks INTEGER NOT NULL
+                    failed_checks INTEGER NOT NULL,
+                    honesty_summary TEXT
                 )
             """)
             columns = {row[1] for row in connection.execute("PRAGMA table_info(doctor_state)")}
-            if columns != {"id", "at", "verdict", "failed_checks"}:
+            # PRD-174/T3 (T1 §4): required-subset check instead of strict
+            # equality -- the PRD-149/T1 §2.1 lesson. A future column must
+            # never disable a whole store before its migration runs; only a
+            # store *missing* a required column is unsupported.
+            if not {"id", "at", "verdict", "failed_checks", "honesty_summary"} <= columns:
                 raise sqlite3.DatabaseError("unsupported analytics schema")
-            connection.execute("PRAGMA user_version=3")
+            connection.execute("PRAGMA user_version=4")
             connection.commit()
             self._connection = connection
             self._secure_files()
@@ -237,7 +253,7 @@ class AnalyticsStore:
 
     @staticmethod
     def _migrate_failover_audit(connection: sqlite3.Connection) -> None:
-        """PRD-149/T2 (T1 §2.1): in-place ``user_version`` 1→2 migration.
+        """In-place audit-ledger migrations (PRD-149/T2 T1 §2.1, PRD-174/T3 T1 §4).
 
         Legacy stores carry the ten-column PRD-059/T4 ``failover_decisions``
         table; SQLite ``ALTER TABLE ... ADD COLUMN`` upgrades them without
@@ -247,12 +263,16 @@ class AnalyticsStore:
         which also makes this idempotent for stores that were interrupted
         between the first ALTER and the version bump.
 
-        ``user_version`` 3 (PRD-149/T3) only adds the new ``doctor_state``
-        table via ``CREATE TABLE IF NOT EXISTS`` in ``_initialize`` -- no
-        ALTER path here, and any version >= 2 store passes through untouched.
+        ``user_version`` 3 (PRD-149/T3) added the ``doctor_state`` table via
+        ``CREATE TABLE IF NOT EXISTS``. ``user_version`` 4 (PRD-174/T3) adds
+        the nullable ``failover_decisions.honesty`` column (part of the
+        declarative context-column tuple above) and the nullable
+        ``doctor_state.honesty_summary`` column; any store below version 4
+        gets both ALTERs, any store at 4 passes through untouched. Existing
+        rows keep ``NULL`` in the new columns -- never backfilled.
         """
         version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if version >= 2:
+        if version >= 4:
             return
         existing = {row[1] for row in connection.execute("PRAGMA table_info(failover_decisions)")}
         if existing:
@@ -261,6 +281,11 @@ class AnalyticsStore:
                     connection.execute(
                         f"ALTER TABLE failover_decisions ADD COLUMN {name} {decl}"
                     )
+        existing_doctor = {
+            row[1] for row in connection.execute("PRAGMA table_info(doctor_state)")
+        }
+        if existing_doctor and "honesty_summary" not in existing_doctor:
+            connection.execute("ALTER TABLE doctor_state ADD COLUMN honesty_summary TEXT")
 
     def _secure_files(self) -> None:
         if not self.path:
@@ -368,8 +393,9 @@ class AnalyticsStore:
         doctor_verdict: str | None = None,
         doctor_failed_checks: int | None = None,
         doctor_at: str | None = None,
+        honesty: str | None = None,
     ) -> str | None:
-        """Write one T1 §5 + PRD-149/T2 §2.2 decision row.
+        """Write one T1 §5 + PRD-149/T2 §2.2 + PRD-174/T3 §4 decision row.
 
         Desensitized by construction: ``reason`` is coerced to a known
         FailureDecision.kind enum and every free-form field is length-bounded;
@@ -377,6 +403,13 @@ class AnalyticsStore:
         rejected rather than stored.  Returns the written ``decision_id``
         (the pairing key for ``record_failover_outcome``), or ``None`` when
         nothing was recorded.
+
+        PRD-174/T3 (T1 §4): ``honesty`` is the row's overall honesty label.
+        An out-of-range value folds to ``ambiguous`` (the ``error_kind``
+        precedent — the row is still written, never rejected) with a warning
+        that records only the fact, never the offending value; ``None``
+        derives the conservative default from the row's own context via
+        ``derive_decision_honesty``.
         """
         if not self.enabled or not self._connection:
             return None
@@ -396,6 +429,18 @@ class AnalyticsStore:
         source = str(quota_source or "")
         classification = str(quota_classification or "")
         verdict = str(doctor_verdict or "")
+        # PRD-174/T3 (T1 §4): the row's overall honesty label. Explicit
+        # out-of-range values fold to ``ambiguous`` without rejecting the
+        # row; an absent value derives from the row's own context.
+        if honesty is None:
+            row_honesty = derive_decision_honesty(verdict, source)
+        elif honesty in HONESTY_LABELS:
+            row_honesty = honesty
+        else:
+            log.warning(
+                "failover decision honesty label out of range; folded to ambiguous"
+            )
+            row_honesty = "ambiguous"
         row = (
             uuid.uuid4().hex,
             at or datetime.now(timezone.utc).isoformat(),
@@ -415,6 +460,7 @@ class AnalyticsStore:
             verdict if verdict in FAILOVER_DOCTOR_VERDICTS else "never_run",
             _safe_number(doctor_failed_checks, integer=True),
             str(doctor_at or "")[:64] or None,
+            row_honesty,
         )
         encoded = json.dumps(row, ensure_ascii=False)
         if SENSITIVE_PATTERN.search(encoded):
@@ -430,8 +476,8 @@ class AnalyticsStore:
                         reason, attempt, elapsed_ms, ttfb_ms, circuit,
                         requested_model, strategy, quota_band, quota_source,
                         quota_classification, doctor_verdict, doctor_failed_checks,
-                        doctor_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                        doctor_at, honesty)
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     row,
                 )
                 self._connection.commit()
@@ -532,6 +578,7 @@ class AnalyticsStore:
         doctor_verdict: str | None,
         doctor_failed_checks: int | None = None,
         doctor_at: str | None = None,
+        honesty_summary: dict | None = None,
     ) -> None:
         """Persist the latest doctor conclusion (PRD-149/T3, T1 §3.1).
 
@@ -540,16 +587,23 @@ class AnalyticsStore:
         output the operator correlates by ``doctor_at``. An out-of-enum
         verdict is ignored rather than folded -- the ledger never fabricates
         a conclusion. Disabled stores no-op silently.
+
+        PRD-174/T3 (T1 §4): ``honesty_summary`` is the run's honesty label
+        counts, validated and serialized to a compact JSON string (≤128
+        chars) by ``honesty_summary_to_compact``; malformed or oversized
+        input stores NULL rather than a fabricated summary.
         """
         if not self.enabled or not self._connection:
             return
         verdict = str(doctor_verdict or "")
         if verdict not in DOCTOR_RUN_VERDICTS:
             return
+        summary = honesty_summary_to_compact(honesty_summary)
         row = (
             str(doctor_at or "")[:64] or datetime.now(timezone.utc).isoformat(),
             verdict,
             _safe_number(doctor_failed_checks, integer=True) or 0,
+            summary,
         )
         encoded = json.dumps(row, ensure_ascii=False)
         if SENSITIVE_PATTERN.search(encoded):
@@ -557,12 +611,14 @@ class AnalyticsStore:
         with self._lock:
             try:
                 self._connection.execute(
-                    """INSERT INTO doctor_state (id, at, verdict, failed_checks)
-                       VALUES (1, ?, ?, ?)
+                    """INSERT INTO doctor_state (id, at, verdict, failed_checks,
+                                                honesty_summary)
+                       VALUES (1, ?, ?, ?, ?)
                        ON CONFLICT(id) DO UPDATE SET
                          at = excluded.at,
                          verdict = excluded.verdict,
-                         failed_checks = excluded.failed_checks""",
+                         failed_checks = excluded.failed_checks,
+                         honesty_summary = excluded.honesty_summary""",
                     row,
                 )
                 self._connection.commit()
