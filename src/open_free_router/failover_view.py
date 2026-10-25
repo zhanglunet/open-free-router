@@ -60,12 +60,19 @@ def _decision_rows(store: Any, *, days: int, reason: str | None, limit: int) -> 
 
 
 def collect_pairs(store: Any, *, days: int = 14, backend: str | None = None,
-                  reason: str | None = None, limit: int = 500) -> list[dict]:
+                  reason: str | None = None, limit: int = 500,
+                  honesty: str | None = None) -> list[dict]:
     """成对记录视图：决策行 + 关联结果行；无结果行 → pair_status=incomplete。
 
     backend 匹配 from_candidate 或 to_candidate（换路两侧任一命中即算）。
+    honesty（PRD-174/T4，#873）：按标注等级过滤——仅返回 honesty 完全相等的
+    行；无标注（PRD-174 前的存量行，NULL）仅在 honesty 传 "unlabeled" 时返回。
     """
     decisions = _decision_rows(store, days=days, reason=reason, limit=limit)
+    if honesty == "unlabeled":
+        decisions = [d for d in decisions if not d.get("honesty")]
+    elif honesty:
+        decisions = [d for d in decisions if d.get("honesty") == honesty]
     if backend:
         decisions = [d for d in decisions
                      if backend in (d.get("from_candidate"), d.get("to_candidate"))]
@@ -83,6 +90,7 @@ def collect_pairs(store: Any, *, days: int = 14, backend: str | None = None,
             "reason": d.get("reason"),
             "quota_band": d.get("quota_band"),
             "doctor_verdict": d.get("doctor_verdict"),
+            "honesty": d.get("honesty"),
             "outcome": (out or {}).get("outcome"),
             "settled_at": (out or {}).get("settled_at"),
             "pair_status": "incomplete" if out is None else "paired",
@@ -103,5 +111,6 @@ def summarize(pairs: list[dict]) -> dict[str, Any]:
         "by_reason": counter("reason"),
         "by_quota_band": counter("quota_band"),
         "by_doctor_verdict": counter("doctor_verdict"),
+        "by_honesty": counter("honesty"),
         "by_outcome": counter("outcome"),
     }

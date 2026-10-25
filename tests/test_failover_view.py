@@ -90,3 +90,43 @@ def test_cli_cmds_json_and_table(tmp_path, capsys, monkeypatch):
     out = capsys.readouterr().out
     assert "incomplete" in out and "c.example.test" in out
     assert cli_mod  # noqa: B018 — 引用占位（保持 import 区可读）
+
+
+# ---------- PRD-174/T4：按标注等级过滤与展示（trend #873） ----------
+
+def test_honesty_filter_and_summary_dimension(tmp_path):
+    store = AnalyticsStore(tmp_path / "usage.db")
+    _seed(store)
+    seeded = collect_pairs(store, days=1)
+    # _seed 的 doctor_verdict=pass/warn 都是 severity-count 推导 → inferred
+    assert all(p["honesty"] == "inferred" for p in seeded)
+    assert collect_pairs(store, days=1, honesty="ambiguous") == []
+    s = summarize(seeded)
+    assert s["by_honesty"] == {"inferred": 2}
+
+
+def test_unlabeled_filter_for_legacy_rows(tmp_path):
+    store = AnalyticsStore(tmp_path / "usage.db")
+    _seed(store)
+    import sqlite3
+    conn = sqlite3.connect(tmp_path / "usage.db")
+    conn.execute("UPDATE failover_decisions SET honesty = NULL")
+    conn.commit(); conn.close()
+    assert len(collect_pairs(store, days=1, honesty="unlabeled")) == 2
+    assert collect_pairs(store, days=1, honesty="pass") == []
+
+
+def test_cli_honesty_flag(tmp_path, capsys, monkeypatch):
+    from argparse import Namespace
+    from open_free_router.cli import cmd_failover_log
+    store = AnalyticsStore(tmp_path / "usage.db")
+    _seed(store)
+    import open_free_router.config as config_mod
+    monkeypatch.setattr(config_mod, "Config",
+                        lambda: Namespace(analytics_path=tmp_path / "usage.db",
+                                          analytics_retention_days=30))
+    rc = cmd_failover_log(Namespace(days=1, backend=None, reason=None,
+                                    limit=500, json=False, honesty="inferred"))
+    assert rc == 0
+    out = capsys.readouterr().out
+    assert "incomplete" in out and "rate_limited" in out
