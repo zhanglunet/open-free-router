@@ -47,11 +47,11 @@ def _doctor_state_row(store):
 
 def _decision(store, **fields) -> str:
     fields.setdefault("request_id", "ofr_example")
-    decision_id = store.record_failover_decision(
-        from_candidate="<provider-a>/<model-x>",
-        to_candidate="<byos-oc>/<model-y>", reason="rate_limited", attempt=1,
-        **fields,
-    )
+    fields.setdefault("from_candidate", "<provider-a>/<model-x>")
+    fields.setdefault("to_candidate", "<byos-oc>/<model-y>")
+    fields.setdefault("reason", "rate_limited")
+    fields.setdefault("attempt", 1)
+    decision_id = store.record_failover_decision(**fields)
     assert decision_id
     return decision_id
 
