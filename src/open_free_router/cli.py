@@ -562,6 +562,10 @@ def _record_doctor_conclusion(cfg: Config, report: dict) -> None:
                 doctor_verdict=summary["doctor_verdict"],
                 doctor_failed_checks=summary["doctor_failed_checks"],
                 doctor_at=datetime.now(timezone.utc).isoformat(),
+                # PRD-174/T3 (T1 §4): the run's honesty label counts land in
+                # doctor_state.honesty_summary; the store-side reducer
+                # validates and caps the payload, malformed input stores NULL.
+                honesty_summary=report.get("honesty_summary"),
             )
         finally:
             store.close()

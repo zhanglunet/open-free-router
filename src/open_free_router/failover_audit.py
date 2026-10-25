@@ -18,9 +18,18 @@ PRD-149/T3 adds the doctor alignment pieces (T1 §3.1):
 ledger aggregates (verdict + error count, never labels/details), and the
 default hook stamps the store's latest recorded conclusion onto every
 decision row whose caller did not pass its own doctor context.
+
+PRD-174/T3 (T1 §4) extends the ledger purely additively: the decision row
+gains a nullable ``honesty`` column (overall trustworthiness of the row's
+doctor/quota context — ``derive_decision_honesty`` supplies the conservative
+default when the caller does not state one) and ``doctor_state`` gains a
+nullable ``honesty_summary`` column (compact label counts from the run's
+report). Schema generation bumps ``user_version`` 3 → 4; old rows stay
+unlabeled (NULL) and are never backfilled.
 """
 from __future__ import annotations
 
+import json
 import logging
 
 
@@ -71,11 +80,16 @@ DECISION_KEYS = (
     "elapsed_ms", "ttfb_ms", "circuit", "at",
     "requested_model", "strategy", "quota_band", "quota_source",
     "quota_classification", "doctor_verdict", "doctor_failed_checks", "doctor_at",
+    "honesty",
 )
 OUTCOME_KEYS = (
     "decision_id", "settled_at", "outcome", "status_code", "error_kind",
     "ttfb_ms", "total_latency_ms", "attempt",
 )
+# PRD-174/T3 (T1 §4): the doctor_state summary column is a compact JSON
+# object with fixed keys, capped at this many characters. Anything longer or
+# malformed stores as NULL -- never truncated mid-JSON, never guessed.
+HONESTY_SUMMARY_MAX_CHARS = 128
 
 
 def doctor_summary_from_report(report: dict) -> dict | None:
@@ -152,6 +166,55 @@ def honesty_summary_from_report(report: dict) -> dict:
             if label in HONESTY_LABELS:
                 counts[label] += 1
     return counts
+
+
+def derive_decision_honesty(doctor_verdict: str | None, quota_source: str | None) -> str:
+    """PRD-174/T3 (T1 §4): a decision row's overall honesty label.
+
+    The decision row composes the doctor context and the quota context, so
+    its label is the *most conservative* label among the fields that carry a
+    real signal (T1 §4 row 1), with the T1 §2.3 rule-1 floor: a code path
+    that captured no real signal this round can only be ``ambiguous``.
+
+    * a stamped doctor run (``pass``/``warn``/``fail``) is a severity-count
+      derivation → ``inferred``;
+    * ``quota_source="upstream_headers"`` means numbers were actually parsed
+      this round → ``inferred``;
+    * no doctor run and no measured quota source → ``ambiguous``.
+
+    ``extracted`` is deliberately unreachable here: a decision row is always
+    composed/derived context, never a direct observation (T1 §2.2). Callers
+    that know better — e.g. a quota signal derived from response wording —
+    pass an explicit ``honesty`` instead, which wins after gate validation.
+    """
+    if doctor_verdict in DOCTOR_RUN_VERDICTS:
+        return "inferred"
+    if quota_source == "upstream_headers":
+        return "inferred"
+    return "ambiguous"
+
+
+def honesty_summary_to_compact(summary: object) -> str | None:
+    """PRD-174/T3 (T1 §4): validate and serialize a doctor honesty summary.
+
+    Accepts only a mapping whose ``extracted``/``inferred``/``ambiguous``
+    counts are non-negative integers; anything else — including oversized or
+    malformed payloads — returns ``None`` so the column stores NULL rather
+    than a truncated or fabricated summary (the "不编造" discipline). The
+    fixed key order keeps the compact JSON stable for a given report.
+    """
+    if not isinstance(summary, dict):
+        return None
+    counts = {}
+    for key in HONESTY_SUMMARY_KEYS:
+        value = summary.get(key, 0)
+        if isinstance(value, bool) or not isinstance(value, int):
+            return None
+        counts[key] = max(0, value)
+    encoded = json.dumps(counts, separators=(",", ":"))
+    if len(encoded) > HONESTY_SUMMARY_MAX_CHARS:
+        return None
+    return encoded
 
 
 class FailoverAuditHook:
