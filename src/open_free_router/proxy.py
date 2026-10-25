@@ -90,6 +90,8 @@ class _ProxyHandler(BaseHTTPRequestHandler):
     _model_index: ClassVar[dict[str, str]] = {}  # model_id → provider_name
     _index_lock: ClassVar[threading.Lock] = threading.Lock()
     routing_config: ClassVar[RoutingConfig] = RoutingConfig()
+    # PRD-173/T3 (T1 §4.2): config.yaml `byos.prefer_subscribed`, set by run_proxy.
+    byos_prefer_subscribed: ClassVar[bool] = False
     route_planner: ClassVar[RoutePlanner | None] = None
     resilience_manager: ClassVar[ResilienceManager] = ResilienceManager()
     decision_store: ClassVar[RouteDecisionStore] = RouteDecisionStore()
@@ -135,7 +137,11 @@ class _ProxyHandler(BaseHTTPRequestHandler):
                     idx[codex_model_alias(prefix, m.id)] = name
         with cls._index_lock:
             cls._model_index = idx
-            cls.route_planner = RoutePlanner(cls.registry, cls.routing_config) if cls.registry else None
+            cls.route_planner = (
+                RoutePlanner(cls.registry, cls.routing_config,
+                             prefer_subscribed=cls.byos_prefer_subscribed)
+                if cls.registry else None
+            )
 
     def _find_provider(self, model_id: str) -> str | None:
         with self._index_lock:
@@ -828,6 +834,7 @@ def run_proxy(
     upstream_timeout: int = 120,
     auth_token: str = "",
     routing: RoutingConfig | dict | None = None,
+    prefer_subscribed: bool = False,
     resilience: ResilienceManager | None = None,
     decisions: RouteDecisionStore | None = None,
     analytics: AnalyticsStore | None = None,
@@ -840,6 +847,7 @@ def run_proxy(
         "_upstream_timeout": upstream_timeout,
         "auth_token": auth_token,
         "routing_config": routing if isinstance(routing, RoutingConfig) else RoutingConfig.from_dict(routing),
+        "byos_prefer_subscribed": bool(prefer_subscribed),
         "resilience_manager": resilience or ResilienceManager(),
         "decision_store": decision_store,
         "analytics_store": analytics,
