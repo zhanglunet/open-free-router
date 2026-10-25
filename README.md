@@ -415,6 +415,37 @@ Cloudflare Cron 每 15 分钟轮换探测一批模型，两轮覆盖完整目录
 冒充“服务器可用”。完整矩阵与验收口径见
 [`docs/protocol-capability-matrix.md`](docs/protocol-capability-matrix.md)。
 
+## BYOS：自带订阅接入
+
+已有订阅（经其官方 OpenAI 兼容端点或自建/企业网关）可以注册为路由后端，降低对单一免费模型源的依赖（PRD-173）。当前提供两个适配器：
+
+| 适配器 | 必需环境变量 | 可选环境变量 | 缺省端点 |
+|---|---|---|---|
+| `byos-openai-compat` | `OFR_BYOS_OPENAI_COMPAT_API_KEY` | `OFR_BYOS_OPENAI_COMPAT_BASE_URL`、`OFR_BYOS_OPENAI_COMPAT_MODEL` | `https://<byos-openai-compat-host>/v1`（占位符，不可路由） |
+| `byos-custom` | `OFR_BYOS_CUSTOM_API_KEY`、`OFR_BYOS_CUSTOM_BASE_URL` | `OFR_BYOS_CUSTOM_MODEL` | 无（端点 env 必填，未设置不注册） |
+
+适配器只做两件事：`resolve`（env 齐备 → 生成可注册的 provider，`refresh_method: byos`，不参与免费模型目录轮询）与 `probe`（对用户指定端点发一次最小 1-token Chat Completions 探活，结果只含状态码、延迟与失败分类）。适配器不读取任何客户端会话凭据、不代登录、不刷新 OAuth 令牌。
+
+```yaml
+# registry.yaml（0600）示例：模型由用户显式登记，密钥只存变量名
+byos-openai-compat:
+  base_url: https://<byos-openai-compat-host>/v1   # 占位示例；同名 env 优先
+  api_key_env: OFR_BYOS_OPENAI_COMPAT_API_KEY       # 只存变量名，绝不存值
+  auth_mode: bearer
+  refresh_method: byos
+  prefix: byos-oc
+  byos:
+    kind: subscription_gateway
+    priority_class: subscribed
+    enabled: true
+```
+
+安全与边界：
+
+- **密钥仅环境变量**：registry/config 只存变量名（`api_key_env`），绝不存密钥值；注册前扫描拒收任何携带密钥值的端点/模型字段。
+- **显式 opt-in**：适配器只有在 config `byos.adapters` 清单中出现才启用（config 接线随后续任务落地）；清单外的名字不会被注册，升级用户零行为变化。
+- **ToS 免责**：BYOS 接入是否被提供方条款允许，由用户自行确认；本项目不规避任何访问控制。
+
 ## 模型评测与第三方基准
 
 [模型评测页](https://oaf.asia/benchmarks/)把证据分成三层：Cloudflare 服务器端真实可用性与延迟、注册表声明的功能密度与免费证据、可选的 Artificial Analysis 外部质量基准。本站“任务适配分”只衡量当前接入就绪度，不等于智力或回答质量；页面已公开四个分项的精确计分规则。当前状态和延迟是提供商级服务端快照，同一提供商模型可能继承同一轮结果，不冒充逐模型质量实测。
