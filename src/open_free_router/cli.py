@@ -576,14 +576,23 @@ def cmd_doctor(args):
     """Diagnose the local install: config, registry, ports, client configs."""
     import json as _json
     from open_free_router import sync as sync_mod
+    from open_free_router.failover_audit import (
+        HONESTY_LABELS, HONESTY_TAGS_ZH, honesty_summary_from_report,
+    )
     cfg = Config()
     payload = _status_payload(cfg)
     failures = 0
     json_mode = bool(getattr(args, "json", False))
     checks: list[dict] = []
 
-    def check(ok: bool, label: str, detail: str = "", warn_only: bool = False):
+    def check(ok: bool, label: str, detail: str = "", warn_only: bool = False,
+              honesty: str = "ambiguous"):
+        # PRD-174/T2 (T1 §3.1): every conclusion carries an honesty label.
+        # The default is the conservative ``ambiguous`` (T1 §3.2: 缺省标注取
+        # ambiguous) -- ``extracted`` may never be a parameter default
+        # (T1 §2.3 rule 1); every call site below states its label outright.
         nonlocal failures
+        honesty = honesty if honesty in HONESTY_LABELS else "ambiguous"
         mark = "✓" if ok else ("⚠" if warn_only else "✗")
         if not ok and not warn_only:
             failures += 1
@@ -593,26 +602,41 @@ def cmd_doctor(args):
             "severity": "warning" if warn_only and not ok else ("error" if not ok else "ok"),
             "label": label,
             "detail": detail,
+            "honesty": honesty,
         })
         if not json_mode:
-            print(f"  {mark} {label}{suffix}")
+            print(f"  {mark} {label}{suffix} [{HONESTY_TAGS_ZH[honesty]}]")
 
     if not json_mode:
         print("open-free-router doctor")
     check(cfg.path is not None and cfg.path.exists(), "config.yaml found",
-          str(cfg.path) if cfg.path else "run `open-free-router serve` once to create it", warn_only=True)
-    check(cfg.registry_path.exists(), "registry.yaml found", str(cfg.registry_path))
-    check(payload["providers"] > 0, "providers registered", f"{payload['providers']}")
+          str(cfg.path) if cfg.path else "run `open-free-router serve` once to create it",
+          warn_only=True, honesty="extracted")
+    check(cfg.registry_path.exists(), "registry.yaml found", str(cfg.registry_path),
+          honesty="extracted")
+    check(payload["providers"] > 0, "providers registered", f"{payload['providers']}",
+          honesty="extracted")
     check(payload["providers_with_key"] > 0, "at least one provider has an API key",
-          f"{payload['providers_with_key']}/{payload['providers']} — run `open-free-router setup`")
-    check(payload["models"] > 0, "models in registry", f"{payload['models']}")
+          f"{payload['providers_with_key']}/{payload['providers']} — run `open-free-router setup`",
+          honesty="extracted")
+    check(payload["models"] > 0, "models in registry", f"{payload['models']}",
+          honesty="extracted")
+    # 可达性是本轮真实端口探测（_status_payload 内 _http_ok 实际发请求）；
+    # 探测未及（依赖进程不在）时不得冒充实测，标存疑（T1 §3.2 row 2）。
     check(payload["proxy_reachable"], "proxy reachable", payload["proxy_url"]
-          + ("" if payload["proxy_reachable"] else " — run `open-free-router serve`"), warn_only=True)
-    check(payload["ui_reachable"], "dashboard reachable", payload["ui_url"], warn_only=True)
+          + ("" if payload["proxy_reachable"] else " — run `open-free-router serve`"),
+          warn_only=True, honesty="extracted" if payload["proxy_reachable"] else "ambiguous")
+    check(payload["ui_reachable"], "dashboard reachable", payload["ui_url"],
+          warn_only=True, honesty="extracted" if payload["ui_reachable"] else "ambiguous")
 
     registry = Registry.load(cfg.registry_path) if cfg.registry_path.exists() else Registry({})
     from open_free_router.protocol_matrix import protocol_matrix
     compatibility = protocol_matrix(registry)
+    # 协议矩阵由声明的 provider 配置推导（verification: declared_not_live_tested），
+    # 恒为推断，绝不冒充实测（T1 §3.2 row 3）。
+    compatibility["issues"] = [
+        dict(issue, honesty="inferred") for issue in compatibility["issues"]
+    ]
     failures += sum(issue["severity"] == "error" for issue in compatibility["issues"])
     if not json_mode:
         print("\nprotocol compatibility:")
@@ -621,20 +645,20 @@ def cmd_doctor(args):
             f"{compatibility['protocol_count']} client protocols"
         )
         if not compatibility["issues"]:
-            print("  ✓ declared upstream protocol configuration is valid")
+            print("  ✓ declared upstream protocol configuration is valid [推断]")
         for issue in compatibility["issues"]:
             mark = "✗" if issue["severity"] == "error" else "⚠"
-            print(f"  {mark} {issue['provider']}: {issue['message']}")
+            print(f"  {mark} {issue['provider']}: {issue['message']} [推断]")
             print(f"      fix: {issue['fix']}")
     routing_issues = diagnose_routing_config(cfg._raw.get("routing"), registry)
     failures += sum(issue.severity == "error" for issue in routing_issues)
     if not json_mode:
         print("\nrouting config:")
         if not routing_issues:
-            print("  ✓ deterministic routing configuration is valid")
+            print("  ✓ deterministic routing configuration is valid [推断]")
         for issue in routing_issues:
             mark = "✗" if issue.severity == "error" else "⚠"
-            print(f"  {mark} {issue.path}: {issue.message}")
+            print(f"  {mark} {issue.path}: {issue.message} [推断]")
             if issue.fix:
                 print(f"      fix: {issue.fix}")
 
@@ -660,12 +684,16 @@ def cmd_doctor(args):
                     "severity": "error", "code": "invalid_free_tier_evidence", "path": path,
                     "message": "; ".join(evidence.validation_errors),
                     "fix": "修正该 free_tier 字段后运行 `open-free-router doctor` 复查",
+                    # 结构校验是本轮真实读取（T1 §3.2 row 5）。
+                    "honesty": "extracted",
                 })
             elif state in ("expired", "unverified"):
                 evidence_issues.append({
                     "severity": "warning", "code": f"free_tier_{state}", "path": path,
                     "message": "免费条件证据已过期，必须重新核验。" if state == "expired" else "免费条件缺少有效来源或核验期限。",
                     "fix": "更新 evidence_url、verified_at 和 expires_at 后运行 `open-free-router doctor` 复查",
+                    # 证据过期/缺来源 = 存疑（T1 §3.2 row 6）。
+                    "honesty": "ambiguous",
                 })
     failures += sum(issue["severity"] == "error" for issue in evidence_issues)
     if not json_mode:
@@ -676,7 +704,8 @@ def cmd_doctor(args):
         )
         for issue in evidence_issues:
             mark = "✗" if issue["severity"] == "error" else "⚠"
-            print(f"  {mark} {issue['path']}: {issue['message']}")
+            print(f"  {mark} {issue['path']}: {issue['message']} "
+                  f"[{HONESTY_TAGS_ZH[issue['honesty']]}]")
             print(f"      fix: {issue['fix']}")
 
     if not json_mode:
@@ -695,17 +724,29 @@ def cmd_doctor(args):
     for label, path in clients:
         mark = "✓" if path.exists() else "·"
         if not json_mode:
-            print(f"  {mark} {label:22s} {path}")
+            print(f"  {mark} {label:22s} {path} [实测]")
 
+    labeled_routing = [dict(issue.to_dict(), honesty="inferred") for issue in routing_issues]
     report = {
         "ok": failures == 0,
         "problem_count": failures,
+        # T1 §3.2 row 8: the top-level summary is derived from severity
+        # counts, hence inferred; each underlying conclusion carries its own
+        # label above.
+        "honesty": "inferred",
+        "honesty_summary": honesty_summary_from_report({
+            "checks": checks,
+            "routing": labeled_routing,
+            "free_tier": {"issues": evidence_issues},
+            "protocol_matrix": compatibility,
+        }),
         "checks": checks,
-        "routing": [issue.to_dict() for issue in routing_issues],
+        "routing": labeled_routing,
         "free_tier": {"summary": evidence_summary, "issues": evidence_issues},
         "protocol_matrix": compatibility,
         "clients": [
-            {"name": label, "configured": path.exists(), "path": str(path)}
+            {"name": label, "configured": path.exists(), "path": str(path),
+             "honesty": "extracted"}
             for label, path in clients
         ],
     }

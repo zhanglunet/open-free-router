@@ -53,6 +53,17 @@ DOCTOR_CONTEXT_KEYS = ("doctor_verdict", "doctor_failed_checks", "doctor_at")
 # was never attempted because the total budget ran out.
 FAILOVER_OUTCOMES = frozenset({"success", "failed", "no_candidate", "budget_exhausted"})
 
+# PRD-174/T2 (T1 §2.1): honesty labels for doctor conclusions and failover
+# reasons. Stored/transmitted lowercase; the display layer renders the
+# Chinese tags below. The three-state honest-labeling design borrows
+# Graphify-Labs/graphify (Apache-2.0, see NOTICE.md); the vocabulary and the
+# assignment rules are self-authored (T1 §2.2 is the only authoritative
+# matrix). Old data without a label is shown as ``unlabeled`` -- never
+# backfilled, never defaulted into any state.
+HONESTY_LABELS = frozenset({"extracted", "inferred", "ambiguous"})
+HONESTY_TAGS_ZH = {"extracted": "实测", "inferred": "推断", "ambiguous": "存疑"}
+HONESTY_SUMMARY_KEYS = ("extracted", "inferred", "ambiguous")
+
 # Layer 1 of the T1 §4.2 write gate: only these keys may ever reach the
 # store. Anything else a caller passes is dropped, never stored.
 DECISION_KEYS = (
@@ -111,6 +122,36 @@ def doctor_summary_from_report(report: dict) -> dict | None:
         return None
     verdict = "fail" if errors else ("warn" if warnings else "pass")
     return {"doctor_verdict": verdict, "doctor_failed_checks": errors}
+
+
+def honesty_summary_from_report(report: dict) -> dict:
+    """Count honesty labels across the report's conclusion entries (T1 §3.1).
+
+    Same population ``doctor_summary_from_report`` reduces (checks items plus
+    the routing / free-tier / protocol-matrix issue lists), counted by label
+    instead of severity. Informational client entries are never counted.
+    Entries without a label, or with one outside ``HONESTY_LABELS``, are not
+    counted and never guessed into a state -- a missing label in a freshly
+    built report is an implementation bug the T2 tests assert on.
+    """
+    counts = {key: 0 for key in HONESTY_SUMMARY_KEYS}
+    if not isinstance(report, dict):
+        return counts
+    for group in DOCTOR_REPORT_GROUPS:
+        items = report.get(group)
+        if group in ("free_tier", "protocol_matrix"):
+            items = items.get("issues") if isinstance(items, dict) else None
+        if items is None:
+            continue
+        if not isinstance(items, (list, tuple)):
+            items = [items]
+        for item in items:
+            if not isinstance(item, dict):
+                continue
+            label = item.get("honesty")
+            if label in HONESTY_LABELS:
+                counts[label] += 1
+    return counts
 
 
 class FailoverAuditHook:
