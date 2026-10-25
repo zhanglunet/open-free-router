@@ -176,7 +176,8 @@ def test_existing_store_upgrades_in_place_with_doctor_state(tmp_path):
         assert store.latest_doctor_run()["doctor_verdict"] == "fail"
         connection = sqlite3.connect(path)
         try:
-            assert connection.execute("PRAGMA user_version").fetchone()[0] == 3
+            # PRD-174/T3 bumps the schema generation to 4 (honesty columns).
+            assert connection.execute("PRAGMA user_version").fetchone()[0] == 4
             kept = connection.execute(
                 "SELECT COUNT(*) FROM failover_decisions WHERE decision_id = ?",
                 (seed,),

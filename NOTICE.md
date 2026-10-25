@@ -14,6 +14,19 @@ This repository is independently maintained by
 [`zhanglunet`](https://github.com/zhanglunet). It is not an official OpenAI,
 Cloudflare, or upstream model-provider product.
 
+## Attribution: honest labeling design
+
+The three-state honest-labeling idea behind `HONESTY_LABELS` — marking a
+conclusion as extracted (measured this run), inferred (derived by an open
+rule), or ambiguous (missing/conflicting evidence) — is borrowed from
+[Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify),
+licensed under the Apache License 2.0 (see its
+[LICENSE](https://github.com/Graphify-Labs/graphify/blob/main/LICENSE)). No
+source code was copied: the label vocabulary, the assignment matrix and all
+implementations in this repository are original (see
+`docs/plans/2026-10-25-doctor-honest-labeling.md`). The Apache License 2.0
+text is available at the link above and is preserved by reference here.
+
 ## Attribution: BYOS (bring-your-own-subscription) approach
 
 The BYOS access approach in this repository — attaching an existing

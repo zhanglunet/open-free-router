@@ -9,7 +9,7 @@ from open_free_router.analytics import AnalyticsStore
 from open_free_router.failover_audit import AnalyticsAuditHook
 from open_free_router.failover_view import collect_pairs, summarize
 
-NOW = datetime(2026, 10, 24, 12, 0, tzinfo=timezone.utc)
+NOW = datetime.now(timezone.utc) - timedelta(hours=2)  # 窗口随墙钟滚动：种子必须用相对时间（硬编码日期会随时间推移落出 days 窗口）
 
 
 def _seed(store: AnalyticsStore) -> None:

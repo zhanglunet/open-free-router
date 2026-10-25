@@ -591,7 +591,7 @@ def test_5_no_secrets_reach_the_ledger(tmp_path):
                 "PRAGMA table_info(failover_decisions)")}
         finally:
             connection.close()
-        assert columns == set(DECISION_COLUMNS)
+        assert columns == set(DECISION_COLUMNS) | {'honesty'}  # PRD-174/T3：决策行增 honesty 列
 
         # The rejections added exactly one decision row (the allowlist one);
         # no outcome row appeared for the rejected writes.
