@@ -1,110 +1,11 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-23T09:26:10+00:00",
-  "status_as_of": "2026-10-23T09:15:02.711Z",
+  "generated_at": "2026-10-26T10:18:19+00:00",
+  "status_as_of": "2026-10-26T10:15:02.377Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 10,
   "model_count": 38,
   "providers": [
-    {
-      "id": "google-ai-studio",
-      "name": "Google Ai Studio",
-      "prefix": "gai",
-      "api": "https://generativelanguage.googleapis.com/v1beta/openai",
-      "availability": "available",
-      "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
-      "latency_ms": 1065,
-      "checked_at": "2026-10-23T09:15:02.711Z",
-      "model_count": 2,
-      "models": [
-        {
-          "id": "gemini-2.5-flash",
-          "upstream_id": "gemini-2.5-flash",
-          "codex_alias": "ofr-gai-gemini-2-5-flash",
-          "name": "gemini-2.5-flash",
-          "context_window": 131072,
-          "max_tokens": 8192,
-          "reasoning": false,
-          "tool_calling": false,
-          "input_modalities": [
-            "text"
-          ],
-          "availability": "available",
-          "capability_score": 55,
-          "family_zh": "Google Gemini",
-          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "快",
-          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
-          "free_tier": {
-            "type": "unknown",
-            "status": "unknown"
-          },
-          "free_availability": "unknown"
-        },
-        {
-          "id": "gemini-2.5-pro",
-          "upstream_id": "gemini-2.5-pro",
-          "codex_alias": "ofr-gai-gemini-2-5-pro",
-          "name": "gemini-2.5-pro",
-          "context_window": 131072,
-          "max_tokens": 8192,
-          "reasoning": false,
-          "tool_calling": false,
-          "input_modalities": [
-            "text"
-          ],
-          "availability": "unverified",
-          "capability_score": 55,
-          "family_zh": "Google Gemini",
-          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
-          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
-          "free_tier": {
-            "type": "unknown",
-            "status": "unknown"
-          },
-          "free_availability": "unknown"
-        }
-      ],
-      "profile": {
-        "zh_name": "Google AI Studio",
-        "organization": "Google",
-        "region": "美国",
-        "background_zh": "Google 面向开发者提供 Gemini 模型实验和 API 接入的产品入口，覆盖长上下文、多模态与推理工作负载。",
-        "strengths_zh": [
-          "长上下文",
-          "Gemini 生态",
-          "多模态能力"
-        ],
-        "cautions_zh": "免费额度、地区开放范围和模型配额由 Google 账户策略决定。",
-        "official_url": "https://ai.google.dev/gemini-api/docs/models",
-        "key_url": "https://aistudio.google.com/apikey",
-        "key_steps_zh": [
-          "使用 Google 账户登录 AI Studio",
-          "打开 Get API key 页面",
-          "点击 Create API key（可绑定任一 Google Cloud 项目）",
-          "免费层无需绑定信用卡"
-        ],
-        "free_quota_zh": "免费层按模型区分 RPM/RPD 配额（如 Flash 系列每日限额较高，Pro 系列较低），超限返回 429。",
-        "free_tier": {
-          "has_free_tier": true,
-          "requests_per_day": null,
-          "tokens_per_minute": null,
-          "rate_limit_rpm": null,
-          "over_limit_behavior": "429",
-          "source": "docs/provider-profiles.json free_quota_zh",
-          "source_note_zh": "免费层按模型区分 RPM/RPD 配额，超限返回 429（文档原文）。具体各模型数值未收录。数值字段暂未收录公开可验证的确切数字，留空不编造；以各官方文档/控制台为准。",
-          "updated_at": "2026-10-18",
-          "confidence": "documented"
-        }
-      },
-      "free_tier": {
-        "type": "unknown",
-        "status": "unknown"
-      }
-    },
     {
       "id": "groq",
       "name": "Groq",
@@ -112,8 +13,8 @@
       "api": "https://api.groq.com/openai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/6 个模型可用",
-      "latency_ms": 117,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "latency_ms": 88,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 6,
       "models": [
         {
@@ -310,8 +211,8 @@
       "api": "https://integrate.api.nvidia.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/5 个模型可用",
-      "latency_ms": 442,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "latency_ms": 735,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 5,
       "models": [
         {
@@ -482,9 +383,9 @@
       "prefix": "or",
       "api": "https://openrouter.ai/api/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 3/9 个模型可用",
-      "latency_ms": 226,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "reason": "Cloudflare 服务器已验证 4/9 个模型可用",
+      "latency_ms": 320,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 9,
       "models": [
         {
@@ -549,12 +450,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "unverified",
+          "availability": "available",
           "capability_score": 55,
           "family_zh": "Google Gemma",
           "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
+          "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -757,8 +658,8 @@
       "api": "https://inference.poolside.ai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 150,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "latency_ms": 313,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 2,
       "models": [
         {
@@ -778,7 +679,7 @@
           "family_zh": "Poolside Laguna",
           "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
-          "speed_tier_zh": "快",
+          "speed_tier_zh": "中等",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -854,9 +755,9 @@
       "prefix": "nova",
       "api": "https://token.sensenova.cn/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
-      "latency_ms": 2756,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
+      "latency_ms": 1608,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 2,
       "models": [
         {
@@ -871,12 +772,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "unverified",
+          "availability": "available",
           "capability_score": 55,
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
+          "speed_tier_zh": "中等",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -953,8 +854,8 @@
       "api": "https://api.stepfun.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/1 个模型可用",
-      "latency_ms": 4273,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "latency_ms": 1996,
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 1,
       "models": [
         {
@@ -974,7 +875,7 @@
           "family_zh": "阶跃 Step",
           "description_zh": "阶跃 Step 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "较慢",
+          "speed_tier_zh": "中等",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -1027,7 +928,7 @@
       "availability": "unverified",
       "reason": "服务器凭据无效或没有访问权限",
       "latency_ms": null,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 2,
       "models": [
         {
@@ -1118,6 +1019,105 @@
       }
     },
     {
+      "id": "google-ai-studio",
+      "name": "Google Ai Studio",
+      "prefix": "gai",
+      "api": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "availability": "unverified",
+      "reason": "提供商服务返回 HTTP 503",
+      "latency_ms": null,
+      "checked_at": "2026-10-26T10:15:02.377Z",
+      "model_count": 2,
+      "models": [
+        {
+          "id": "gemini-2.5-flash",
+          "upstream_id": "gemini-2.5-flash",
+          "codex_alias": "ofr-gai-gemini-2-5-flash",
+          "name": "gemini-2.5-flash",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": false,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        },
+        {
+          "id": "gemini-2.5-pro",
+          "upstream_id": "gemini-2.5-pro",
+          "codex_alias": "ofr-gai-gemini-2-5-pro",
+          "name": "gemini-2.5-pro",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": false,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 55,
+          "family_zh": "Google Gemini",
+          "description_zh": "Google Gemini 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "长文档理解、摘要和通用问答",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        }
+      ],
+      "profile": {
+        "zh_name": "Google AI Studio",
+        "organization": "Google",
+        "region": "美国",
+        "background_zh": "Google 面向开发者提供 Gemini 模型实验和 API 接入的产品入口，覆盖长上下文、多模态与推理工作负载。",
+        "strengths_zh": [
+          "长上下文",
+          "Gemini 生态",
+          "多模态能力"
+        ],
+        "cautions_zh": "免费额度、地区开放范围和模型配额由 Google 账户策略决定。",
+        "official_url": "https://ai.google.dev/gemini-api/docs/models",
+        "key_url": "https://aistudio.google.com/apikey",
+        "key_steps_zh": [
+          "使用 Google 账户登录 AI Studio",
+          "打开 Get API key 页面",
+          "点击 Create API key（可绑定任一 Google Cloud 项目）",
+          "免费层无需绑定信用卡"
+        ],
+        "free_quota_zh": "免费层按模型区分 RPM/RPD 配额（如 Flash 系列每日限额较高，Pro 系列较低），超限返回 429。",
+        "free_tier": {
+          "has_free_tier": true,
+          "requests_per_day": null,
+          "tokens_per_minute": null,
+          "rate_limit_rpm": null,
+          "over_limit_behavior": "429",
+          "source": "docs/provider-profiles.json free_quota_zh",
+          "source_note_zh": "免费层按模型区分 RPM/RPD 配额，超限返回 429（文档原文）。具体各模型数值未收录。数值字段暂未收录公开可验证的确切数字，留空不编造；以各官方文档/控制台为准。",
+          "updated_at": "2026-10-18",
+          "confidence": "documented"
+        }
+      },
+      "free_tier": {
+        "type": "unknown",
+        "status": "unknown"
+      }
+    },
+    {
       "id": "nous",
       "name": "Nous",
       "prefix": "ns",
@@ -1125,7 +1125,7 @@
       "availability": "unverified",
       "reason": "模型或接口在提供商侧不存在",
       "latency_ms": null,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 2,
       "models": [
         {
@@ -1220,9 +1220,9 @@
       "prefix": "zen",
       "api": "https://opencode.ai/zen/v1",
       "availability": "unverified",
-      "reason": "服务器探测返回 HTTP 410",
+      "reason": "服务器探测返回 HTTP 400",
       "latency_ms": null,
-      "checked_at": "2026-10-23T09:15:02.711Z",
+      "checked_at": "2026-10-26T10:15:02.377Z",
       "model_count": 7,
       "models": [
         {
