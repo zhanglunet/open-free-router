@@ -28,6 +28,15 @@ class Daemon:
     def __init__(self, cfg: Config):
         self.cfg = cfg
         self.reg = Registry.load(cfg.registry_path)
+        # PRD-173/T4 (T1 §5): resolve configured BYOS adapters from the env
+        # into the in-memory registry so subscription gateways ride the same
+        # planner/executor path -- and therefore the same quota recording
+        # and paired failover audit -- as free providers. registry.yaml
+        # entries are never overwritten and nothing is written back here.
+        from open_free_router.byos.wiring import register_byos_providers
+        registered = register_byos_providers(self.reg, cfg)
+        if registered:
+            print(f"[byos] registered subscription gateways: {', '.join(registered)}")
         self.proxy_token = get_or_create_proxy_token(cfg.config_dir)
         self.resilience = ResilienceManager(
             state_path=cfg.data_dir / "runtime-state.json",

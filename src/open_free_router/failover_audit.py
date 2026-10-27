@@ -52,9 +52,11 @@ FAILOVER_DOCTOR_VERDICTS = frozenset({"pass", "warn", "fail", "never_run"})
 # ``never_run`` stays ledger-only -- the default for "no doctor conclusion
 # recorded yet", never something a run itself reports.
 DOCTOR_RUN_VERDICTS = frozenset({"pass", "warn", "fail"})
-# The four report groups whose items carry a severity; client-config
-# presence is informational and never counted (T1 §3.1).
-DOCTOR_REPORT_GROUPS = ("checks", "routing", "free_tier", "protocol_matrix")
+# The five report groups whose items carry a severity; client-config
+# presence is informational and never counted (T1 §3.1). ``byos`` joins in
+# PRD-173/T4 (T1 §5 row 2): the same {ok, severity, label, detail} shape,
+# so the summary needs no BYOS-specific code.
+DOCTOR_REPORT_GROUPS = ("checks", "routing", "free_tier", "byos", "protocol_matrix")
 DOCTOR_CONTEXT_KEYS = ("doctor_verdict", "doctor_failed_checks", "doctor_at")
 
 # T1 §2.3: outcome row values. ``no_candidate`` closes a decision whose
