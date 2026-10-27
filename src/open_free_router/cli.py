@@ -798,7 +798,8 @@ def cmd_failover_log(args):
     cfg = Config()
     store = AnalyticsStore(cfg.analytics_path, retention_days=cfg.analytics_retention_days)
     pairs = collect_pairs(store, days=args.days, backend=args.backend,
-                          reason=args.reason, limit=args.limit)
+                          reason=args.reason, limit=args.limit,
+                          honesty=getattr(args, 'honesty', None))
     if getattr(args, "json", False):
         print(_json.dumps({"pairs": pairs, "summary": summarize(pairs)},
                           ensure_ascii=False, indent=2))
@@ -827,7 +828,8 @@ def cmd_failover_summary(args):
     cfg = Config()
     store = AnalyticsStore(cfg.analytics_path, retention_days=cfg.analytics_retention_days)
     pairs = collect_pairs(store, days=args.days, backend=args.backend,
-                          reason=args.reason, limit=args.limit)
+                          reason=args.reason, limit=args.limit,
+                          honesty=getattr(args, 'honesty', None))
     s = summarize(pairs)
     if getattr(args, "json", False):
         print(_json.dumps(s, ensure_ascii=False, indent=2))
