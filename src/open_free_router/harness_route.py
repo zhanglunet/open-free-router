@@ -19,6 +19,9 @@ T3 合同深化（#1287，§3.3 会话/流式/取消/结构化失败合同）：
     cancelled 类失败必须带 ack 语义；
   失败：assert_structured_failure 校验器——七类封闭枚举 + 字段类型；
     路由边界对适配器返回的 failure 一律过校验（合同一致性）。
+T4 审计流（#1288，导出在 route_audit.py）：send/stream 路径登记每请求摘要事件
+    （route/status/failure_class/duration_ms/synthetic_stream，零对话正文）到
+    request_events，与 switch_events 共同构成可机读审计导出的内存事件源。
 
 零网络；本模块不触碰凭据（base_url_ref 只透传引用，不解析密钥）；
 StructuredFailure.backend_detail 生成时即经 redact 占位符化。示例全虚构。
@@ -282,6 +285,9 @@ class HarnessRouter:
         # 切换审计（T4 导出；本层先留内存事件流）
         self.switch_events: list[dict[str, Any]] = []
         self._last_route: str | None = None
+        # T4（trend #1288）：每请求摘要事件流（route/status/failure_class/时长，
+        # 零对话正文），与 switch_events 同为内存流，供 route_audit.export_jsonl 导出
+        self.request_events: list[dict[str, Any]] = []
 
     def resolve(self, route_id: str | None) -> dict[str, Any]:
         rid = route_id or self._default
@@ -305,6 +311,14 @@ class HarnessRouter:
     def send(self, route_id: str | None, messages: list[dict[str, str]],
              request_id: str = "req-0",
              session: "ChatSession | dict[str, Any] | None" = None) -> dict[str, Any]:
+        started = time.time()
+        response = self._send(route_id, messages, request_id, session)
+        self._audit_request(started, route_id, response)
+        return response
+
+    def _send(self, route_id: str | None, messages: list[dict[str, str]],
+              request_id: str = "req-0",
+              session: "ChatSession | dict[str, Any] | None" = None) -> dict[str, Any]:
         failure = self._session_failure(session, route_id)
         if failure is not None:
             return {"request_id": request_id, "status": "failed", "content": None,
@@ -314,10 +328,7 @@ class HarnessRouter:
             return resolved["response"]
         route, adapter = resolved["route"], resolved["adapter"]
         rid = route["route_id"]
-        if self._last_route is not None and self._last_route != rid:
-            self.switch_events.append({"route_from": self._last_route, "route_to": rid,
-                                       "reason": "client_choice", "actor": "client"})
-        self._last_route = rid
+        self._note_switch(rid)
         request = {
             "request_id": request_id,
             "messages": messages,
@@ -338,6 +349,14 @@ class HarnessRouter:
         解析失败/会话过期 → 单条 failed chunk（payload 为 StructuredFailure），
         事件形态与正常流一致（合同一致性）。
         """
+        started = time.time()
+        chunks = self._stream(route_id, messages, request_id, session)
+        self._audit_stream(started, route_id, chunks)
+        return chunks
+
+    def _stream(self, route_id: str | None, messages: list[dict[str, str]],
+                request_id: str = "req-0",
+                session: "ChatSession | dict[str, Any] | None" = None) -> list[dict[str, Any]]:
         failure = self._session_failure(session, route_id)
         if failure is not None:
             return [{"request_id": request_id, "seq": 1, "type": "failed",
@@ -347,6 +366,8 @@ class HarnessRouter:
             return [{"request_id": request_id, "seq": 1, "type": "failed",
                      "payload": resolved["response"]["failure"]}]
         route, adapter = resolved["route"], resolved["adapter"]
+        rid = route["route_id"]
+        self._note_switch(rid)  # T4：stream 面切换同样留痕
         request = {
             "request_id": request_id,
             "messages": messages,
@@ -359,6 +380,50 @@ class HarnessRouter:
         return out.get("chunks", [])
 
     # ── T3 合同内部件 ──
+
+    def _note_switch(self, route_id: str) -> None:
+        """切换留痕（send 与 stream 两面共用，T4 导出）。"""
+        if self._last_route is not None and self._last_route != route_id:
+            self.switch_events.append({"route_from": self._last_route, "route_to": route_id,
+                                       "reason": "client_choice", "actor": "client"})
+        self._last_route = route_id
+
+    def _audit_request(self, started: float, route_id: str | None,
+                       response: dict[str, Any]) -> None:
+        """T4（#1288）：send 面每请求摘要——只有元数据，零对话正文。"""
+        failure = response.get("failure") or {}
+        self.request_events.append({
+            "type": "request",
+            "request_id": response.get("request_id", ""),
+            "route": route_id or self._default or "",
+            "status": response.get("status", ""),
+            "failure_class": failure.get("class", ""),
+            "duration_ms": round((time.time() - started) * 1000, 3),
+            "synthetic_stream": bool(response.get("synthetic_stream", False)),
+        })
+
+    def _audit_stream(self, started: float, route_id: str | None,
+                      chunks: list[dict[str, Any]]) -> None:
+        """T4（#1288）：stream 面摘要——从 chunk 形态还原同一字段口径。"""
+        failed = [c for c in chunks if isinstance(c, dict) and c.get("type") == "failed"]
+        cancelled = [c for c in chunks if isinstance(c, dict) and c.get("type") == "cancelled"]
+        if failed:
+            status, failure = "failed", (failed[0].get("payload") or {})
+        elif cancelled:
+            status, failure = "cancelled", {"class": "cancelled"}
+        else:
+            status, failure = "ok", {}
+        self.request_events.append({
+            "type": "request_stream",
+            "request_id": chunks[0].get("request_id", "") if chunks else "",
+            "route": route_id or self._default or "",
+            "status": status,
+            "failure_class": failure.get("class", ""),
+            "duration_ms": round((time.time() - started) * 1000, 3),
+            "synthetic_stream": any(
+                isinstance(c, dict) and c.get("payload", {}).get("synthetic_stream")
+                for c in chunks),
+        })
 
     @staticmethod
     def _session_payload(session: "ChatSession | dict[str, Any] | None",
