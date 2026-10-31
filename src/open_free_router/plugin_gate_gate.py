@@ -10,8 +10,14 @@
   内容哈希 = 对 plugin 内容 dict 的 canonical json sha256 前 16 位；
   哈希变更（版本变更/改包）→ 旧报告自动作废（hash_mismatch 拒绝，提示重扫）；
   通过 → 注册并记 gate 状态（gate: open/blocked），供 doctor 显示。
+PRD-258/T4（trend #1293）增量：PluginGate 补 whitelist 参数——blocked 报告的
+  findings 命中复核白名单单条规则 → 该条豁免、剩余发现重 derive；全部 blocked 级
+  发现均被豁免才放行，verdict/state 以 reason=whitelisted + whitelist_applied 留痕；
+  有未豁免发现 → 仍拦。五道前置校验（报告/schema/scan_version/哈希/decision）
+  原样不变——白名单不绕过安检，只在 blocked 判定上做已复核的例外。
 
-红线：HIGH+ 不接流量是结构性拦截；闸门只做准入决策，不做运行时隔离（归 PRD-181）。
+红线：HIGH+ 不接流量是结构性拦截（默认不变，白名单是显式人工复核例外）；
+闸门只做准入决策，不做运行时隔离（归 PRD-181）。
 零网络；示例全虚构。
 """
 from __future__ import annotations
@@ -21,6 +27,7 @@ import json
 from typing import Any
 
 from open_free_router.plugin_gate import SCAN_VERSION, SCHEMA
+from open_free_router.plugin_whitelist import WhitelistManager, apply_whitelist
 
 GATE_SCHEMA = "plugin-gate-v1"
 
@@ -94,14 +101,38 @@ class PluginGate:
     doctor 视图 = gate_status(name) / gate_view()，口径对齐 honesty 纪律（如实标注）。
     """
 
-    def __init__(self) -> None:
+    def __init__(self, whitelist: "WhitelistManager | None" = None) -> None:
+        self._whitelist = whitelist
         self._state: dict[str, dict[str, Any]] = {}
 
     def admit(self, plugin: dict[str, Any], report: dict[str, Any] | None,
-              current_hash: str) -> dict[str, Any]:
-        """前置安检校验 + 登记结果。通过才可进路由表；被拒进隔离清单。"""
+              current_hash: str, now: float | None = None) -> dict[str, Any]:
+        """前置安检校验 + 登记结果。通过才可进路由表；被拒进隔离清单。
+
+        T4：带 whitelist 时，blocked 判定先过复核白名单——命中单条规则的发现被
+        豁免，剩余发现重 derive 后仍 admitted 才放行（reason=whitelisted 留痕）；
+        剩余仍达 HIGH → 维持 blocked（白名单豁免的是具体误报，不是整个报告）。
+        """
         name = str(plugin.get("name", "<unnamed>"))
         verdict = registration_gate(plugin, report, current_hash)
+        whitelist_applied: list[dict[str, Any]] = []
+        if (verdict["reason"] == R_BLOCKED and self._whitelist is not None
+                and isinstance(report, dict)):
+            reviewed = apply_whitelist(report, name, self._whitelist, now=now)
+            whitelist_applied = reviewed.get("whitelist_applied", [])
+            if reviewed.get("decision") == "admitted":
+                # 复核过的报告替换原报告过闸（哈希未变，五道校验原样生效）
+                verdict = {**registration_gate(plugin, reviewed, current_hash),
+                           "reason": "whitelisted",
+                           "whitelist_applied": whitelist_applied,
+                           "message": (f"blocked 但 {len(whitelist_applied)} 条发现命中复核白名单"
+                                       "（误报豁免、有保质期、留痕）——放行")}
+            else:
+                verdict = {**verdict,
+                           "whitelist_applied": whitelist_applied,
+                           "message": (verdict["message"]
+                                       + f"；{len(whitelist_applied)} 条命中白名单，"
+                                         "但剩余发现仍达 HIGH——白名单不豁免整个报告")}
         entry = {"plugin": name,
                  "version": str((report or {}).get("plugin", {}).get("version", "")
                                 or plugin.get("version", "")),
@@ -112,7 +143,8 @@ class PluginGate:
                  "content_hash": current_hash,
                  "scan_version": verdict["scan_version"],
                  "scanned_at": (report or {}).get("scanned_at", ""),
-                 "message": verdict["message"]}
+                 "message": verdict["message"],
+                 "whitelist_applied": whitelist_applied}
         self._state[name] = entry
         return verdict
 
