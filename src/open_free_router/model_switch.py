@@ -74,6 +74,7 @@ class SwitchExecutor:
         from open_free_router.route_obs import RouteTrace  # 延迟导入：与 201 的 trace 结构对接
         self._trace_cls = RouteTrace
         self.observatory = observatory
+        self._history = SwitchHistory()  # T4：切换历史（undo_switch 用）
 
     def execute(self, intent: dict[str, Any], current_route: str,
                 switch_fn: Callable[[str], Any], *, request_id: str) -> dict[str, Any]:
@@ -92,6 +93,7 @@ class SwitchExecutor:
             return {"ok": False, "error": str(exc), "switched": False,
                     "from_route": current_route, "to_route": target}
         self._record(current_route, target, request_id, status="ok")
+        self._history.record(current_route, target, request_id)  # T4：入栈供回滚
         return {"ok": True, "switched": True, "from_route": current_route,
                 "to_route": target, "result": result}
 
@@ -103,3 +105,52 @@ class SwitchExecutor:
             request_id=request_id, latency_ms=0.0, cost_usd=0.0, status=status,
             failure_class=failure_class,
             at=datetime.now(timezone.utc).isoformat(timespec="seconds")))
+
+
+class SwitchHistory:
+    """PRD-202/T4（trend #1013）：切换历史与一键回滚。
+
+    execute 每次成功切换记录 {from_route, to_route}；undo_switch 切回上一后端——
+    同样走确认后的执行路径并留 trace（rollback 标记）；无历史可回滚 → 拒绝。
+    """
+
+    def __init__(self) -> None:
+        self.stack: list[dict[str, str]] = []
+
+    def record(self, from_route: str, to_route: str, request_id: str) -> None:
+        self.stack.append({"from_route": from_route, "to_route": to_route,
+                           "request_id": request_id})
+
+
+def undo_switch(executor: "SwitchExecutor", current_route: str,
+                switch_fn: Callable[[str], Any], *, request_id: str,
+                confirmed: bool = True) -> dict[str, Any]:
+    """一键回滚：切回最近一次切换的 from_route（回滚也留 trace，标记 rollback）。
+
+    失败时历史不弹栈（可重试）；无历史或未确认 → 拒绝。
+    """
+    history = getattr(executor, "_history", None)
+    if history is None:
+        history = SwitchHistory()
+        executor._history = history
+    if not history.stack:
+        return {"ok": False, "error": "无可回滚的切换记录"}
+    if not confirmed:
+        return {"ok": False, "error": "未确认不回滚"}
+    # 跳过已是回滚的条目：连发回滚应沿原始切换链逐步回退（回滚的回滚 = 前进）
+    while history.stack and history.stack[-1].get("kind") == "rollback":
+        history.stack.pop()
+    if not history.stack:
+        return {"ok": False, "error": "无可回滚的切换记录（已回滚到最早）"}
+    last = history.stack[-1]
+    target = last["from_route"]
+    result = executor.execute({"action": "rollback", "target_route": target,
+                               "confirmed": True}, current_route, switch_fn,
+                              request_id=request_id)
+    if result.get("ok"):
+        # 双标记：被回滚的原始条目 + 回滚切换本身，都不再作为后续回滚目标
+        last["kind"] = "rollback"
+        history.stack[-1]["kind"] = "rollback"
+        last_trace = executor.observatory.traces[-1]
+        last_trace["route_id"] = "model-switch-rollback"  # 回滚留痕（可区分）
+    return result
