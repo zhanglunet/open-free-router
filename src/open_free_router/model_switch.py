@@ -60,3 +60,46 @@ def do_switch(intent: dict[str, Any], current_route: str,
     return {"ok": True, "switched_to": target, "result": result}
 
 
+
+
+class SwitchExecutor:
+    """PRD-202/T3（trend #1012）：确认后切换执行 + 与 PRD-201 可观测 trace 打通。
+
+    红线（T1 §3/PRD）：未确认不切换——echo_confirm 产出 confirmed=False，
+    只有用户明确确认后的 intent（confirmed=True）才允许到达本执行器；
+    每次执行（成功或失败）向 PRD-201 的 RouteObservatory 记一条 trace（切换留痕）。
+    """
+
+    def __init__(self, observatory) -> None:
+        from open_free_router.route_obs import RouteTrace  # 延迟导入：与 201 的 trace 结构对接
+        self._trace_cls = RouteTrace
+        self.observatory = observatory
+
+    def execute(self, intent: dict[str, Any], current_route: str,
+                switch_fn: Callable[[str], Any], *, request_id: str) -> dict[str, Any]:
+        """执行一次已确认的切换；未确认/无目标一律拒绝且零副作用。"""
+        if not intent.get("confirmed"):
+            return {"ok": False, "error": "未确认不切换（echo_confirm 的 confirmed=False）",
+                    "switched": False}
+        target = intent.get("target_route")
+        if not target:
+            return {"ok": False, "error": "无目标路由", "switched": False}
+        try:
+            result = switch_fn(target)
+        except Exception as exc:  # 失败也留 trace（切换留痕不漏失败）
+            self._record(current_route, target, request_id, status="failed",
+                         failure_class=type(exc).__name__)
+            return {"ok": False, "error": str(exc), "switched": False,
+                    "from_route": current_route, "to_route": target}
+        self._record(current_route, target, request_id, status="ok")
+        return {"ok": True, "switched": True, "from_route": current_route,
+                "to_route": target, "result": result}
+
+    def _record(self, from_route: str, to_route: str, request_id: str, *,
+                status: str, failure_class: str | None = None) -> None:
+        from datetime import datetime, timezone
+        self.observatory.record(self._trace_cls(
+            route_id="model-switch", backend_id=from_route, model=to_route,
+            request_id=request_id, latency_ms=0.0, cost_usd=0.0, status=status,
+            failure_class=failure_class,
+            at=datetime.now(timezone.utc).isoformat(timespec="seconds")))
