@@ -61,6 +61,16 @@ def classify_prompt_class(provider: str, model: str, status: str) -> str:
     return "remote-api"
 
 
+def _nearest_rank_p95(values: list[float]) -> float | None:
+    """nearest-rank p95（§3.3：与 analytics._percentile 同算法）；空集返回 None。"""
+    if not values:
+        return None
+    ordered = sorted(values)
+    import math
+    rank = max(1, math.ceil(0.95 * len(ordered)))
+    return round(ordered[min(rank, len(ordered)) - 1], 1)
+
+
 def aggregate(db_path: str | Path, window_days: int = 14,
               *, now: datetime | None = None) -> dict[str, Any]:
     """流量汇总管道主入口：只读 usage.db → 聚合集 + 覆盖率报告。"""
@@ -98,9 +108,18 @@ def aggregate(db_path: str | Path, window_days: int = 14,
             "model": row["model"], "n": 0, "success": 0, "client_error_count": 0,
             "latencies": [], "cost_tokens_in": 0, "cost_tokens_out": 0,
             "event_ids": [],
+            # §3 扩展列（T3 加列，纯加法）：p95/单位成功成本/浪费尝试比/token 覆盖
+            "ttfbs": [], "fallback_total": 0, "days": set(),
+            "tokens_present": 0, "success_tokens_in": 0, "success_tokens_out": 0,
         })
         g["n"] += 1
         g["event_ids"].append(row["event_id"])
+        if row["ttfb_ms"] is not None:
+            g["ttfbs"].append(float(row["ttfb_ms"]))
+        g["fallback_total"] += int(row["fallback_attempts"] or 0)
+        g["days"].add(datetime.fromtimestamp(row["timestamp"], timezone.utc).date().isoformat())
+        if row["input_tokens"] is not None and row["output_tokens"] is not None:
+            g["tokens_present"] += 1
         is_client_error = (row["status_code"] in CLIENT_ERROR_CODES
                            or row["error_kind"] == CLIENT_ERROR_KIND)
         if is_client_error:
@@ -108,6 +127,8 @@ def aggregate(db_path: str | Path, window_days: int = 14,
         elif row["status"] == "success":
             g["success"] += 1
             g["latencies"].append(float(row["total_latency_ms"] or 0))
+            g["success_tokens_in"] += int(row["input_tokens"] or 0)
+            g["success_tokens_out"] += int(row["output_tokens"] or 0)
         g["cost_tokens_in"] += int(row["input_tokens"] or 0)
         g["cost_tokens_out"] += int(row["output_tokens"] or 0)
 
@@ -125,6 +146,14 @@ def aggregate(db_path: str | Path, window_days: int = 14,
             if g["latencies"] else None,
             "mean_tokens_in": round(g["cost_tokens_in"] / g["n"], 1),
             "mean_tokens_out": round(g["cost_tokens_out"] / g["n"], 1),
+            # §3 扩展列（T3 加列，纯加法；缺数据 null + 不填默认值 §3.4）
+            "ttfb_p95_ms": _nearest_rank_p95(g["ttfbs"]),
+            "tokens_per_success": (
+                round((g["success_tokens_in"] + g["success_tokens_out"]) / g["success"], 1)
+                if g["success"] else None),
+            "wasted_attempt_ratio": round(g["fallback_total"] / g["n"], 4),
+            "token_coverage_rate": round(g["tokens_present"] / g["n"], 4),
+            "days_covered": len(g["days"]),
             # 溯源字段（§8 T2：任取一行能对回窗口内原始事件）
             "window": {"start": start_iso, "end_exclusive": end_iso, "days": window_days},
             "classifier_version": CLASSIFIER_VERSION,
