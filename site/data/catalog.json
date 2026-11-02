@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-31T10:29:01+00:00",
-  "status_as_of": "2026-10-31T10:15:02.720Z",
+  "generated_at": "2026-11-02T12:39:27+00:00",
+  "status_as_of": "2026-11-02T12:30:02.546Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
   "provider_count": 10,
   "model_count": 38,
@@ -13,8 +13,8 @@
       "api": "https://generativelanguage.googleapis.com/v1beta/openai",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
-      "latency_ms": 551,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "latency_ms": 463,
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 2,
       "models": [
         {
@@ -112,8 +112,8 @@
       "api": "https://api.groq.com/openai/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 2/6 个模型可用",
-      "latency_ms": 169,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "latency_ms": 179,
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 6,
       "models": [
         {
@@ -310,8 +310,8 @@
       "api": "https://integrate.api.nvidia.com/v1",
       "availability": "available",
       "reason": "Cloudflare 服务器已验证 1/5 个模型可用",
-      "latency_ms": 510,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "latency_ms": 1026,
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 5,
       "models": [
         {
@@ -482,9 +482,9 @@
       "prefix": "or",
       "api": "https://openrouter.ai/api/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 3/9 个模型可用",
-      "latency_ms": 312,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "reason": "Cloudflare 服务器已验证 5/9 个模型可用",
+      "latency_ms": 273,
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 9,
       "models": [
         {
@@ -549,12 +549,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "unverified",
+          "availability": "available",
           "capability_score": 55,
           "family_zh": "Google Gemma",
           "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
+          "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -574,12 +574,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "unverified",
+          "availability": "available",
           "capability_score": 55,
           "family_zh": "Google Gemma",
           "description_zh": "Google Gemma 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "未测",
+          "speed_tier_zh": "快",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -751,112 +751,14 @@
       }
     },
     {
-      "id": "poolside",
-      "name": "Poolside",
-      "prefix": "ps",
-      "api": "https://inference.poolside.ai/v1",
-      "availability": "available",
-      "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 532,
-      "checked_at": "2026-10-31T10:15:02.720Z",
-      "model_count": 2,
-      "models": [
-        {
-          "id": "laguna-s:free",
-          "upstream_id": "poolside/laguna-s-2.1",
-          "codex_alias": "ofr-ps-laguna-s-free",
-          "name": "laguna-s:free",
-          "context_window": 131072,
-          "max_tokens": 8192,
-          "reasoning": true,
-          "tool_calling": false,
-          "input_modalities": [
-            "text"
-          ],
-          "availability": "available",
-          "capability_score": 75,
-          "family_zh": "Poolside Laguna",
-          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
-          "speed_tier_zh": "快",
-          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
-          "free_tier": {
-            "type": "unknown",
-            "status": "unknown"
-          },
-          "free_availability": "unknown"
-        },
-        {
-          "id": "laguna-xs:free",
-          "upstream_id": "poolside/laguna-xs-2.1",
-          "codex_alias": "ofr-ps-laguna-xs-free",
-          "name": "laguna-xs:free",
-          "context_window": 131072,
-          "max_tokens": 8192,
-          "reasoning": true,
-          "tool_calling": false,
-          "input_modalities": [
-            "text"
-          ],
-          "availability": "available",
-          "capability_score": 75,
-          "family_zh": "Poolside Laguna",
-          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
-          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
-          "speed_tier_zh": "较慢",
-          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
-          "free_tier": {
-            "type": "unknown",
-            "status": "unknown"
-          },
-          "free_availability": "unknown"
-        }
-      ],
-      "profile": {
-        "zh_name": "Poolside Inference",
-        "organization": "Poolside",
-        "region": "美国/法国",
-        "background_zh": "专注软件工程与代码智能的模型公司，本项目接入其 Laguna 系列免费推理入口。",
-        "strengths_zh": [
-          "代码任务导向",
-          "长上下文",
-          "推理模型"
-        ],
-        "cautions_zh": "免费 Laguna 入口的容量、条款和模型版本可能调整。",
-        "official_url": "https://poolside.ai/",
-        "key_url": "https://poolside.ai/",
-        "key_steps_zh": [
-          "访问 Poolside 官网并注册",
-          "按官方指引申请 Laguna 系列 API 访问",
-          "在账户页面生成 API Key"
-        ],
-        "free_quota_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。",
-        "free_tier": {
-          "has_free_tier": true,
-          "requests_per_day": null,
-          "tokens_per_minute": null,
-          "rate_limit_rpm": null,
-          "over_limit_behavior": "unknown",
-          "source": "docs/provider-profiles.json free_quota_zh",
-          "source_note_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。数值字段暂未收录公开可验证的确切数字，留空不编造；以各官方文档/控制台为准。",
-          "updated_at": "2026-10-18",
-          "confidence": "estimated"
-        }
-      },
-      "free_tier": {
-        "type": "unknown",
-        "status": "unknown"
-      }
-    },
-    {
       "id": "sensenova",
       "name": "Sensenova",
       "prefix": "nova",
       "api": "https://token.sensenova.cn/v1",
       "availability": "available",
-      "reason": "Cloudflare 服务器已验证 2/2 个模型可用",
-      "latency_ms": 1582,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "reason": "Cloudflare 服务器已验证 1/2 个模型可用",
+      "latency_ms": 6555,
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 2,
       "models": [
         {
@@ -871,12 +773,12 @@
           "input_modalities": [
             "text"
           ],
-          "availability": "available",
+          "availability": "unverified",
           "capability_score": 55,
           "family_zh": "DeepSeek",
           "description_zh": "DeepSeek 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
+          "speed_tier_zh": "未测",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -901,7 +803,7 @@
           "family_zh": "智谱 GLM",
           "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
           "recommended_for_zh": "长文档理解、摘要和通用问答",
-          "speed_tier_zh": "中等",
+          "speed_tier_zh": "较慢",
           "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
           "free_tier": {
             "type": "unknown",
@@ -954,7 +856,7 @@
       "availability": "unverified",
       "reason": "服务器凭据无效或没有访问权限",
       "latency_ms": null,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 2,
       "models": [
         {
@@ -1052,7 +954,7 @@
       "availability": "unverified",
       "reason": "模型或接口在提供商侧不存在",
       "latency_ms": null,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 2,
       "models": [
         {
@@ -1149,7 +1051,7 @@
       "availability": "unverified",
       "reason": "服务器探测返回 HTTP 400",
       "latency_ms": null,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 7,
       "models": [
         {
@@ -1365,6 +1267,104 @@
       }
     },
     {
+      "id": "poolside",
+      "name": "Poolside",
+      "prefix": "ps",
+      "api": "https://inference.poolside.ai/v1",
+      "availability": "unverified",
+      "reason": "服务器探测返回 HTTP 400",
+      "latency_ms": null,
+      "checked_at": "2026-11-02T12:30:02.546Z",
+      "model_count": 2,
+      "models": [
+        {
+          "id": "laguna-s:free",
+          "upstream_id": "poolside/laguna-s-2.1",
+          "codex_alias": "ofr-ps-laguna-s-free",
+          "name": "laguna-s:free",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 75,
+          "family_zh": "Poolside Laguna",
+          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        },
+        {
+          "id": "laguna-xs:free",
+          "upstream_id": "poolside/laguna-xs-2.1",
+          "codex_alias": "ofr-ps-laguna-xs-free",
+          "name": "laguna-xs:free",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": false,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 75,
+          "family_zh": "Poolside Laguna",
+          "description_zh": "Poolside Laguna 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "规划、推理、数学和复杂问题拆解",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        }
+      ],
+      "profile": {
+        "zh_name": "Poolside Inference",
+        "organization": "Poolside",
+        "region": "美国/法国",
+        "background_zh": "专注软件工程与代码智能的模型公司，本项目接入其 Laguna 系列免费推理入口。",
+        "strengths_zh": [
+          "代码任务导向",
+          "长上下文",
+          "推理模型"
+        ],
+        "cautions_zh": "免费 Laguna 入口的容量、条款和模型版本可能调整。",
+        "official_url": "https://poolside.ai/",
+        "key_url": "https://poolside.ai/",
+        "key_steps_zh": [
+          "访问 Poolside 官网并注册",
+          "按官方指引申请 Laguna 系列 API 访问",
+          "在账户页面生成 API Key"
+        ],
+        "free_quota_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。",
+        "free_tier": {
+          "has_free_tier": true,
+          "requests_per_day": null,
+          "tokens_per_minute": null,
+          "rate_limit_rpm": null,
+          "over_limit_behavior": "unknown",
+          "source": "docs/provider-profiles.json free_quota_zh",
+          "source_note_zh": "Laguna 免费入口的容量、条款和开放范围可能调整，以官方公告为准。数值字段暂未收录公开可验证的确切数字，留空不编造；以各官方文档/控制台为准。",
+          "updated_at": "2026-10-18",
+          "confidence": "estimated"
+        }
+      },
+      "free_tier": {
+        "type": "unknown",
+        "status": "unknown"
+      }
+    },
+    {
       "id": "stepfun",
       "name": "Stepfun",
       "prefix": "sf",
@@ -1372,7 +1372,7 @@
       "availability": "unverified",
       "reason": "服务器探测账户在该提供商没有可用额度，未能取得该模型的证据",
       "latency_ms": null,
-      "checked_at": "2026-10-31T10:15:02.720Z",
+      "checked_at": "2026-11-02T12:30:02.546Z",
       "model_count": 1,
       "models": [
         {
