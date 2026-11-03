@@ -142,12 +142,17 @@ class HotSwapController:
             swap["error"] = {"code": getattr(exc, "code", None) or "swap_failed",
                              "message": str(exc)}
             if rollback_on_failure:
-                # 目标已过 loading（load_fn 已触发），回退即重载原模型（§4 故障回滚）
-                transition("rolling_back", f"回退到 {swap['previous_model']}")
-                self.load_fn(swap["previous_model"])
-                self.loaded_model = swap["previous_model"]
-                self.current_model = swap["previous_model"]
-                transition("rolled_back", "原模型恢复，会话不丢")
+                # 目标已过 loading（load_fn 已触发），回退即重载原模型（§4 故障回滚）。
+                # T4 #1153：回滚路径自身失败（原模型 load 也炸）→ failed 显形，
+                # 不让注入异常逃逸出本函数（零报错外泄红线）。
+                try:
+                    transition("rolling_back", f"回退到 {swap['previous_model']}")
+                    self.load_fn(swap["previous_model"])
+                    self.loaded_model = swap["previous_model"]
+                    self.current_model = swap["previous_model"]
+                    transition("rolled_back", "原模型恢复，会话不丢")
+                except Exception as rollback_exc:  # noqa: BLE001 - 诚实降级显形
+                    transition("failed", f"回滚失败：{rollback_exc}")
             else:
                 transition("failed", str(exc))
             self._active_swap_id = None
