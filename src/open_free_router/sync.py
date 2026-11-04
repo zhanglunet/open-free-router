@@ -106,13 +106,26 @@ def write_pi_models(
     Model IDs are prefixed with provider name (e.g. nv/glm-5.2)
     so users can distinguish which upstream provides the model.
 
-    Always overwrites the entire file — no stale entries can accumulate.
+    Router-managed providers (those pointing at the local proxy) are replaced
+    wholesale; user-managed providers with other baseUrls (e.g. kimi-coding,
+    zai-coding-cn direct endpoints) are preserved across syncs.
     Returns list of provider names written.
     """
     if not PI_MODELS_PATH.parent.exists():
         return []
     try:
         from open_free_router.config import _PI_PROVIDER_NAMES
+
+        existing: dict = {}
+        if PI_MODELS_PATH.exists():
+            try:
+                old = json.loads(PI_MODELS_PATH.read_text())
+                proxy = str(proxy_url).rstrip("/")
+                for pname, pconf in old.get("providers", {}).items():
+                    if str(pconf.get("baseUrl", "")).rstrip("/") != proxy:
+                        existing[pname] = pconf
+            except Exception:
+                existing = {}
 
         providers = {}
         for name, p in reg.providers.items():
@@ -131,7 +144,7 @@ def write_pi_models(
                 ],
             }
         if do_write:
-            data = {"providers": providers}
+            data = {"providers": {**existing, **providers}}
             PI_MODELS_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
         total = sum(len(p["models"]) for p in providers.values())
         print(f"  ✓ wrote {total} models to Pi ({PI_MODELS_PATH})")
