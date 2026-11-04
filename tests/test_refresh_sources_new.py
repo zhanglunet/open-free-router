@@ -14,7 +14,13 @@ from __future__ import annotations
 
 from unittest.mock import patch, MagicMock
 
-from open_free_router.refresh_sources import nous, sensenova, stepfun, opencode_zen
+from open_free_router.refresh_sources import (
+    bigmodel_glm_coding,
+    nous,
+    sensenova,
+    stepfun,
+    opencode_zen,
+)
 
 
 def _mock_response(json_data, status=200):
@@ -154,6 +160,49 @@ class TestStepfun:
         mock_get.return_value = _mock_response({"data": [{"id": "step-tts-mini"}]})
         models = stepfun.fetch("https://api.stepfun.com/v1", api_key="sk-test")
         assert models == []
+
+
+class TestBigModelGlmCoding:
+    SAMPLE = {
+        "data": [
+            {"id": "glm-5.2", "object": "model", "owned_by": "bigmodel"},
+            {"id": "glm-5", "object": "model", "owned_by": "bigmodel"},
+            {"id": "glm-4.7", "object": "model", "owned_by": "bigmodel"},
+            {"id": "charglm-4", "object": "model", "owned_by": "bigmodel"},
+        ]
+    }
+
+    def test_no_api_key_returns_empty(self):
+        assert bigmodel_glm_coding.fetch(
+            "https://open.bigmodel.cn/api/coding/paas/v4", api_key=None
+        ) == []
+
+    @patch("requests.get")
+    def test_only_known_glm_coding_models_are_allowlisted(self, mock_get):
+        mock_get.return_value = _mock_response(self.SAMPLE)
+        models = bigmodel_glm_coding.fetch(
+            "https://open.bigmodel.cn/api/coding/paas/v4", api_key="sk-test"
+        )
+        ids = [m.id for m in models]
+        assert ids == ["glm-5.2", "glm-5"]
+        assert all(m.reasoning and m.tool_calling for m in models)
+
+    @patch("requests.get")
+    def test_sends_bearer_auth_to_coding_endpoint(self, mock_get):
+        mock_get.return_value = _mock_response({"data": []})
+        bigmodel_glm_coding.fetch(
+            "https://open.bigmodel.cn/api/coding/paas/v4", api_key="sk-abc"
+        )
+        args, kwargs = mock_get.call_args
+        assert args[0] == "https://open.bigmodel.cn/api/coding/paas/v4/models"
+        assert kwargs["headers"]["Authorization"] == "Bearer sk-abc"
+
+    @patch("requests.get")
+    def test_fetch_failure_returns_empty(self, mock_get):
+        mock_get.side_effect = ConnectionError("boom")
+        assert bigmodel_glm_coding.fetch(
+            "https://open.bigmodel.cn/api/coding/paas/v4", api_key="sk-test"
+        ) == []
 
 
 class TestOpencodeZen:
