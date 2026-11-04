@@ -132,6 +132,7 @@ def write_pi_models(
             pi_name = _PI_PROVIDER_NAMES.get(name, name)
             providers[pi_name] = {
                 "baseUrl": proxy_url,
+                "api": "openai-completions",
                 "models": [
                     {
                         "id": f"{p.model_prefix}/{m.id}",
