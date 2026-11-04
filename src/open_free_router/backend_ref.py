@@ -25,6 +25,9 @@ import re
 from typing import Any, Callable
 
 REF_SCHEMA = "ref-resolution/v1"
+#: 错误码封闭词表（T1 §5；UNHEALTHY_REPORTED 是报告语义不是错误码——
+#: 解析成功 + health 显形，故不在本词表）
+ERROR_CODES = ("REF_SYNTAX_ERROR", "REF_NOT_FOUND", "REF_AMBIGUOUS")
 HEALTH_STATES = ("healthy", "degraded", "down", "unknown")
 NAME_RE = re.compile(r"^@(?P<name>[^@\s+#%=:;,，]+)$")
 
