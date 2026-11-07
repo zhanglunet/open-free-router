@@ -9,12 +9,18 @@ before the strict column check.
 """
 import logging
 import sqlite3
+from datetime import datetime, timedelta, timezone
 import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
 from open_free_router.analytics import AnalyticsStore, ExportSecurityError
+
+#: 种子时间相对 now（2 天前）：迁移测试的种子行必须落在 retention_days=30
+#: 保留窗口内——写死 '2026-10-01' 是时间炸弹（10-31 起种子行被保留期清掉，
+#: SELECT 落空、迁移断言红）。修复：种子时间随墙钟，断言只看 id/列状态。
+RECENT_TS = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
 from open_free_router.executor import OpenedRoute, RouteFailure, UpstreamExecutor
 from open_free_router.failover_audit import (
     AnalyticsAuditHook,
@@ -582,7 +588,7 @@ def _legacy_v1_database(path):
         connection.execute(LEGACY_FAILOVER_DDL)
         connection.execute(
             "INSERT INTO failover_decisions VALUES "
-            "('legacy1', '2026-10-01T00:00:00+00:00', 'ofr_legacy', "
+            "('legacy1', '" + RECENT_TS + "', 'ofr_legacy', "
             "'a/model', 'b/model', 'rate_limited', 1, 12.0, 5.0, NULL)"
         )
         connection.execute("PRAGMA user_version=1")
