@@ -115,9 +115,9 @@ def test_decision_records_chosen_why_rules_version(tmp_path):
 
 
 def test_field_discipline_errors_are_closed_vocabulary():
-    good = dict(action="route_decision", inputs={"k": "v"},
-                decision={"chosen": "c", "why": "w", "rules_version": "v1"},
-                output={"result": "r", "key_numbers": {"n": 1}}, replay_command="rerun: x")
+    good = {"action": "route_decision", "inputs": {"k": "v"},
+            "decision": {"chosen": "c", "why": "w", "rules_version": "v1"},
+            "output": {"result": "r", "key_numbers": {"n": 1}}, "replay_command": "rerun: x"}
     with pytest.raises(rp.ReplayPackError) as ei:
         rp.build_replay_pack(**{**good, "inputs": {}})
     assert ei.value.code == "REPLAY_INPUT_REQUIRED"
