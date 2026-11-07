@@ -11,10 +11,16 @@ placeholder candidate IDs only — no hosts, no accounts, no keys.
 import json
 import logging
 import sqlite3
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
 from open_free_router.analytics import AnalyticsStore, ExportSecurityError
+
+#: 种子时间相对 now（2 天前）：迁移测试的种子行必须落在 retention_days=30
+#: 保留窗口内——写死 '2026-10-01' 是时间炸弹（10-31 起种子行被保留期清掉，
+#: SELECT 落空、迁移断言红）。修复：种子时间随墙钟，断言只看 id/列状态。
+RECENT_TS = (datetime.now(timezone.utc) - timedelta(days=2)).isoformat()
 from open_free_router.failover_audit import (
     HONESTY_SUMMARY_MAX_CHARS,
     AnalyticsAuditHook,
@@ -112,13 +118,13 @@ def _legacy_v3_database(path):
         """)
         connection.execute(
             "INSERT INTO failover_decisions VALUES "
-            "('v3row1', '2026-10-01T00:00:00+00:00', 'ofr_v3_legacy', "
+            "('v3row1', '" + RECENT_TS + "', 'ofr_v3_legacy', "
             "'a/model', 'b/model', 'rate_limited', 1, 12.0, 5.0, NULL, "
             "'auto', 'priority', 'unknown', NULL, NULL, 'never_run', NULL, NULL)"
         )
         connection.execute(
             "INSERT INTO doctor_state VALUES "
-            "(1, '2026-10-01T00:00:00+00:00', 'warn', 0)"
+            "(1, '" + RECENT_TS + "', 'warn', 0)"
         )
         connection.execute("PRAGMA user_version=3")
         connection.commit()
