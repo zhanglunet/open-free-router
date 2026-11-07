@@ -26,6 +26,11 @@ from typing import Any, Callable
 
 REF_SCHEMA = "ref-resolution/v1"
 HEALTH_STATES = ("healthy", "degraded", "down", "unknown")
+
+#: 错误码封闭词表（PRD-294/T3，trend #1473）：refused 的 error_code 只能取自本表，
+#: 新增错误必须先改词表（穷举防漂移；测试做封闭性机判）。
+ERROR_CODES = ("REF_NOT_FOUND", "REF_AMBIGUOUS", "REF_SYNTAX_ERROR")
+
 NAME_RE = re.compile(r"^@(?P<name>[^@\s+#%=:;,，]+)$")
 
 
@@ -88,6 +93,8 @@ def resolve(raw: str, backends: list[dict[str, Any]], *,
 
 
 def _refusal(raw: str, code: str, candidates: list, detail: str) -> dict[str, Any]:
+    if code not in ERROR_CODES:  # 词表外错误码不许溜进产物（封闭性）
+        raise ValueError(f"未登记错误码：{code}（词表={ERROR_CODES}）")
     return {
         "schema": REF_SCHEMA, "raw": raw, "kind": "backend",
         "backend_id": None,
