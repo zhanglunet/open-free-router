@@ -2,11 +2,26 @@ deepseek:
   upstream_url: https://api.deepseek.com/v1
   auto_refresh: false
   refresh_method: manual
+  api_key_env: DEEPSEEK_API_KEY
   api_key: ''
   models:
   - id: deepseek-chat
   - id: deepseek-reasoner
   prefix: ds
+bigmodel-glm-coding:
+  upstream_url: https://open.bigmodel.cn/api/coding/paas/v4
+  auto_refresh: false
+  refresh_method: bigmodel_glm_coding_api
+  api_key_env: GLM_API_KEY
+  api_key: ''
+  models:
+  - id: glm-5.2
+    reasoning: true
+    tool_calling: true
+  - id: glm-5
+    reasoning: true
+    tool_calling: true
+  prefix: glm
 google-ai-studio:
   upstream_url: https://generativelanguage.googleapis.com/v1beta/openai
   auto_refresh: false
