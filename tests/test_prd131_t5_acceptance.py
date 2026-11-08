@@ -10,11 +10,9 @@
 每轮用户请求经 doctor → auto_fallback（有序换路）+ ResilienceManager
 （额度/故障状态感知，PRD-096 叠加）路由，断言每次请求都落到可用后端（零失败）。
 """
-import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 from open_free_router.doctor_ordered import auto_fallback, build_ordered_list, doctor_check
 from open_free_router.resilience import ResilienceManager, classify_failure

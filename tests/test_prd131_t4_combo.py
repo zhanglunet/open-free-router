@@ -9,13 +9,11 @@
   C3 额度与故障叠加在同一后端 → 冷却取更长者（quota_cooldown_scale）；
   C4 冷却期满恢复 → 回切 preferred（auto_fallback 首选健康即首选）。
 """
-import sys
 from pathlib import Path
 
 from open_free_router.doctor_ordered import auto_fallback, build_ordered_list, doctor_check
 from open_free_router.resilience import ResilienceManager, classify_failure
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
 
 def _probe(states):

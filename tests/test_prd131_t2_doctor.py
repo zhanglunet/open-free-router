@@ -2,8 +2,7 @@
 """PRD-131/T2 有序后端+doctor 测试（trend #655）。"""
 import sys, unittest
 from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
-from doctor_ordered import build_ordered_list, doctor_check, auto_fallback
+from open_free_router.doctor_ordered import build_ordered_list, doctor_check, auto_fallback
 
 class DoctorTests(unittest.TestCase):
     def test_build_and_check(self):
