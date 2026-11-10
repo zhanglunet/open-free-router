@@ -1,7 +1,7 @@
 import ast, unittest
 from pathlib import Path
 MODULE = Path(__file__).resolve().parents[1] / "src/open_free_router/replay_gate.py"
-ALLOWED = {"__future__", "hashlib", "json", "pathlib", "typing"}
+ALLOWED = {"__future__", "json", "pathlib", "typing"}
 
 class BoundaryTests(unittest.TestCase):
     def test_ast_whitelist(self):
