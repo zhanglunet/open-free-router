@@ -21,7 +21,7 @@ from typing import Any
 
 GATE_SCHEMA = "reroute-inbox-gate/v1"
 GATE_CODES = ("LEDGER_DRIFT", "STATE_INCONSISTENT", "DECISION_MISSING")
-ERROR_CODES = GATE_CODES   # 错误码词表（与闸门三码同源，随模块导出——348 教训）
+ERROR_CODES = GATE_CODES   # 错误码词表（与闸门三码同源）
 
 
 def _fail(gate: str, reasons: list[str]) -> dict[str, Any]:
