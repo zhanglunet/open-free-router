@@ -41,7 +41,7 @@ this repo has arrived at through actual defects — see [`CLAUDE.md`](CLAUDE.md)
 
 ## Bootstrap
 
-- `src/open_free_router/registry.default.yaml` — template with 10 upstream sources and model lists, no API keys
+- `src/open_free_router/registry.default.yaml` — template with 11 upstream sources and model lists, no API keys
 - `scripts/install.sh` — one-liner installer (git clone + venv + setup). `--with-systemd` for systemd auto-start
 - `contrib/systemd/open-free-router.service` — systemd service unit
 - First `serve` auto-bootstraps config + registry; `open-free-router setup` walks through key entry interactively
@@ -131,9 +131,9 @@ src/open_free_router/
 - Run: `pip install -e ".[dev]" && python3 -m pytest tests/ -v`
 - No CI/CD configured yet
 
-## Supported providers (10)
+## Supported providers (11)
 
-openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside
+openrouter, nvidia-nim, opencode-zen-free, sensenova, stepfun, google-ai-studio, groq, deepseek, nous, poolside, bigmodel-glm-coding
 
 ## Related
 

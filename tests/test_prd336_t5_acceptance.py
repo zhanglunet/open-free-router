@@ -12,12 +12,15 @@ victim 卸后满足）③ INFEASIBLE 演练（需求超单卡容量显形不硬�
 """
 import copy
 import re
-import subprocess
 import sys
 import unittest
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+
+# T1 设计文档已随 PR #154 合并到 main，直接读仓内文件。
+# 此前用 git show origin/trend/prd-336-t1-design:... 跨分支取文档，
+# CI checkout 里没有该远端分支引用，exit 128，main 常年红在这一例。
 sys.path.insert(0, str(REPO / "src" / "open_free_router"))
 
 from gpu_fallback_gate import settle  # noqa: E402
@@ -100,12 +103,10 @@ class TestFourPaths(unittest.TestCase):
 
 class TestDocNoSecrets(unittest.TestCase):
     def test_design_doc_no_secrets(self):
-        """⑤ 文档无密钥：T1 设计文档（T1 分支）零密钥/零 IP/外链仅
+        """⑤ 文档无密钥：T1 设计文档（仓内已合并版）零密钥/零 IP/外链仅
         github 与 example 域。"""
-        doc = subprocess.run(
-            ["git", "show", "origin/trend/prd-336-t1-design:docs/plans/"
-             "2026-11-09-prd-336-t1-design.md"],
-            capture_output=True, text=True, check=True).stdout
+        doc = (REPO / "docs" / "plans" / "2026-11-09-prd-336-t1-design.md"
+               ).read_text(encoding="utf-8")
         for token in ("password", "secret", "api_key", "AKIA", "Bearer ",
                       "BEGIN RSA"):
             self.assertNotIn(token.lower(), doc.lower(), token)

@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-31T10:29:01+00:00",
+  "generated_at": "2026-11-11T12:42:23+00:00",
   "status_as_of": "2026-10-31T10:15:02.720Z",
   "status_note": "Availability is the latest safe smoke-test snapshot, not an SLA. Capability score compares declared features only, not model intelligence. Free-tier claims require unexpired evidence; expired evidence is review_required.",
-  "provider_count": 10,
-  "model_count": 38,
+  "provider_count": 11,
+  "model_count": 40,
   "providers": [
     {
       "id": "google-ai-studio",
@@ -941,6 +941,74 @@
           "confidence": "estimated"
         }
       },
+      "free_tier": {
+        "type": "unknown",
+        "status": "unknown"
+      }
+    },
+    {
+      "id": "bigmodel-glm-coding",
+      "name": "Bigmodel Glm Coding",
+      "prefix": "glm",
+      "api": "https://open.bigmodel.cn/api/coding/paas/v4",
+      "availability": "unverified",
+      "reason": "No recent smoke-test evidence",
+      "latency_ms": null,
+      "checked_at": "2026-10-31T10:15:02.720Z",
+      "model_count": 2,
+      "models": [
+        {
+          "id": "glm-5.2",
+          "upstream_id": "glm-5.2",
+          "codex_alias": "ofr-glm-glm-5-2",
+          "name": "glm-5.2",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": true,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 100,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "复杂编码、Agent 工具链和多步分析",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        },
+        {
+          "id": "glm-5",
+          "upstream_id": "glm-5",
+          "codex_alias": "ofr-glm-glm-5",
+          "name": "glm-5",
+          "context_window": 131072,
+          "max_tokens": 8192,
+          "reasoning": true,
+          "tool_calling": true,
+          "input_modalities": [
+            "text"
+          ],
+          "availability": "unverified",
+          "capability_score": 100,
+          "family_zh": "智谱 GLM",
+          "description_zh": "智谱 GLM 系列文本模型；声明上下文 131,072 tokens，最大输出 8,192 tokens。",
+          "recommended_for_zh": "复杂编码、Agent 工具链和多步分析",
+          "speed_tier_zh": "未测",
+          "benchmark_note_zh": "暂无统一独立质量基准；功能指数不代表智力排名。",
+          "free_tier": {
+            "type": "unknown",
+            "status": "unknown"
+          },
+          "free_availability": "unknown"
+        }
+      ],
+      "profile": {},
       "free_tier": {
         "type": "unknown",
         "status": "unknown"
