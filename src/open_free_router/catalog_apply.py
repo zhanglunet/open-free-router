@@ -112,9 +112,7 @@ def apply_catalog(registry: dict[str, Any], catalog: dict[str, Any],
                 continue                            # 用户行赢，永不收编
             if not m.get("enabled", True) or not row.get("enabled", True):
                 continue                            # 用户关的不擅自打开
-            # 元数据跟目录走（source=catalog 的行）
-            if src != "catalog":
-                continue
+            # 元数据跟目录走（§5：catalog 与 baseline 行都跟；user 行已在上方跳过）
             for field in ("context_window", "reasoning", "tool_calling",
                           "supports_vision", "supports_tools", "limits"):
                 if field in m and row.get(field) != m[field]:

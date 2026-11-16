@@ -118,7 +118,15 @@ def compare_versions(a: str, b: str) -> int:
 
 def version_decision(version: str, min_version: str = MIN_CATALOG_VERSION,
                      applied_version: str | None = None) -> str:
-    """§4 版本底线三态：skipped_older / up_to_date / apply。"""
+    """§4 版本底线三态：skipped_older / up_to_date / apply。
+
+    回滚守卫（PRD 验收点②「旧版本不回滚」）：version < applied_version
+    （即使 ≥ MIN_CATALOG_VERSION）也是 skipped_older——旧快照永远不能
+    把已上线的新版本目录滚回去。
+    """
+    if applied_version is not None and compare_versions(version,
+                                                        applied_version) < 0:
+        return "skipped_older"
     if compare_versions(version, min_version) < 0:
         return "skipped_older"
     if applied_version is not None and version == applied_version:
