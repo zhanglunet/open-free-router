@@ -1,0 +1,36 @@
+{
+  "prd": 483,
+  "repo": "open-free-router",
+  "version": 1,
+  "generated_at": "2026-11-17",
+  "design_ref": "docs/plans/2026-11-17-prd-483-ofr-skill-evaluation-design.md",
+  "gate": "rate-trio",
+  "thresholds": {
+    "min_sample_tasks": 30,
+    "max_error_rate": 0.05,
+    "max_error_vs_control_ratio": 0.5,
+    "min_behavior_change_rate": 0.1,
+    "min_adoption_rate": 0.8,
+    "fail_adoption_rate": 0.5,
+    "overlap_similarity": 0.8,
+    "error_label": "错误路由率"
+  },
+  "scope_note": "技能包现仅 1 个技能（openfree-skill）；其 SKILL.md 定稿尚在设计文档（docs/plans/2026-10-17-skill-md.md）里，plugins/openfree-skill/ 下只有占位 README + plugin.json，尚无 SKILL.md 文件。设计稿重点对的“路由 skill 与配额 skill”中配额 skill 尚不存在，本次 0 对比对；待配额 skill 落地后复跑。",
+  "skills": [
+    {
+      "id": "openfree-skill",
+      "kind": "skill",
+      "source_path": "docs/plans/2026-10-17-skill-md.md",
+      "description": "找个免费可用的大模型。当用户说\"免费模型\"、\"哪个模型能用\"、\"API 配额用完了\"、\"找个能用的模型\"、\"模型挂了换一个\"时用这个 skill。它会自动查可用模型、智能路由到可用上游，主上游失败时安全降级并告诉你切换原因。",
+      "text": "找个免费可用的大模型。当用户说\"免费模型\"、\"哪个模型能用\"、\"API 配额用完了\"、\"找个能用的模型\"、\"模型挂了换一个\"时用这个 skill。它会自动查可用模型、智能路由到可用上游，主上游失败时安全降级并告诉你切换原因。\n\n\n# 找个免费可用的模型\n\n## 30 秒速览\n\n```bash\n# 1. 确认代理在跑（没跑先起：bash scripts/install.sh --auto-discovery）\ncurl -s http://127.0.0.1:8337/health\n\n# 2. 查现在可用的免费模型\ncurl -s http://127.0.0.1:8337/v1/models | python3 -c \"import json,sys; [print(m['id']) for m in json.load(sys.stdin)['data']]\"\n```\n\n看到模型列表 = skill 就绪。\n\n## 怎么做\n\n### 第 1 步：查可用模型\n\n问代理要当前可用列表（只看 `available: true` 的）。如果用户点了名要某个模型\n（如 deepseek），先查它在不在可用列表里。\n\n### 第 2 步：智能路由\n\n- 用户给了模型 ID → 按模型 ID 路由到对应上游。\n- 用户给了虚拟模型（如 free-smart）→ 按虚拟模型路由。\n- 用户只说\"找个能用的\"→ 选可解释评分最高的可用模型（调评分接口或看模型雷达）。\n\n### 第 3 步：首字节前安全 fallback\n\n主上游在首字节前失败 → 自动降级到备选上游（三层故障隔离）。\n**必须**输出结构化切换原因，不要静默切换：\n\n```json\n{\"from\": \"openrouter/deepseek-chat\", \"to\": \"groq/llama-3.3-70b\", \"reason\": \"首字节超时 8000ms\", \"at\": \"2026-10-17T10:00:00+08:00\"}\n```\n\n## 什么时候不要用这个 skill\n\n- 用户在讨论\"模型\"概念（如\"大模型原理\"）而不是要用模型干活时，不要触发。\n- 用户明确指定了付费模型/API key 时，不要抢路由。\n\n## 故障排查\n\n| 现象 | 查什么 |\n|---|---|\n| 代理没在跑 | `curl 127.0.0.1:8337/health`，没通就起服务 |\n| 所有模型都不可用 | 查实时探测状态（是否整批探测失败）；看最近 `probed_at` |\n| 路由到了但很慢 | 查该模型的 `latency_ms`，换评分更高的 |",
+      "metrics": {
+        "sample_tasks": 0,
+        "error_rate": null,
+        "control_error_rate": null,
+        "behavior_change_rate": null,
+        "adoption_rate": null,
+        "source": "尚无对照跑分：T2 只跑门逻辑与重叠检测，真实对照跑分（A/B）在后续实测（T5）补；不编造跑分数据。"
+      }
+    }
+  ]
+}
