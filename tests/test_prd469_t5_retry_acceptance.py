@@ -78,7 +78,8 @@ class TestFailureDrills(unittest.TestCase):
         for name in ("test_prd469_t2_retry_parse.py",
                      "test_prd469_t4_retry_boundary.py"):
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", str(TESTS / name)],
+                [sys.executable, "-m", "unittest", "discover",
+                 "-s", str(TESTS), "-p", name],
                 capture_output=True, timeout=600)
             self.assertEqual(proc.returncode, 0,
                              f"{name} 复跑失败：{proc.stdout[-400:]}{proc.stderr[-400:]}")
