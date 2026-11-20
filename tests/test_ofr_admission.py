@@ -13,7 +13,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-SRC = Path(__file__).resolve().parent
+SRC = Path(__file__).resolve().parents[1] / "src/open_free_router"
 sys.path.insert(0, str(SRC))
 MODULE_DIR = SRC
 
