@@ -176,8 +176,9 @@ class TestFailureDrills(unittest.TestCase):
                      "test_prd466_t3_catalog_apply.py",
                      "test_prd466_t4_catalog_drift.py"):
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q",
-                 str(Path(__file__).resolve().parent / name)],
+                [sys.executable, "-m", "unittest", "discover",
+                 "-s", str(Path(__file__).resolve().parent),
+                 "-p", name],
                 capture_output=True, timeout=600)
             self.assertEqual(proc.returncode, 0,
                              f"{name} 复跑失败：{proc.stdout[-400:]}{proc.stderr[-400:]}")
