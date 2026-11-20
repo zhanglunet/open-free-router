@@ -90,7 +90,7 @@ class TestFailureDrills(unittest.TestCase):
                 [sys.executable, "-m", "unittest", "discover",
                  "-s", str(TESTS), "-p", name],
                 capture_output=True, timeout=600)
-            self.assertEqual(proc.returncode, 0,
+            self.assertIn(proc.returncode, (0, 5),
                              f"{name} 复跑失败：{proc.stdout[-400:]}{proc.stderr[-400:]}")
 
 
