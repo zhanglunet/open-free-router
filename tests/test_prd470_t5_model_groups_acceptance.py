@@ -94,7 +94,8 @@ class TestFailureDrills(unittest.TestCase):
         for name in ("test_prd470_t2_model_groups.py",
                      "test_prd470_t4_model_groups_boundary.py"):
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", str(TESTS / name)],
+                [sys.executable, "-m", "unittest", "discover",
+                 "-s", str(TESTS), "-p", name],
                 capture_output=True, timeout=600)
             self.assertEqual(proc.returncode, 0,
                              f"{name} 复跑失败：{proc.stdout[-400:]}{proc.stderr[-400:]}")

@@ -89,7 +89,8 @@ class TestFailureDrills(unittest.TestCase):
         """链复跑：T2~T4 测试子进程复跑 exit 0。"""
         for name in ("test_prd475_t2_fusion.py",):
             proc = subprocess.run(
-                [sys.executable, "-m", "pytest", "-q", str(TESTS / name)],
+                [sys.executable, "-m", "unittest", "discover",
+                 "-s", str(TESTS), "-p", name],
                 capture_output=True, timeout=600)
             self.assertEqual(proc.returncode, 0,
                              f"{name} 复跑失败：{proc.stdout[-400:]}{proc.stderr[-400:]}")
