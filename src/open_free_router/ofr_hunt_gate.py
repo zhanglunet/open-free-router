@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """PRD-576/T3（trend issue #2892 的 T3 环节）：巡检校验闸门。
 
 按 T1 设计（docs/plans/2026-11-20-prd-576-ofr-hunting-design.md）§5 落地：
