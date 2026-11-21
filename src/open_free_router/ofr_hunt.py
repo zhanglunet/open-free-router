@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """PRD-576/T2（trend issue #2891 的 T2 环节）：open-free-router 路由产物红队巡检巡检最小实现。
 
 按 T1 设计（docs/plans/2026-11-20-prd-576-ofr-hunting-design.md）落地红队巡检：
